@@ -22,10 +22,9 @@ import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { createPicks, parseAnnotation, pendingRatings, ratingLine } from './presence.js'
 import { snapshotOf } from './work.js'
+import { createLiveWork } from './live-work.js'
 
 const HOUR_MS = 3_600_000
-/** Between two backfill requests to a source (one work at a time). */
-const BACKFILL_PAUSE_MS = 30_000
 /** Downloads stop being started when the disk has less than this left. */
 const MIN_FREE_BYTES = 1e9
 
@@ -40,14 +39,13 @@ const hubError = (code, message) => Object.assign(new Error(message), { code })
  * @param {number} options.autoDeleteDays
  * @param {string[]} [options.notifyCommand] - run with a JSON line on stdin when a followed work gets a new season or episodes
  * @param {{ pauseMs?: number, random?: () => number }} [options.follow] - pacing of the checks of followed works (tests)
- * @param {number} [options.backfillPauseMs] - pause between asking a source for the details of shows saved without them
+ * @param {number} [options.liveWorkWaitMs] - how long a page waits for a source's answer about a work before showing the saved offline copy
  * @param {number} options.coverCacheBytes - the most disk cover pictures may use
  * @param {{ command: string[], env?: object }} [options.recommender] - where picks come from (src/presence.js)
  * @param {{ ahead: number, behind: number, capBytes: number }} options.cache - the rolling cache's window (episodes ahead of and behind where people are) and its cap in bytes (0 for none)
  */
 export function createMediaHub(options) {
   const { stateDir, libraryRoots, logger, now = Date.now } = options
-  const backfillPause = options.backfillPauseMs ?? BACKFILL_PAUSE_MS
   const sources = new Map(options.sources.map(source => [source.id, source]))
   const covers = createCovers({ dir: join(stateDir, 'covers'), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, id => sources.get(id))
   const log = createWatchLog({ file: join(stateDir, LOG_NAME), now, logger })
@@ -68,7 +66,9 @@ export function createMediaHub(options) {
     logger,
     now,
   })
+  const liveWork = createLiveWork({ source: id => sources.get(id), keep: (path, work) => library.keepWork(path, work), waitMs: options.liveWorkWaitMs, logger, now })
   const library = createLibrary({
+    liveWork,
     roots: libraryRoots,
     stateDir,
     autoDeleteDays: options.autoDeleteDays,
@@ -112,29 +112,6 @@ export function createMediaHub(options) {
     if (job.status === 'failed') rooms.failWaiting(job.dir, job.error ?? 'the download failed', job.reason ?? null)
     await cache.enforce()
   }
-
-  /** Shows saved before their work's details were kept get them once, one request at a time with a pause; a failure is not retried until someone refreshes. */
-  let backfilling = false
-  async function backfill() {
-    if (backfilling) return
-    backfilling = true
-    try {
-      for (const path of library.withoutWork()) {
-        const entry = library.workSource(path)
-        if (!sources.has(entry?.source)) continue
-        try {
-          library.setWork(path, snapshotOf(await source(entry.source).info(entry.id), now()))
-        } catch (error) {
-          library.noteWorkFailed(path)
-          logger.warn('no details for %s from %s: %s', path, entry.source, error.message)
-        }
-        await new Promise(done => backfillTimer = setTimeout(done, backfillPause))
-      }
-    } finally {
-      backfilling = false
-    }
-  }
-  let backfillTimer
 
   /** Tell whoever is listening (the configured command) about news of a followed work; failures are only logged. */
   function notify(event) {
@@ -180,6 +157,12 @@ export function createMediaHub(options) {
     ...options.follow,
   })
 
+  /** A show's source and its work as the source says it now (see src/live-work.js). */
+  const liveEntry = async show => {
+    const entry = { source: library.workSource(show), work: library.workOf(show) }
+    return { ...entry, work: await liveWork(show, entry) }
+  }
+
   /** A show's work with its pictures as routes of this plugin. */
   const withCovers = show => (show.work && show.source?.source ? { ...show, work: covers.decorate(show.source.source, show.work) } : show)
 
@@ -211,7 +194,6 @@ export function createMediaHub(options) {
       await downloads.load()
       await library.sweep()
       await cache.refreshActive()
-      backfillTimer = setTimeout(() => backfill().catch(() => {}), backfillPause)
       follows.start()
     },
 
@@ -241,7 +223,7 @@ export function createMediaHub(options) {
     /** Open rooms with a preview of what plays: the show's cover and a frame of the episode now on. */
     async listRooms() {
       return Promise.all(rooms.listRooms().map(async ({ file, ...room }) => {
-        const show = room.show === null ? null : withCovers({ source: library.workSource(room.show), work: library.workOf(room.show) })
+        const show = room.show === null ? null : withCovers(await liveEntry(room.show))
         return { ...room, cover: show?.work?.cover ?? null, frame: file === null ? null : await covers.ofFrame(file, room.duration > 30 ? Math.round(room.duration / 10) : 3) }
       }))
     },
@@ -280,22 +262,14 @@ export function createMediaHub(options) {
     // ---------------------------------------------------------- library
 
     async library() {
-      const list = await library.list()
+      const list = await library.list({ live: true })
       return { ...list, shows: list.shows.map(withCovers) }
     },
     /** The details of the work a room's show came from, or null. */
-    roomWork(id) {
+    async roomWork(id) {
       const room = rooms.listRooms().find(entry => entry.id === id)
       if (room === undefined) throw hubError('not_found', 'no such room')
-      return { work: room.show === null ? null : withCovers({ source: library.workSource(room.show), work: library.workOf(room.show) }).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null }
-    },
-    /** Ask the show's source for its work's details again (by hand: the library never repeats it by itself). */
-    async refreshWork(path) {
-      const show = library.showPath(path)
-      const entry = show === null ? null : library.workSource(show)
-      if (entry === null || !sources.has(entry.source)) throw hubError('not_found', 'this show did not come from a source')
-      library.setWork(show, snapshotOf(await source(entry.source).info(entry.id), now()))
-      return withCovers({ source: entry, work: library.workOf(show) }).work
+      return { work: room.show === null ? null : withCovers(await liveEntry(room.show)).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null }
     },
     episodes: path => library.episodes(path),
     removeShow: (path, by) => library.remove(path, { by }),
@@ -421,7 +395,6 @@ export function createMediaHub(options) {
 
     async dispose() {
       clearInterval(sweepTimer)
-      clearTimeout(backfillTimer)
       follows.stop()
       await books.dispose()
       await downloads.dispose()

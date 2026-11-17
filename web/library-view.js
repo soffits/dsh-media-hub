@@ -184,7 +184,6 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
           show.pinned && { label: t('library.stopOffline'), onSelect: () => act(async () => post('library/pin', await asViewer(t, { path: show.path, pinned: false }))) },
           days > 0 && show.deletesAt === null && { label: fill(t('library.startCountdown'), { n: days }), onSelect: () => act(async () => post('library/countdown', await asViewer(t, { path: show.path }))) },
           show.source?.source && show.sourced && { label: t(show.follow ? 'follow.stop' : 'follow.follow'), onSelect: () => act(() => post('follow', { source: show.source.source, id: show.source.id, follow: !show.follow })) },
-          show.source?.source && { label: t('library.refreshInfo'), onSelect: () => act(() => post('library/refresh', { path: show.path })) },
           show.download?.status === 'failed' && { label: t('library.retry'), onSelect: () => act(() => post('library/retry', { path: show.path })) },
           show.download?.active && { label: t('library.stopDownload'), onSelect: () => act(() => post('library/cancel', { path: show.path })) },
           { label: t('action.delete'), danger: true, onSelect: () => (show.inUse ? setError(t('library.inUseError')) : setMode('delete')) },

@@ -94,11 +94,11 @@ test('following a new work adds an empty show; a season that appears later is ad
   let shows = (await hub.library()).shows
   assert.equal(shows.length, 1)
   assert.deepEqual([shows[0].path, shows[0].episodes, shows[0].total, !!shows[0].follow], [followed.path, 0, 3, true], 'an empty show with its episode list')
-  assert.equal(calls.length, 1)
+  assert.equal(calls.length, 2, 'following asked the source once, reading the library once more')
 
   // Nothing is asked again before it is due.
   await hub.sweepFollows()
-  assert.equal(calls.length, 1)
+  assert.equal(calls.length, 2)
 
   // A season appears; the next daily check finds it (the check is brought forward here by hand).
   state.related = [{ id: '2', title: 'Show season 2', kind: 'drama', relation: 'season' }]
