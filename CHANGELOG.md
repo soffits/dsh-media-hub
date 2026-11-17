@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- The page's tabs line up again: the selected tab no longer runs into the next one, and Discover's sort buttons keep their own width.
+
 ## 0.6.1
 
 - A film, one video or a single link no longer talks about episodes. It gets no episode list, strip or "Episode 1 of 1", and its buttons say *Play*, *Continue at 12:34* or *Join Ana*, in the Continue card, Discover, the library, the room's side panel and the watch log the tool reads. Episode words show from two episodes on.

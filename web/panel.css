@@ -237,7 +237,7 @@
   .vsync-note{display:none}
   .vsync-heading{padding-top:14px;margin-bottom:6px}
   .vsync-heading h1{font-size:17px;line-height:24px}
-  .vsync-tabs{max-width:none;margin-bottom:14px}
+  .vsync-pageTabs{max-width:none;margin-bottom:14px}
   .vsync-searchField{flex:1 1 auto;min-width:0}
   .vsync-search .vsync-btnLarge{flex:none;height:40px;padding-inline:14px}
   .vsync-segment{width:100%}
@@ -321,7 +321,7 @@
   .vsync-metaButton{min-height:40px}
 }
 /* The Watching tab: the Continue card, ratings, picks and room cards over the kit's Surface; colours come from DSH and the kit. */
-.vsync-tabs{max-width:400px;margin:0 0 20px}
+.vsync-pageTabs{max-width:400px;margin:0 0 20px}
 .vsync-tabCount{margin-left:6px}
 .vsync-watching .vsync-section h2{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:22px}
 .vsync-sectionHeadInline{justify-content:flex-start;flex-wrap:wrap;gap:4px 10px}
@@ -358,6 +358,6 @@
 .vsync-pickActions{margin-top:auto;padding-top:6px}
 @media (width<=640px){.vsync-cc{flex-direction:column;gap:14px}.vsync-ccPoster{width:112px;height:150px}.vsync-ccStrip .uk-segmentsLabelled{flex-wrap:wrap;row-gap:4px}.vsync-ccStrip .uk-segments{flex-basis:100%}}
 /* Interface chrome is not selectable and pictures don't drag; titles, recaps and reasons stay selectable. */
-.vsync-tabs,.vsync-ccActions,.vsync-rateAnswers,.vsync-pickActions,.vsync-ccLive,.vsync-sectionMeta,.vsync-sectionHead h2,.vsync-actions,.vsync-tabCount,.vsync-ccStrip,.vsync-rateHead .uk-tile{user-select:none;-webkit-user-select:none}
+.vsync-pageTabs,.vsync-ccActions,.vsync-rateAnswers,.vsync-pickActions,.vsync-ccLive,.vsync-sectionMeta,.vsync-sectionHead h2,.vsync-actions,.vsync-tabCount,.vsync-ccStrip,.vsync-rateHead .uk-tile{user-select:none;-webkit-user-select:none}
 .vsync-page img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
 .vsync-ccActions .uk-touch,.vsync-pickActions .uk-touch,.vsync-rateAnswers .uk-touch{font-size:13px}
