@@ -6108,6 +6108,13 @@ defineMethod("transform", [
   "preserve"
 ], ({ inner }, isInner) => inner.toString(isInner));
 
+// src/i18n.js
+var BASE = "en";
+
+// src/captions.js
+var MARKS = Object.freeze(["auto", "original"]);
+var known = new Intl.DisplayNames([BASE], { type: "language", fallback: "none" });
+
 // src/library.js
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -6692,6 +6699,13 @@ function omit2(obj, ...keys) {
   return ret;
 }
 
+// src/stream.js
+var PROBE_STEP = 64 << 10;
+var CHUNK = 1 << 20;
+
+// src/subtitles.js
+var LEGACY_ENCODINGS = Object.freeze(["gb18030", "big5", "shift_jis", "euc-kr"]);
+
 // src/sources/ytdlp.js
 var PROGRESS_ARGS = Object.freeze([
   "--progress",
@@ -6713,6 +6727,8 @@ var REASON_TEXT = Object.freeze({
   proxy_down: "the proxy for this site is not answering",
   failed: "the site did not give the video"
 });
+var AUDIO_FILE = Object.freeze(["-x", "--audio-format", "m4a"]);
+var MERGED = Object.freeze(["mp4", "mkv"]);
 
 // tools.js
 var name = "dsh-media-hub-tools";
@@ -6798,11 +6814,11 @@ function createTool({ getService, agentName = "", waitSeconds = 120 }) {
         if (args.action !== "start") return failure("invalid_arguments", "action must be start, list, close, library or history");
         let room;
         if (args.source === void 0 || args.source === "local") {
-          ({ room } = await service.createRoom({ path: args.path, title: args.title, by: agentName }));
+          ({ room } = await service.createRoom({ path: args.path, title: args.title, by: agentName, together: true }));
         } else {
           const id = args.source === LINK_SOURCE ? args.url : args.id;
           if (typeof id !== "string") return failure("invalid_arguments", `start with source ${args.source} needs ${args.source === LINK_SOURCE ? "url" : "id"}`);
-          room = (await service.fetch({ source: args.source, id, watch: true, all: args.offline === true, quality: args.quality ?? "", by: agentName })).room;
+          room = (await service.fetch({ source: args.source, id, watch: true, together: true, all: args.offline === true, quality: args.quality ?? "", by: agentName })).room;
         }
         await service.waitReady(room.id, service.room(room.id).index, waitSeconds * 1e3);
         const detail = service.room(room.id);

@@ -6,7 +6,7 @@ import { About, nextSeason } from './about-view.js'
 import { AvatarStack } from './avatars.js'
 import { Cover } from './details.js'
 import { useKnownWork } from './known.js'
-import { Confirm, Icon, ProgressBar, React, api, asPerson, base, clock, copyText, displayName, fill, h, languageName, progressFraction, progressText, roomLink, watchMark } from './ui.js'
+import { Confirm, Icon, ProgressBar, React, api, asPerson, base, captionText, clock, copyText, displayName, fill, h, post, progressFraction, progressText, roomLink, watchMark } from './ui.js'
 
 const TOAST_MS = 4000
 /** A wait shorter than this (a seek into what is already loaded) shows nothing. */
@@ -70,7 +70,7 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
         roomId,
         name,
         language: t.language,
-        trackLabel: label => languageName(t, label),
+        trackLabel: label => captionText(t, label),
         stage: stage.current,
         onUpdate: setView,
         onEvent: event => toast(toastText(t, event)),
@@ -97,6 +97,13 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
+  }
+  /** Someone watching alone opens the room to others where it stands, and gets its link to send. */
+  const together = async () => {
+    const answer = await post(`rooms/${encodeURIComponent(roomId)}/together`, {})
+    if (answer.error) return toast(answer.error)
+    if (await copyText(roomLink(roomId), t('room.copy'))) toast(t('room.togetherCopied'))
+    return undefined
   }
   const [closing, setClosing] = React.useState(false)
   const close = async () => {
@@ -131,14 +138,15 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
         h('strong', null, room?.title ?? ''),
         room && room.items.length > 1 && item && h('span', null, item.title ?? fill(t('room.episodeN'), { n: room.index + 1 }))),
       view.connection === 'reconnecting' && h('span', { className: 'vsync-status', role: 'status' }, t('room.reconnecting')),
-      h('div', { className: 'vsync-members', 'aria-label': t('room.viewers') }, h(AvatarStack, {
+      room && !room.together && h('button', { type: 'button', className: 'vsync-btn', onClick: together }, h(Icon.Link), t('room.watchTogether')),
+      room?.together && h('div', { className: 'vsync-members', 'aria-label': t('room.viewers') }, h(AvatarStack, {
         t,
         members: view.members.map(member => ({ key: member.clientId, name: member.name, self: member.clientId === view.clientId, state: member.wait ? t(`room.wait.${member.wait}`) : t(room?.playing ? 'room.state.playing' : 'room.state.paused') })),
       })),
       closing
         ? h(Confirm, { t, question: t('room.closeConfirm'), confirmLabel: t('room.close'), onCancel: () => setClosing(false), onConfirm: close })
         : h(React.Fragment, null,
-          h('button', { type: 'button', className: 'vsync-icon', 'aria-label': copied ? t('room.copied') : t('room.copy'), title: copied ? t('room.copied') : t('room.copy'), onClick: copy }, h(Icon.Link)),
+          room?.together && h('button', { type: 'button', className: 'vsync-icon', 'aria-label': copied ? t('room.copied') : t('room.copy'), title: copied ? t('room.copied') : t('room.copy'), onClick: copy }, h(Icon.Link)),
           h('button', { type: 'button', className: 'vsync-icon', 'aria-label': t('room.close'), title: t('room.close'), onClick: () => setClosing(true) }, h(Icon.Close)))),
     h('div', { className: 'vsync-body' },
       h('div', { className: 'vsync-stageWrap' },

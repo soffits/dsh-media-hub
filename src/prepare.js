@@ -1,7 +1,7 @@
 /**
- * Getting one episode ready for browsers: a fast-start MP4 (remuxed or
- * transcoded when needed) and WebVTT subtitles, cached by the source file's
- * path, size and modification time so a second room reuses the work.
+ * Getting one episode ready for browsers: a fast-start MP4 (remuxed when
+ * needed), or HLS when it has to be transcoded, and WebVTT subtitles, cached
+ * by the source file's path, size and modification time so a second room reuses the work.
  *
  * ffmpeg runs one job at a time, at low CPU priority with few threads, so
  * preparing a series never starves the machine DSH runs on.
@@ -11,6 +11,8 @@ import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { isFastStart, isTextSubtitle, planVideo, probe } from './library.js'
+import { captionLanguage } from './captions.js'
+import { finishedPlaylist, streamEpisode } from './stream.js'
 import { decodeText, isVtt, srtToVtt } from './subtitles.js'
 
 /**
@@ -72,20 +74,8 @@ export function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
   })
 }
 
-/** ffmpeg arguments that turn `input` into a browser-ready MP4 at `output`. */
-export function videoArgs(plan, input, output, { maxHeight = 1080, threads = 2 } = {}) {
-  const common = ['-y', '-i', input, '-map', '0:V:0?', '-map', '0:a:0?', '-sn', '-dn']
-  const tail = ['-movflags', '+faststart', '-f', 'mp4', output]
-  if (plan === 'remux') return [...common, '-c', 'copy', ...tail]
-  return [
-    ...common,
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p',
-    '-vf', `scale=-2:'min(ih,${maxHeight})'`,
-    '-c:a', 'aac', '-b:a', '160k', '-ac', '2',
-    '-threads', String(threads),
-    ...tail,
-  ]
-}
+/** ffmpeg arguments that put the streams of `input` into a fast-start MP4 at `output`, as they are. */
+export const remuxArgs = (input, output) => ['-y', '-i', input, '-map', '0:V:0?', '-map', '0:a:0?', '-sn', '-dn', '-c', 'copy', '-movflags', '+faststart', '-f', 'mp4', output]
 
 /** Write a file through a temporary name, so a cut-off run never leaves a half file under the real name. */
 async function writeAtomic(path, data) {
@@ -121,13 +111,14 @@ export async function convertSubtitle(source, dir, name, { ffmpeg = 'ffmpeg' } =
 }
 
 /**
- * Prepare one episode.
+ * Prepare one episode. A video that needs transcoding becomes HLS, playable (`onReady`) after its first segments
+ * while the rest is still being made; the promise settles when it is complete.
  * @param {{ title: string, path: string, subtitles: { path: string, label: string }[] }} episode
- * @param {PrepareOptions & { onProgress?: (fraction: number) => void }} options
+ * @param {PrepareOptions & { onProgress?: (fraction: number) => void, onReady?: (prepared: object) => void }} options
  * @returns {Promise<{ file: string, kind: 'file' | 'hls', duration: number | null, plan: string, subtitles: { file: string, label: string }[] }>}
  */
 export async function prepareEpisode(episode, options) {
-  const { cacheDir, ffmpeg = 'ffmpeg', ffprobe = 'ffprobe', maxHeight = 1080, threads = 2, onProgress } = options
+  const { cacheDir, ffmpeg = 'ffmpeg', ffprobe = 'ffprobe', maxHeight = 1080, threads = 2, onProgress, onReady } = options
   if (extname(episode.path).toLowerCase() === '.m3u8') {
     return { file: episode.path, kind: 'hls', duration: null, plan: 'direct', subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) }
   }
@@ -136,28 +127,41 @@ export async function prepareEpisode(episode, options) {
   const info = await probe(episode.path, { ffprobe })
   const mp4Family = ['.mp4', '.m4v', '.mov', '.m4a'].includes(extname(episode.path).toLowerCase())
   const plan = planVideo(episode.path, info, { fastStart: mp4Family ? await isFastStart(episode.path) : null, maxHeight })
+  const subtitles = await externalSubtitles(episode, dir, ffmpeg, cacheDir)
+  await embeddedSubtitles(episode.path, info, dir, ffmpeg, subtitles)
+  if (plan === 'transcode') {
+    const hls = join(dir, 'hls')
+    const prepared = file => ({ file, kind: 'hls', duration: info.duration, plan, subtitles })
+    const done = await finishedPlaylist(hls)
+    if (done !== null) return prepared(done)
+    const { playlist } = await streamEpisode({ files: [episode.path], dir: hls, ffmpeg, ffprobe, maxHeight, threads, onReady: ready => onReady?.(prepared(ready.playlist)) })
+    return prepared(playlist)
+  }
   let file = episode.path
-  if (plan !== 'direct') {
+  if (plan === 'remux') {
     file = join(dir, 'video.mp4')
     if (!(await exists(file))) {
-      await runFfmpeg(videoArgs(plan, episode.path, `${file}.part`, { maxHeight, threads }), { ffmpeg, duration: info.duration, onProgress })
+      await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress })
       await rename(`${file}.part`, file)
     }
   }
-  const subtitles = await externalSubtitles(episode, dir, ffmpeg, cacheDir)
+  return { file, kind: 'file', duration: info.duration, plan, subtitles }
+}
+
+/** The text subtitle streams inside a file, as WebVTT in `dir`, added to `subtitles` under the language they name. */
+async function embeddedSubtitles(path, info, dir, ffmpeg, subtitles) {
   for (const stream of info.subtitles.filter(s => isTextSubtitle(s.codec))) {
     const out = join(dir, `embedded-${stream.index}.vtt`)
     if (!(await exists(out))) {
       try {
-        await runFfmpeg(['-y', '-i', episode.path, '-map', `0:s:${stream.index}`, '-f', 'webvtt', `${out}.part`], { ffmpeg, duration: null })
+        await runFfmpeg(['-y', '-i', path, '-map', `0:s:${stream.index}`, '-f', 'webvtt', `${out}.part`], { ffmpeg, duration: null })
         await rename(`${out}.part`, out)
       } catch {
         continue
       }
     }
-    subtitles.push({ file: out, label: stream.title || stream.language || `Track ${stream.index + 1}` })
+    subtitles.push({ file: out, label: captionLanguage(stream.language) !== null ? stream.language : stream.title || `Track ${stream.index + 1}` })
   }
-  return { file, kind: 'file', duration: info.duration, plan, subtitles }
 }
 
 async function externalSubtitles(episode, dir, ffmpeg, cacheDir) {

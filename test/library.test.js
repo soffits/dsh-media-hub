@@ -79,13 +79,18 @@ test('episodes are prepared: remuxed when needed, subtitles converted, results c
   assert.equal(again.file, prepared.file)
 })
 
-test('videos in codecs browsers cannot play are transcoded to H.264', { skip: !hasFfmpeg && 'needs ffmpeg' }, async (t) => {
+test('videos in codecs browsers cannot play become H.264 HLS, told as playable once it can be, and reused', { skip: !hasFfmpeg && 'needs ffmpeg' }, async (t) => {
   const dir = tempDir(t)
-  makeVideo(join(dir, 'old.avi'), { codec: 'mpeg4' })
+  makeVideo(join(dir, 'old.avi'), { codec: 'mpeg4', seconds: 20 })
   const [episode] = await scanSource(join(dir, 'old.avi'))
-  const prepared = await prepareEpisode(episode, { cacheDir: join(dir, 'cache') })
+  const told = []
+  const prepared = await prepareEpisode(episode, { cacheDir: join(dir, 'cache'), onReady: ready => told.push(ready.file) })
   assert.equal(prepared.plan, 'transcode')
+  assert.equal(prepared.kind, 'hls')
+  assert.deepEqual(told, [prepared.file], 'the room is told once it can play, before the transcode ends when it is long')
+  assert.match(readFileSync(prepared.file, 'utf8'), /#EXT-X-ENDLIST/)
   const info = await probe(prepared.file)
   assert.equal(info.video, 'h264')
   assert.equal(info.audio, 'aac')
+  assert.equal((await prepareEpisode(episode, { cacheDir: join(dir, 'cache') })).file, prepared.file, 'a second room reuses it')
 })

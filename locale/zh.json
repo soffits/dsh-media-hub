@@ -72,7 +72,7 @@
     "search.score": "★ {score}",
     "search.finished": "已完结",
     "search.ongoing": "连载中",
-    "search.watch": "现在一起看",
+    "search.watch": "观看",
     "search.save": "存进片库",
     "search.saveHint": "先存最前面的几集（{n} 集），看到哪下到哪",
     "search.saveAll": "全部下载（离线）",
@@ -243,6 +243,9 @@
     "progress.speed": "{speed}/秒",
     "progress.left": "还剩 {time}",
     "link.account": "使用 {name} 的账号",
-    "link.accountHint": "读取这个网站时用的账号，能选哪些画质由它决定"
+    "link.accountHint": "读取这个网站时用的账号，能选哪些画质由它决定",
+    "caption.auto": "{name}（自动）",
+    "room.watchTogether": "一起看",
+    "room.togetherCopied": "链接已复制，打开链接的人会从这里和你一起看"
   }
 }

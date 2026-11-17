@@ -72,7 +72,7 @@
     "search.score": "★ {score}",
     "search.finished": "complete",
     "search.ongoing": "ongoing",
-    "search.watch": "Watch together now",
+    "search.watch": "Watch",
     "search.save": "Save to library",
     "search.saveHint": "Keeps the first episodes ({n}) on disk and fetches more as you watch",
     "search.saveAll": "Download all (offline)",
@@ -243,6 +243,9 @@
     "progress.speed": "{speed}/s",
     "progress.left": "{time} left",
     "link.account": "Signed in as {name}",
-    "link.accountHint": "The account this site is read with, which decides the qualities offered"
+    "link.accountHint": "The account this site is read with, which decides the qualities offered",
+    "caption.auto": "{name} (auto)",
+    "room.watchTogether": "Watch together",
+    "room.togetherCopied": "Link copied. Whoever opens it watches with you from here."
   }
 }

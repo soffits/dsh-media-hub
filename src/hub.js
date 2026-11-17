@@ -17,7 +17,8 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { SKIP_AFTER_MS, advance, advanceOf, applyOp, clockOf, createRoom, hold, positionAt, settle, updateItems } from './room.js'
 import { scanSource } from './library.js'
-import { createQueue, prepareEpisode, pruneCache } from './prepare.js'
+import { convertSubtitle, createQueue, prepareEpisode, pruneCache } from './prepare.js'
+import { createStreams } from './stream.js'
 
 /** Keep-alive ping on each socket; a tunnel drops idle sockets after about 100 s. */
 const PING_MS = 20_000
@@ -35,6 +36,8 @@ const slotItem = (entry, status) => ({ title: entry.title, kind: 'file', slot: e
 /** What identifies an item across its states: its episode number, or its file. */
 const itemKey = item => item.slot ?? item.sourcePath
 const serviceError = (code, message) => Object.assign(new Error(message), { code })
+/** Whether a room is open to others (listed, its link shared), or one person watching alone. Rooms from before the choice were all shared. */
+const isTogether = room => room.together !== false
 const cleanText = (value, max) => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '')
 
 /**
@@ -71,6 +74,26 @@ export function createRoomService(options) {
   const queue = createQueue()
   let saveTimer = null
   let disposed = false
+  /** Rooms standing on episode `number` of a show while it is not on disk yet. */
+  const waitingOn = (show, number) => [...rooms.values()].filter(room => room.showPath === show && room.items.some(item => item.slot === number && item.sourcePath === null && item.status === 'preparing'))
+  const streams = createStreams({
+    cacheDir,
+    tools,
+    logger,
+    convert: (source, dir, name) => convertSubtitle(source, dir, name, { ffmpeg: tools.ffmpeg }),
+    wanted: (show, number) => waitingOn(show, number).length > 0,
+    ready: (show, number, prepared) => {
+      for (const room of waitingOn(show, number)) setItem(room.id, number, { status: 'ready', progress: null, error: null, streamed: true, ...prepared })
+    },
+    lost: (show, number) => {
+      for (const room of [...rooms.values()]) {
+        const index = room.showPath === show ? room.items.findIndex(item => item.slot === number && item.streamed) : -1
+        if (index < 0) continue
+        setItem(room.id, number, { status: 'preparing', streamed: false })
+        schedulePrepare(room.id, index)
+      }
+    },
+  })
   const sweepTimer = setInterval(() => sweep(), SWEEP_MS)
   const progressTimer = setInterval(() => progress(), PROGRESS_MS)
 
@@ -143,6 +166,7 @@ export function createRoomService(options) {
       seq: room.seq,
       last: room.last,
       playing: room.playing,
+      together: isTogether(room),
       gate: room.gate === null ? null : { id: room.gate.id, reason: room.gate.reason, since: room.gate.since, skipAt: room.gate.since + SKIP_AFTER_MS, by: room.gate.by },
       items: room.items.map((item, index) => publicItem(room, item, index)),
     }
@@ -175,6 +199,7 @@ export function createRoomService(options) {
       members: viewers(room.id),
       createdBy: room.createdBy,
       createdAt: room.createdAt,
+      together: isTogether(room),
       link: linkFor(room.id),
     }
   }
@@ -375,6 +400,7 @@ export function createRoomService(options) {
           ffprobe: tools.ffprobe,
           maxHeight: tools.maxHeight,
           threads: tools.threads,
+          onReady: prepared => setItem(roomId, key, { status: 'ready', progress: null, ...prepared }),
           onProgress: (fraction) => {
             if (fraction - last < 0.02) return
             last = fraction
@@ -425,6 +451,8 @@ export function createRoomService(options) {
       const fresh = []
       const items = entries.map((entry) => {
         const prev = before.get(legacy ? entry.path : entry.n)
+        // An episode that plays while it downloads keeps playing from its copy when its file lands.
+        if (prev?.streamed) return { ...prev, title: entry.title, sourcePath: entry.path, sourceSubtitles: entry.subtitles ?? [] }
         if (entry.path === null) {
           const waiting = prev !== undefined && prev.sourcePath === null && (prev.status === 'preparing' || prev.status === 'failed')
           return waiting ? { ...prev, title: entry.title } : slotItem(entry, 'remote')
@@ -447,7 +475,7 @@ export function createRoomService(options) {
 
     /**
      * Create a room on a local file or folder of episodes.
-     * @param {{ path: string, title?: string, by?: string, fromPanel?: boolean, start?: { index: number, position: number } | null }} input
+     * @param {{ path: string, title?: string, by?: string, fromPanel?: boolean, together?: boolean, start?: { index: number, position: number } | null }} input - `together`: open to others from the start; else one person watches until they share it
      */
     async createRoom(input) {
       if (!delivery.available) throw serviceError('unsupported', delivery.reason)
@@ -459,6 +487,7 @@ export function createRoomService(options) {
       const room = {
         ...created,
         showPath: resolve(input.path),
+        together: input.together === true,
         ...(Number.isInteger(start?.index) && start.index >= 0 && start.index < items.length ? { index: start.index, position: Math.max(0, Number(start.position) || 0) } : {}),
       }
       commit(wanting(room))
@@ -492,6 +521,14 @@ export function createRoomService(options) {
       return [...rooms.values()]
         .sort((a, b) => Number(occupied(b)) - Number(occupied(a)) || (b.touchedAt ?? b.createdAt) - (a.touchedAt ?? a.createdAt))
         .map(summary)
+    },
+
+    /** Open a room someone watches alone to others, as it is: same episode, same position. */
+    watchTogether(id) {
+      const room = rooms.get(id)
+      if (room === undefined) throw serviceError('not_found', 'no such room')
+      if (!isTogether(room)) commit({ ...room, together: true })
+      return { room: summary(rooms.get(id)) }
     },
 
     closeRoom(id) {
@@ -544,6 +581,12 @@ export function createRoomService(options) {
         setItem(room.id, number, { progress: { step: 'download', ...progress } })
       }
     },
+
+    /**
+     * Episode `number` of a show while a source still fetches it, as files that play while they grow
+     * (`growing` settles when they are complete): rooms waiting on it play it once enough is there.
+     */
+    streamEpisode: (path, number, partial) => streams.start(resolve(path), number, partial),
 
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {

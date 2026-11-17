@@ -14,7 +14,7 @@
  */
 import { DRIFT, clockOffset, correction, expectedPosition, preloadDue } from './sync.js'
 import { canStart, offerTap, shouldPrime } from './readiness.js'
-import { bestTag, localeOf } from './i18n.js'
+import { defaultCaption, parseCaption } from './captions.js'
 
 /** Reconcile the player with the room this often. */
 const TICK_MS = 500
@@ -104,16 +104,16 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
     return el
   }
 
-  /** Every subtitle as a track the native controls offer; the one in the viewer's language is on, else the first. */
+  /** Every subtitle as a track the native controls offer; the one src/captions.js picks for the viewer is on, or none. */
   function addTracks(el, item) {
     for (const track of [...el.querySelectorAll('track')]) track.remove()
-    const preferred = bestTag(item.subtitles.map(sub => sub.label), language)
-    const on = preferred === null ? 0 : item.subtitles.findIndex(sub => sub.label === preferred)
+    const on = defaultCaption(item.subtitles.map(sub => sub.label), language)
     for (const [n, sub] of item.subtitles.entries()) {
       const track = document.createElement('track')
+      const caption = parseCaption(sub.label)
       track.kind = 'subtitles'
       track.label = trackLabel(sub.label) || String(n + 1)
-      if (localeOf(sub.label) !== null) track.srclang = sub.label
+      if (caption.language !== null) track.srclang = caption.tag
       track.src = new URL(sub.src, document.baseURI).href
       if (n === on) track.default = true
       el.append(track)
@@ -135,10 +135,11 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
   video.controls = true
   stage.append(video)
 
-  async function attachHls(url) {
+  /** A playlist that may still grow (an episode being fetched) starts where the room is, not at its newest segment. */
+  async function attachHls(url, startAt) {
     const { default: Hls } = await import(new URL('hls.mjs', base).href)
     if (!Hls.isSupported()) throw new Error('This browser cannot play HLS.')
-    hls = new Hls()
+    hls = new Hls({ startPosition: startAt })
     hls.loadSource(url)
     hls.attachMedia(video)
   }
@@ -238,7 +239,7 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
       dropNext()
       addTracks(video, item)
       if (item.kind === 'hls' && video.canPlayType('application/vnd.apple.mpegurl') === '') {
-        attachHls(url).catch(error => events.onError?.(error.message))
+        attachHls(url, startAt).catch(error => events.onError?.(error.message))
       } else {
         video.src = url
       }

@@ -72,7 +72,7 @@
     "search.score": "★ {score}",
     "search.finished": "terminé",
     "search.ongoing": "en cours",
-    "search.watch": "Regarder ensemble maintenant",
+    "search.watch": "Regarder",
     "search.save": "Ajouter à la collection",
     "search.saveHint": "Garde les premiers épisodes ({n}) sur le disque et récupère la suite au fil du visionnage",
     "search.saveAll": "Tout télécharger (hors ligne)",
@@ -243,6 +243,9 @@
     "progress.speed": "{speed}/s",
     "progress.left": "encore {time}",
     "link.account": "Connecté en tant que {name}",
-    "link.accountHint": "Le compte utilisé pour ce site, qui décide des qualités proposées"
+    "link.accountHint": "Le compte utilisé pour ce site, qui décide des qualités proposées",
+    "caption.auto": "{name} (auto)",
+    "room.watchTogether": "Regarder ensemble",
+    "room.togetherCopied": "Lien copié. Qui l’ouvre regarde avec vous à partir d’ici."
   }
 }

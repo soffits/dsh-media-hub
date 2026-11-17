@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Captions in the right language, for every source. The player starts the track in your language, else one in the video's own language that no machine translated, else none, and never a machine translation into a third language. The captions menu names each track in its own language (日本語, English) and marks machine-made ones *auto*. Link fetches every track a person made, plus machine-made ones only in your language and the video's own; a site's own codes that name no language (`ai-zh`) are left out. Local files follow the same rule by their file names (`ep1.zh.srt`), and text tracks inside a file go by their language.
+- An episode plays while it downloads. Link fetches the video and the audio side by side and serves them as HLS once a few seconds are in, so a room starts in seconds instead of after the whole download and merge; the room keeps playing that copy when the file lands. Videos that have to be transcoded (local files, sources) start the same way, after their first seconds. A source's command can hand over files it is still writing with the new optional `partial` event (docs/source-protocol.md).
+- One progress for the whole episode: the video and the audio are counted together from the start, with one size, speed and time left (estimated from the bitrate where a site announces no size), instead of the bar running once for the video and again for the audio.
+- Watching starts alone. *Watch* (and continuing a show) opens a room only you are in, with the same progress, watch log, resume and rating as before; *Watch together* in the player opens that room to others where it stands and copies its link. Only rooms opened to others are listed. Rooms the assistant opens are shared from the start.
+- Link looks each episode up when it fetches it, so a playlist's videos get their captions too, and episode file names are made by the hub (number, then title).
+
 ## 0.4.1
 
 - A Link lookup of a long video with many generated subtitles no longer fails with "the page lists too much to read": the lookup asks yt-dlp for subtitle lists without the generated translations, which grew its answer past 25 MB.

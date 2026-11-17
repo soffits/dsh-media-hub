@@ -310,7 +310,7 @@ async function rollingFlows({ a, b, home }) {
   await a.page.locator('.vsync-search button[type=submit]').click()
   await a.page.waitForSelector('.vsync-card', { timeout: 30_000 })
   await until('the result shows its episode count', async () => ({ ok: /12 episodes/.test(await a.page.locator('.vsync-results > .vsync-card .vsync-rowMeta').first().textContent()) }), 30_000)
-  await a.page.getByRole('button', { name: 'Watch together now' }).click()
+  await a.page.getByRole('button', { name: 'Watch', exact: true }).click()
   await a.page.waitForSelector('.vsync-media', { timeout: 60_000 })
   assert.equal(await a.page.locator('.vsync-episode').count(), 12, 'every episode is listed')
   const room = (await a.page.evaluate(() => fetch('media-hub/api/rooms').then(r => r.json()))).rooms.find(r => r.title === '长剧测试')
@@ -705,7 +705,7 @@ async function linkFlows({ a, home }) {
   await until('the thumbnail fails closed: the placeholder shows', async () => ({ ok: await card.locator('.vsync-coverEmpty').count() === 1 }), 20_000)
   await shot(a.page, 'link-result')
   await card.locator('select.vsync-quality').selectOption('480')
-  await card.getByRole('button', { name: 'Watch together now' }).click()
+  await card.getByRole('button', { name: 'Watch', exact: true }).click()
   await a.page.waitForSelector('.vsync-media', { timeout: 60_000 })
   assert.equal(await a.page.locator('.vsync-episode').count(), 3, 'every video of the playlist is an episode')
   await until('the first episode plays', async () => ({ ok: await a.page.evaluate(() => { const video = document.querySelector('video'); return video !== null && video.readyState >= 2 }) }), 60_000)
@@ -740,8 +740,8 @@ async function hubFlows({ a, b, origin, home, show }) {
   await shot(a.page, 'search-results')
   await coverFlows({ a, b, origin })
 
-  // Watch together now: the room opens at once; its player waits for episode 1.
-  await a.page.getByRole('button', { name: 'Watch together now' }).first().click()
+  // Watch: the room opens at once; its player waits for episode 1.
+  await a.page.getByRole('button', { name: 'Watch', exact: true }).first().click()
   await a.page.waitForSelector('.vsync-media', { timeout: 60_000 })
   const roomId = await until('the room has opened', async () => {
     const rooms = await a.page.evaluate(() => fetch('media-hub/api/rooms').then(r => r.json()))

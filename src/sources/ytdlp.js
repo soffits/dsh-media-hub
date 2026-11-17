@@ -3,7 +3,8 @@
  * lines, why a run failed, and which subtitles to fetch. Pure, so recorded
  * output tests it.
  */
-import { bestTag, localeOf } from '../i18n.js'
+import { captionLanguage } from '../captions.js'
+import { bestTag } from '../i18n.js'
 
 /** yt-dlp's per-file progress as one JSON line on stdout; `format` is empty for a subtitle file. */
 export const PROGRESS_ARGS = Object.freeze([
@@ -11,46 +12,56 @@ export const PROGRESS_ARGS = Object.freeze([
   '--progress-template', 'download:{"event":"progress","format":"%(info.format_id|)s","downloaded":%(progress.downloaded_bytes|null)s,"total":%(progress.total_bytes,progress.total_bytes_estimate|null)s,"speed":%(progress.speed|null)s,"eta":%(progress.eta|null)s}',
 ])
 
-/** What `before_dl` prints for an episode: its number and the formats it is made of, with their sizes when known. */
-export const startTemplate = number => `before_dl:{"event":"start","number":${number}s,"formats":%(requested_formats.:.format_id|null)j,"sizes":%(requested_formats.:.filesize,filesize_approx|null)j,"size":%(filesize,filesize_approx|null)s}`
-
 const positive = value => (Number.isFinite(value) && value > 0 ? value : null)
 
+/** A format's size: what the site announced, else its bitrate (kbit/s) over the video's length. */
+export function sizeEstimate(format, duration) {
+  const announced = positive(format?.filesize) ?? positive(format?.filesize_approx)
+  if (announced !== null) return Math.round(announced)
+  const rate = positive(format?.tbr) ?? (positive(format?.vbr) ?? 0) + (positive(format?.abr) ?? 0)
+  return rate > 0 && positive(duration) !== null ? Math.round(rate * 125 * duration) : null
+}
+
 /**
- * Follows one run's events and reports each episode's download as a whole:
- * a video fetched as separate video and audio files counts both, by the
- * sizes yt-dlp announced; without sizes, the file being fetched stands for it.
- * @param {(number: number, progress: { fraction: number | null, done: number, total: number | null, speed: number | null, eta: number | null }) => void} report
+ * One episode's download as a whole while its formats (a video and an audio
+ * file) are fetched side by side: bytes, speed and time left summed over the
+ * parts, each part's size as yt-dlp reports it once it runs, else as estimated.
+ * @param {{ format: string, estimate: number | null }[]} parts
+ * @param {(progress: { fraction: number | null, done: number, total: number | null, speed: number | null, eta: number | null }) => void} report
  */
-export function createProgress(report) {
-  let current = null
+export function createProgress(parts, report) {
+  const state = new Map(parts.map(part => [String(part.format), { done: 0, total: part.estimate, speed: 0, finished: false }]))
+  const emit = () => {
+    const all = [...state.values()]
+    const done = all.reduce((sum, part) => sum + part.done, 0)
+    const total = all.every(part => part.total !== null) ? all.reduce((sum, part) => sum + Math.max(part.total, part.done), 0) : null
+    const speed = all.reduce((sum, part) => sum + (part.finished ? 0 : part.speed), 0)
+    report({
+      fraction: total ? Math.min(1, done / total) : null,
+      done,
+      total,
+      speed: speed > 0 ? speed : null,
+      eta: speed > 0 && total ? Math.round(Math.max(0, total - done) / speed) : null,
+    })
+  }
+  emit()
   return {
-    /** Feed every parsed stdout event. */
+    /** Feed every progress line of every part's run. */
     event(event) {
-      if (event.event === 'start' && Number.isInteger(event.number)) {
-        const formats = Array.isArray(event.formats) ? event.formats.map(String) : []
-        const sizes = Array.isArray(event.sizes) ? event.sizes.map(positive) : []
-        current = { number: event.number, formats, sizes: sizes.length > 0 && sizes.every(Boolean) ? sizes : null, size: positive(event.size) }
-        report(current.number, { fraction: 0, done: 0, total: current.sizes ? current.sizes.reduce((a, b) => a + b, 0) : current.size, speed: null, eta: null })
-        return
-      }
-      if (event.event !== 'progress' || current === null || !event.format) return
-      const downloaded = positive(event.downloaded) ?? 0
-      const fileTotal = positive(event.total)
-      const at = current.formats.indexOf(String(event.format))
-      let done = downloaded
-      let total = fileTotal
-      if (current.sizes && at >= 0) {
-        done = current.sizes.slice(0, at).reduce((a, b) => a + b, 0) + downloaded
-        total = current.sizes.reduce((a, b) => a + b, 0)
-      }
-      report(current.number, {
-        fraction: total ? Math.min(1, done / total) : null,
-        done,
-        total,
-        speed: positive(event.speed),
-        eta: Number.isFinite(event.eta) && event.eta >= 0 ? Math.round(event.eta) : null,
-      })
+      const part = event?.event === 'progress' ? state.get(String(event.format)) : undefined
+      if (part === undefined) return
+      part.done = positive(event.downloaded) ?? part.done
+      part.total = positive(event.total) ?? part.total
+      part.speed = positive(event.speed) ?? 0
+      emit()
+    },
+    /** A part's file is complete: its size is what it fetched. */
+    finished(format) {
+      const part = state.get(String(format))
+      if (part === undefined) return
+      part.finished = true
+      if (part.done > 0) part.total = part.done
+      emit()
     },
   }
 }
@@ -79,32 +90,33 @@ export function failureReason(stderr) {
 /** Subtitle formats the hub turns into WebVTT. */
 const TEXT_FORMATS = new Set(['vtt', 'srt', 'ass', 'ssa'])
 const hasText = formats => (Array.isArray(formats) ? formats : []).some(format => TEXT_FORMATS.has(String(format?.ext)))
+const listed = list => Object.entries(list ?? {}).filter(([tag, formats]) => hasText(formats) && captionLanguage(tag) !== null).map(([tag]) => tag)
 
 /**
- * The subtitle languages to fetch for a video from its `-J` document: every
- * language with subtitles of its own (in a text format), and the generated
- * ones for the viewer's language and the video's own when no such subtitles
- * cover them. Null when the document lists none (a playlist's entries).
+ * The captions to fetch for a video from its `-J` document: every track a
+ * person made in a language that has a name, then, for the viewer's language
+ * and the video's own where no such track covers it, a machine-made one
+ * (yt-dlp lists those apart, as automatic captions). A machine translation
+ * into any other language is never fetched.
+ * @returns {{ tag: string, auto: boolean, original: boolean }[]}
  */
-export function subtitleLanguages(data, viewer) {
-  if (data?.subtitles === undefined && data?.automatic_captions === undefined) return null
-  const own = Object.entries(data.subtitles ?? {}).filter(([, formats]) => hasText(formats)).map(([tag]) => tag)
-  const generated = Object.entries(data.automatic_captions ?? {}).filter(([, formats]) => hasText(formats)).map(([tag]) => tag)
-  const wanted = [...own]
-  for (const language of [viewer, data.language]) {
-    if (!language || bestTag(own, language)) continue
-    const tag = bestTag(generated, language)
-    if (tag && !wanted.includes(tag)) wanted.push(tag)
+export function chooseCaptions(data, viewer) {
+  const own = captionLanguage(data?.language)
+  const made = listed(data?.subtitles)
+  const machine = listed(data?.automatic_captions)
+  const chosen = made.map(tag => ({ tag, auto: false }))
+  for (const language of [captionLanguage(viewer), own]) {
+    if (language === null || chosen.some(track => captionLanguage(track.tag) === language)) continue
+    const tag = bestTag(machine.filter(candidate => captionLanguage(candidate) === language), language === own ? data.language : viewer)
+    if (tag !== null) chosen.push({ tag, auto: true })
   }
-  return wanted
+  return chosen.map(track => ({ ...track, original: own !== null && captionLanguage(track.tag) === own }))
 }
 
-/** yt-dlp's subtitle arguments: the languages chosen, or for an unknown list (a playlist's entries) whatever there is in the viewer's language. */
-export function subtitleArgs(languages, viewer) {
-  const convert = ['--sub-format', 'vtt/srt/ass/best', '--convert-subs', 'vtt']
-  if (Array.isArray(languages)) return languages.length === 0 ? [] : ['--write-subs', '--write-auto-subs', '--sub-langs', languages.map(escapeTag).join(','), ...convert]
-  const primary = localeOf(viewer)?.language
-  return primary ? ['--write-subs', '--write-auto-subs', '--sub-langs', `^${primary}(-.*)?$`, ...convert] : []
+/** yt-dlp's arguments that write exactly the chosen captions as WebVTT. */
+export function captionArgs(chosen) {
+  if (chosen.length === 0) return []
+  return ['--write-subs', '--write-auto-subs', '--sub-langs', chosen.map(track => escapeTag(track.tag)).join(','), '--sub-format', 'vtt/srt/ass/best', '--convert-subs', 'vtt']
 }
 
 /** `--sub-langs` takes regular expressions; a tag is matched as it is. */

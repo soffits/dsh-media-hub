@@ -18,8 +18,8 @@ import { nextRun } from './window.js'
 
 const ACTIVE = new Set(['queued', 'running'])
 
-/** How a show's episodes are fetched, from what its notes keep: quality, whose account, the subtitle languages and the viewer's language. */
-export const howOf = (source = {}) => ({ quality: source.quality ?? '', person: source.person ?? '', subtitles: source.subtitles ?? null, language: source.language ?? '' })
+/** How a show's episodes are fetched, from what its notes keep: quality, whose account, and the viewer's language (for captions). */
+export const howOf = (source = {}) => ({ quality: source.quality ?? '', person: source.person ?? '', language: source.language ?? '' })
 
 const sourceError = (code, message) => Object.assign(new Error(message), { code })
 
@@ -31,10 +31,11 @@ const sourceError = (code, message) => Object.assign(new Error(message), { code 
  * @param {() => Promise<boolean>} [options.hasSpace] - whether the disk has room for another episode
  * @param {(job: object) => Promise<void>} options.onFiles - episodes may have landed in job.dir, or the job ended
  * @param {(job: object, number: number, progress: object) => void} [options.onProgress] - how far an episode's download is
+ * @param {(job: object, number: number, partial: object) => void} [options.onPartial] - an episode's files while they are still being fetched (a source's `onPartial`)
  * @param {{ info: Function, warn: Function }} options.logger
  * @param {() => number} [options.now]
  */
-export function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {}, logger, now = Date.now }) {
+export function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {}, onPartial = () => {}, logger, now = Date.now }) {
   const file = join(stateDir, 'downloads.json')
   const jobs = new Map()
   let running = null
@@ -92,7 +93,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
         if (!(await hasSpace())) throw sourceError('no_space', 'the library disk is almost full; delete something first')
         job.current = range
         job.at = range[0]
-        const result = await source.download({ ...howOf(job.how), id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job), onProgress: (n, progress) => onProgress(job, n, progress) })
+        const result = await source.download({ ...howOf(job.how), id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job), onProgress: (n, progress) => onProgress(job, n, progress), onPartial: (n, partial) => onPartial(job, n, partial) })
         await notify(job)
         if (signal.aborted) break
         if (result.failed.length > 0) {
