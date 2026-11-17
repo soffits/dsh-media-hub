@@ -72,7 +72,7 @@
     "search.score": "★ {score}",
     "search.finished": "已完结",
     "search.ongoing": "连载中",
-    "search.watch": "现在一起看",
+    "search.watch": "观看",
     "search.save": "存进片库",
     "search.saveHint": "先存最前面的几集（{n} 集），看到哪下到哪",
     "search.saveAll": "全部下载（离线）",

@@ -72,7 +72,7 @@
     "search.score": "★ {score}",
     "search.finished": "complete",
     "search.ongoing": "ongoing",
-    "search.watch": "Watch together now",
+    "search.watch": "Watch",
     "search.save": "Save to library",
     "search.saveHint": "Keeps the first episodes ({n}) on disk and fetches more as you watch",
     "search.saveAll": "Download all (offline)",

@@ -72,7 +72,7 @@
     "search.score": "★ {score}",
     "search.finished": "terminé",
     "search.ongoing": "en cours",
-    "search.watch": "Regarder ensemble maintenant",
+    "search.watch": "Regarder",
     "search.save": "Ajouter à la collection",
     "search.saveHint": "Garde les premiers épisodes ({n}) sur le disque et récupère la suite au fil du visionnage",
     "search.saveAll": "Tout télécharger (hors ligne)",

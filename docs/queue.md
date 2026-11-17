@@ -21,6 +21,9 @@
 - **Paging for book searches**: `bookfetch source` answers one page per source; *Load more* would need offsets per source.
 - **Link size estimate**: *Download all* estimates a show by a per-kind average; a link knows its duration and the chosen height, which would give a far better number.
 - **Playlists that reorder**: Link numbers a playlist's videos by position when it downloads; a playlist that changes order (a chart) shifts which video an episode number means between runs. The entry ids in the work's snapshot could pin them.
-- **Subtitle languages for a playlist's videos**: a flat playlist lists no subtitles per video, so its episodes get only what there is in the viewer's language; asking each video's `-J` when it is about to download would give the full choice.
 - **Download progress from command sources**: the source protocol has no progress event, so only Link reports how far a download is; a `progress` line in the protocol would bring it to every source.
 - **The person behind the sync channel**: a room records who opened it by display name; the account a room fetches with comes from the request that opened it, so a room reopened by the assistant's tool (no signed-in person) uses the default account.
+
+- **Live duration while downloading**: an episode played as it downloads is an event playlist, so the player's timeline grows with what has arrived; the length is known from the start (probe) and could be shown.
+- **Browser suite after solo watching**: `npm run test:browsers` opens rooms with *Watch* and expects them in the Watching tab; rooms are now unlisted until *Watch together*, so its room-list steps need that click. Not rerun for 0.5.
+- **A person's own solo rooms**: an unlisted room is reached only by its link; the Watching tab could list the asking person's own (rooms would need to record the person, not only a display name).

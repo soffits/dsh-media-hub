@@ -521,10 +521,13 @@ test('saving a work already in the library reuses its show: one folder, no secon
   assert.equal(shows[0].pinned, true, 'asking for all of it keeps the one show offline')
 })
 
-test('a room waiting on a download sees its progress, then the episode plays with the subtitles fetched beside it, fetched with the account of whoever opened the room', { skip: !hasFfmpeg }, async (t) => {
+test('a room waiting on a download sees its progress, plays the episode while it downloads with the captions beside it, and keeps playing it when the file lands; fetched with the account of whoever opened the room', { skip: !hasFfmpeg }, async (t) => {
   const dir = tempDir(t)
   const sample = join(dir, 'sample.mp4')
   makeVideo(sample, { seconds: 1 })
+  // What a site sends while it is fetched: fragments readable from the start, a key frame every two seconds.
+  const part = join(dir, 'part0.mp4')
+  makeVideo(part, { seconds: 14, faststart: false, extra: ['-g', '20', '-movflags', 'frag_keyframe+empty_moov'] })
   const asked = []
   let release = null
   const source = {
@@ -532,15 +535,18 @@ test('a room waiting on a download sees its progress, then the episode plays wit
     label: 'Stub',
     kinds: [{ id: 'video', label: 'Video' }],
     available: async () => true,
-    info: async (id, asking) => ({ id, title: 'Talk', kind: 'video', episodes: 1, subtitles: asking?.language ? [asking.language] : null }),
-    async download({ dir: show, from, person, subtitles, language, onStart, onProgress, onEpisode }) {
-      asked.push({ person, subtitles, language })
+    info: async id => ({ id, title: 'Talk', kind: 'video', episodes: 1 }),
+    async download({ dir: show, from, person, language, onStart, onProgress, onPartial, onEpisode }) {
+      asked.push({ person, language })
       mkdirSync(show, { recursive: true })
       onStart?.(from)
       onProgress?.(from, { fraction: 0, done: 0, total: 2000, speed: null, eta: null })
       onProgress?.(from, { fraction: 0.5, done: 1000, total: 2000, speed: 500, eta: 2 })
-      await new Promise((done) => { release = done })
-      writeFileSync(join(show, '01 Talk.fr.vtt'), 'WEBVTT\n\n00:00.000 --> 00:00.500\nBonjour\n')
+      const caption = join(show, '01 Talk.fr.vtt')
+      writeFileSync(caption, 'WEBVTT\n\n00:00.000 --> 00:00.500\nBonjour\n')
+      const complete = new Promise((done) => { release = done })
+      onPartial?.(from, { files: [part], subtitles: [{ path: caption, label: 'fr' }], growing: complete })
+      await complete
       writeFileSync(join(show, '01 Talk.mp4'), readFileSync(sample))
       onEpisode()
       return { failed: [] }
@@ -553,11 +559,16 @@ test('a room waiting on a download sees its progress, then the episode plays wit
   const room = fetched.room.id
   await until('the half-way point reaches the room', () => hub.room(room).items[0].progress?.fraction === 0.5)
   assert.deepEqual(hub.room(room).items[0].progress, { step: 'download', fraction: 0.5, done: 1000, total: 2000, speed: 500, eta: 2 })
-  assert.deepEqual(asked, [{ person: 'sub-ann', subtitles: ['fr'], language: 'fr' }], 'the show keeps whose account and which subtitles')
-  release()
-  await until('the episode is ready', () => hub.room(room).items[0].status === 'ready', 15000)
+  assert.deepEqual(asked, [{ person: 'sub-ann', language: 'fr' }], 'the show keeps whose account and the viewer\'s language')
+  await until('the episode plays before its download ends', () => hub.room(room).items[0].status === 'ready', 15000)
+  assert.equal(hub.mediaFile(room, 0).kind, 'hls')
   assert.equal(hub.room(room).items[0].progress, null)
-  assert.deepEqual(hub.room(room).items[0].subtitles, ['fr'], 'the subtitle beside the file is the episode\'s')
+  assert.deepEqual(hub.room(room).items[0].subtitles, ['fr'])
+  release()
+  await until('the file lands', () => existsSync(join(fetched.path, '01 Talk.mp4')))
+  await sleep(300)
+  assert.equal(hub.room(room).items[0].status, 'ready', 'the room keeps playing what it plays')
+  assert.equal(hub.mediaFile(room, 0).kind, 'hls')
 
   hub.closeRoom(room)
   await hub.removeEpisode(fetched.path, '01 Talk.mp4')

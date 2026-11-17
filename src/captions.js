@@ -9,7 +9,7 @@
  * video's own language. Labels that name no language (`forced`, a site's own
  * code) stay as they are and are never chosen for anyone.
  */
-import { BASE, bestTag, localeOf } from './i18n.js'
+import { BASE, bestTag } from './i18n.js'
 
 export const MARKS = Object.freeze(['auto', 'original'])
 
@@ -17,10 +17,9 @@ const known = new Intl.DisplayNames([BASE], { type: 'language', fallback: 'none'
 
 /** The language a tag names (`jpn` → `ja`, `en-orig` → `en`), or null when it names none. */
 export function captionLanguage(tag) {
-  const language = localeOf(tag)?.language
-  if (!language || language === 'und') return null
   try {
-    return known.of(language) === undefined ? null : language
+    const { language } = new Intl.Locale(tag)
+    return language === 'und' || known.of(language) === undefined ? null : language
   } catch {
     return null
   }

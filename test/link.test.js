@@ -5,10 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { createCookies } from '../src/cookies.js'
 import { createProxies } from '../src/proxy.js'
-import { AUDIO, AUTO, createLinkSource, formatArgs, qualityChoices } from '../src/sources/link.js'
+import { AUDIO, AUTO, createLinkSource, episodeStem, formatArgs, qualityChoices } from '../src/sources/link.js'
 import { quietLogger, tempDir } from './helpers.js'
 
 const FAKE = fileURLToPath(new URL('./fixtures/fake-yt-dlp.mjs', import.meta.url))
+const FAKE_FFMPEG = fileURLToPath(new URL('./fixtures/fake-ffmpeg.mjs', import.meta.url))
 const VIDEO = 'https://www.youtube.com/watch?v=jNQXAC9IVRw'
 const PLAYLIST = 'https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG'
 
@@ -20,7 +21,7 @@ function link(t, { proxies = createProxies([]), cookies = createCookies([]), max
   const log = join(dir, 'calls.jsonl')
   process.env.FAKE_YTDLP_LOG = log
   t.after(() => { for (const name of ['FAKE_YTDLP_LOG', 'FAKE_YTDLP_FAIL', 'FAKE_YTDLP_ERROR', 'FAKE_YTDLP_COOKIES']) delete process.env[name] })
-  const source = createLinkSource({ ytDlp: FAKE, proxies, cookies, maxHeight, cwd: join(dir, 'link'), logger })
+  const source = createLinkSource({ ytDlp: FAKE, ffmpeg: FAKE_FFMPEG, proxies, cookies, maxHeight, cwd: join(dir, 'link'), logger })
   const calls = () => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line))
   return { source, dir, calls }
 }
@@ -40,18 +41,6 @@ test('a video reads as a work of one episode with its thumbnail, length, uploade
   assert.deepEqual(work.meta, [{ key: 'site', label: 'Site', value: 'youtube.com' }])
   assert.deepEqual(work.qualities, [AUTO, '240', '144', AUDIO], 'the heights its recorded formats have')
   assert.equal(work.account, null, 'no cookies setting, no account')
-})
-
-test('subtitles: every language of its own, and generated ones only for the viewer\'s language and the video\'s', async (t) => {
-  const { source } = link(t)
-  const own = ['ar', 'zh-CN', 'zh-TW', 'en', 'fr']
-  assert.deepEqual((await source.info(CAPTIONED, { language: 'zh-CN' })).subtitles, own, 'the viewer\'s and the video\'s own languages have subtitles already')
-  assert.deepEqual((await source.info(CAPTIONED, { language: 'de' })).subtitles, [...own, 'de'], 'a generated track in the viewer\'s language')
-  assert.equal((await source.info(VIDEO, { language: 'de' })).subtitles, null, 'a document that lists none')
-  const logged = link(t)
-  await logged.source.info(CAPTIONED)
-  assert.ok(logged.calls().at(-1).includes('--write-subs'), 'yt-dlp lists some sites\' subtitles only when asked to write them')
-  assert.ok(!logged.calls().at(-1).includes('--write-auto-subs'), 'with it a lookup can list every translation pair, too large to read')
 })
 
 test('a playlist reads as a work whose videos are its episodes, with their total length', async (t) => {
@@ -102,16 +91,17 @@ test('every call goes through the proxy the page\'s host is routed to, and direc
   assert.deepEqual(direct.slice(-2), ['--', VIDEO], 'the address comes after the options')
 })
 
-test('a range of episodes lands as numbered files, and an episode that fails is reported', async (t) => {
+test('a range of episodes lands as numbered files, each looked up once, and an episode that fails is reported', async (t) => {
   const { source, dir, calls } = link(t)
   const show = join(dir, 'show')
   const started = []
   assert.deepEqual(await source.download({ id: PLAYLIST, dir: show, from: 2, to: 3, onStart: n => started.push(n) }), { failed: [] })
   assert.deepEqual(readdirSync(show).filter(name => !name.startsWith('.')).sort(), ['002 Taylor Swift - Patient Zero (Official Music Video).mp4', '003 Tate McRae - Housewife (Official Video).mp4'])
   assert.deepEqual(started, [2, 3])
-  const args = calls()[0]
-  assert.equal(args[args.indexOf('--playlist-items') + 1], '2:3')
-  assert.ok(args.includes(`temp:${join(show, '.incoming')}`), 'partial files stay out of the show')
+  const lookups = calls().filter(args => args.includes('-J'))
+  assert.deepEqual(lookups.map(args => args[args.indexOf('--playlist-items') + 1]), ['2', '3'])
+  assert.ok(calls().filter(args => !args.includes('-J')).every(args => args.includes('--load-info-json') && !args.includes(PLAYLIST)), 'the formats are fetched from the lookup, not by asking the site again')
+  assert.deepEqual(readdirSync(join(show, '.incoming')), [], 'nothing is left of the parts')
   process.env.FAKE_YTDLP_FAIL = '1'
   assert.deepEqual(await source.download({ id: PLAYLIST, dir: show, from: 1, to: 1 }).catch(error => error.code), 'source_failed', 'nothing landed: yt-dlp\'s reason')
   process.env.FAKE_YTDLP_FAIL = '2'
@@ -141,36 +131,51 @@ test('a site\'s account is read from a private copy of its cookies, with its Use
   assert.ok(!calls()[2].includes('--cookies'))
 })
 
-test('a download reports the whole episode\'s progress from yt-dlp\'s lines and writes the subtitles asked for', async (t) => {
+test('a download fetches the video and the audio side by side as one progress, hands them over while they grow, then merges them', async (t) => {
   const { source, dir, calls } = link(t)
   const show = join(dir, 'show')
   const seen = []
-  await source.download({ id: CAPTIONED, dir: show, subtitles: ['fr', 'de'], onProgress: (n, progress) => seen.push({ n, ...progress }) })
+  const partial = []
+  await source.download({ id: CAPTIONED, dir: show, language: 'de', onProgress: (n, progress) => seen.push({ n, ...progress }), onPartial: (n, given) => partial.push({ n, ...given }) })
   const total = 1248309 + 8901496
   assert.deepEqual(seen[0], { n: 1, fraction: 0, done: 0, total, speed: null, eta: null }, 'the episode starts at 0 of its video and audio together')
   assert.equal(seen.at(-1).fraction, 1)
   assert.equal(seen.at(-1).done, total)
-  assert.ok(seen.every((entry, n) => n === 0 || entry.done >= seen[n - 1].done), 'the audio file adds on to the video file')
-  const title = 'Inside the Mind of a Master Procrastinator | Tim Urban | TED'
-  assert.deepEqual(readdirSync(show).filter(name => name.endsWith('.vtt')).sort(), [`001 ${title}.de.vtt`, `001 ${title}.fr.vtt`], 'beside the episode, named by language')
-  const args = calls()[0]
-  assert.equal(args[args.indexOf('--sub-langs') + 1], '^fr$,^de$')
-  assert.ok(args.includes('--convert-subs'))
+  assert.ok(seen.every((entry, n) => n === 0 || entry.done >= seen[n - 1].done), 'it only moves forward')
+  const formats = calls().filter(args => args.includes('--load-info-json') && args.includes('-f')).map(args => args[args.indexOf('-f') + 1])
+  assert.deepEqual(formats.sort(), ['140', '160'], 'one run per format')
+  assert.equal(partial.length, 1)
+  assert.deepEqual(partial[0].files.map(file => file.split('/').slice(-2).join('/')), ['1/part0.mp4', '1/part1.m4a'])
+  assert.ok(partial[0].growing instanceof Promise)
+  const stem = '001 Inside the Mind of a Master Procrastinator Tim Urban TED'
+  assert.equal(readFileSync(join(show, `${stem}.mp4`), 'utf8'), 'format 160format 140', 'the parts merged into one file')
+  assert.deepEqual(readdirSync(show).filter(name => name.endsWith('.vtt')).sort(), ['ar', 'de.auto', 'en.original', 'fr', 'zh-CN', 'zh-TW'].map(label => `${stem}.${label}.vtt`),
+    'the captions people made, the viewer\'s language by machine where nobody made one, the video\'s own marked')
+  assert.deepEqual(partial[0].subtitles.map(sub => sub.label), ['ar', 'zh-CN', 'zh-TW', 'en.original', 'fr', 'de.auto'])
 })
 
-test('audio only fetches m4a files', async (t) => {
+test('audio only fetches m4a files, and nothing plays before they are complete', async (t) => {
   const { source, dir } = link(t)
-  await source.download({ id: VIDEO, dir: join(dir, 'show'), from: 1, to: 1, quality: AUDIO })
+  const partial = []
+  await source.download({ id: VIDEO, dir: join(dir, 'show'), from: 1, to: 1, quality: AUDIO, onPartial: n => partial.push(n) })
   assert.deepEqual(readdirSync(join(dir, 'show')).filter(name => !name.startsWith('.')), ['001 Me at the zoo.m4a'])
+  assert.deepEqual(partial, [])
 })
 
 test('a quality is a format choice: auto and heights above the limit stop at the limit, H.264 and AAC first', () => {
-  assert.deepEqual(formatArgs(AUTO, 1080), ['-f', 'bv*+ba/b', '-S', 'res:1080,vcodec:h264,acodec:aac', '--merge-output-format', 'mp4'])
+  assert.deepEqual(formatArgs(AUTO, 1080), ['-f', 'bv*+ba/b', '-S', 'res:1080,vcodec:h264,acodec:aac'])
   assert.deepEqual(formatArgs('720', 1080).slice(2, 4), ['-S', 'res:720,vcodec:h264,acodec:aac'])
   assert.deepEqual(formatArgs('2160', 1080).slice(2, 4), ['-S', 'res:1080,vcodec:h264,acodec:aac'])
   assert.deepEqual(formatArgs('', 1080).slice(2, 4), ['-S', 'res:1080,vcodec:h264,acodec:aac'], 'none chosen is auto')
-  assert.ok(formatArgs(AUDIO, 1080).includes('-x'))
+  assert.deepEqual(formatArgs(AUDIO, 1080), ['-f', 'ba/b', '-S', 'acodec:aac'])
   assert.deepEqual(qualityChoices([{ height: 1080 }, { height: 720 }, { height: 720 }, { height: null }], 1080), [AUTO, '1080', '720', AUDIO])
+})
+
+test('an episode\'s file name is its number and its title, in any script, cut on a character', () => {
+  assert.equal(episodeStem(7, 'A/B: C?'), '007 A B C')
+  assert.equal(episodeStem(1, ''), '001')
+  const long = episodeStem(2, '字'.repeat(60))
+  assert.ok(Buffer.byteLength(long) <= 104 && long.endsWith('字'))
 })
 
 test('the thumbnail is fetched through the route of its page', async (t) => {
