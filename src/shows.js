@@ -54,7 +54,6 @@ export function cleanName(value) {
  * @param {(path: string) => object | null} options.download - the download state of a show folder
  * @param {(path: string) => void} options.forget - stop anything working on a show being removed
  * @param {(type: string, fields: object) => void} [options.record] - library actions for the watch log
- * @param {(path: string, entry: object) => Promise<object | null>} [options.liveWork] - a show's work as its source says now (or the saved copy, flagged `offline`, when the source can't answer); without it the saved copy
  * @param {{ info: Function, warn: Function }} options.logger
  * @param {() => number} [options.now]
  */
@@ -239,16 +238,14 @@ export function createLibrary(options) {
 
   // ------------------------------------------------------------ views
 
-  const liveOr = (live, path, entry) => (live && options.liveWork ? options.liveWork(path, entry) : Promise.resolve(entry.work ?? null))
-
-  async function describe(path, live = false) {
+  async function describe(path) {
     const info = await stat(path).catch(() => null)
     if (info === null) return null
     const files = await episodeFiles(path)
     const state = download(path)
     if ((files === null || files.length === 0) && state === null && !isSourced(record(path))) return null
     const names = (files ?? []).map(file => file.name)
-    const entry = { ...record(path), work: await liveOr(live, path, record(path)) }
+    const entry = record(path)
     const slots = slotsOf(entry, files ?? [])
     if (names.length === 0 && state === null && !isSourced(entry)) return null
     const resume = resumeFrom(path, slots)
@@ -302,13 +299,13 @@ export function createLibrary(options) {
       return () => listeners.delete(listener)
     },
 
-    /** Every show, newest first, with totals and the free space of the download folder's disk. `live` has each sourced show's work asked of its source (see `options.liveWork`). */
-    async list({ live = false } = {}) {
+    /** Every show, newest first, with totals and the free space of the download folder's disk. */
+    async list() {
       const paths = []
       for (const root of roots) {
         for (const name of await readdir(root).catch(() => [])) if (!name.startsWith('.')) paths.push(join(root, name))
       }
-      const shows = (await Promise.all(paths.map(path => describe(path, live)))).filter(show => show !== null)
+      const shows = (await Promise.all(paths.map(path => describe(path)))).filter(show => show !== null)
       shows.sort((a, b) => b.addedAt - a.addedAt)
       groupSeasons(shows)
       const disk = await statfs(roots[0]).catch(() => null)
@@ -322,8 +319,7 @@ export function createLibrary(options) {
 
     async episodes(path) {
       const target = requireShow(path)
-      const entry = { ...record(target), work: await liveOr(true, target, record(target)) }
-      const slots = slotsOf(entry, (await episodeFiles(target)) ?? [])
+      const slots = slotsOf(record(target), (await episodeFiles(target)) ?? [])
       return slots.map(slot => ({
         n: slot.n,
         name: slot.file?.name ?? null,

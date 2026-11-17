@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.7.0
+## 0.7.1
 
-- A show's details (title, blurb, score, related works, episode titles, cover) are now read from its source every time the page shows them, so a rename or a new season on the source appears without any refresh. The copy saved with the show is only an offline fallback: when the source can't answer in a few seconds, the page shows it with a note saying when it was saved, and the next answer refreshes it. Nothing is cached between page loads.
-- The "Refresh info" menu item and the quiet backfill of details are gone: reading live makes both unnecessary.
+- Opening the page no longer waits on the sources. Each show's details (title, blurb, score, related works, episode titles, cover) come from the copy saved with it, at once, as before 0.7.0. A copy that is missing (a show just added) or about a day old is refreshed from its source in the background, a couple of requests at a time and never for a source that just failed, and the new details show on the next look. A copy over a week old says when it was saved.
+- The "Refresh info" menu item and the quiet backfill of details are gone; the background refresh replaces both.
 
 ## 0.6.2
 
