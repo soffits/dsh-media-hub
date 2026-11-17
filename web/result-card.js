@@ -95,6 +95,6 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
       h('div', { className: 'vsync-cardFoot' },
         h('button', { type: 'button', className: 'vsync-metaButton vsync-detailsToggle', 'aria-expanded': String(open), onClick: () => setOpen(!open) }, h(Icon.Chevron, { size: 12, open }), ' ', t(open ? 'search.hideDetails' : 'search.details')),
         h('span', { className: 'vsync-actions' },
-          h(ChatButton, { t, onClick: () => chatAbout(t('chat.aboutBook'), [result.title, glance(t, shown).join(' · '), result.blurb], { source: source.id, id: result.id, kind: result.kind }) }),
+          h(ChatButton, { t, onClick: () => chatAbout({ title: result.title, lines: [glance(t, shown).join(' · '), result.blurb], context: { source: source.id, id: result.id, kind: result.kind } }) }),
           actions))))
 }

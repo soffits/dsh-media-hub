@@ -67,7 +67,7 @@ function bookFacts(t, book, sourceLabel) {
 }
 
 export function startChat(t, book, sourceLabel) {
-  chatAbout(t('chat.aboutBook'), [book.title, bookFacts(t, book, sourceLabel).join(' · '), book.blurb], { source: book.source, id: book.id, kind: book.kind })
+  chatAbout({ title: book.title, lines: [bookFacts(t, book, sourceLabel).join(' · '), book.blurb], context: { source: book.source, id: book.id, kind: book.kind } })
 }
 
 /** "Ask": a new conversation about the item. On phones only its icon shows; its name stays for screen readers. */
