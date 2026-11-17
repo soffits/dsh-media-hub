@@ -8,7 +8,8 @@
 import { AvatarStack } from './avatars.js'
 import { Picture } from './details.js'
 import { currentEpisode, episodeStrip, stripCounts } from './continue.js'
-import { Btn, Icon, K, P, api, asPerson, base, canChat, chatAbout, copyText, displayName, fill, h, nameOf, plural, post, React, roomLink } from './ui.js'
+import { hasEpisodes, resumeLabel } from './format.js'
+import { Btn, Icon, K, P, api, asPerson, base, canChat, chatAbout, clock, copyText, displayName, fill, h, nameOf, plural, post, React, roomLink } from './ui.js'
 
 const names = (t, list) => new Intl.ListFormat(t.language, { type: 'conjunction' }).format(list)
 const picture = key => (key ? new URL(key, base()).href : undefined)
@@ -47,12 +48,13 @@ export function ContinueCard({ t, subject, presence, sources, onOpen, onChanged 
   const sourceId = show?.source?.source ?? null
   const source = sourceId === null ? '' : nameOf(t, `source.name.${sourceId}`, sources.find(entry => entry.id === sourceId)?.label ?? '')
   const meta = [
-    total > 1 ? fill(t('rooms.episode'), { n: current, total }) : null,
+    hasEpisodes(total) ? fill(t('rooms.episode'), { n: current, total }) : null,
     work?.tags?.[0] ?? null,
     Number.isFinite(work?.score) ? fill(t('continue.score'), { score: work.score }) : null,
     source ? fill(t('continue.from'), { source }) : null,
   ].filter(Boolean)
   const members = room?.members ?? []
+  const position = room ? room.position : show?.resume?.position ?? null
   const cover = work?.cover ?? room?.cover ?? show?.frame ?? room?.frame ?? null
 
   const run = async (action) => {
@@ -110,7 +112,7 @@ export function ContinueCard({ t, subject, presence, sources, onOpen, onChanged 
         h('p', { className: 'vsync-ccRecapText' }, recap.text)),
       h('div', { className: 'vsync-ccActions' },
         h(Btn, { variant: 'primary', disabled: busy || (!room && !show), onClick: go, icon: h(P.IconPlayOutlineRegular, { size: 16 }) },
-          members.length > 0 ? fill(t('continue.join'), { names: names(t, members), n: current }) : fill(t('continue.continue'), { n: current })),
+          resumeLabel(t, { count: total, n: current, position, at: clock(position), names: members.length > 0 ? names(t, members) : '' })),
         room
           ? h(Btn, { onClick: copy, icon: h(P.IconLinkOutlineRegular, { size: 16 }) }, t(copied ? 'room.copied' : 'room.copy'))
           : show && h(Btn, { disabled: busy, onClick: together, icon: h(P.IconUsersOutlineRegular, { size: 16 }) }, t('room.watchTogether')),

@@ -4,6 +4,7 @@
  * deleting a show or one episode. Deleting asks first, in place.
  */
 import { Picture, WorkDetails } from './details.js'
+import { hasEpisodes, stoppedText } from './format.js'
 import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, React, api, asPerson, bytes, clock, day, displayName, fill, h, plural, post, query, watchMark } from './ui.js'
 
 const titleOf = name => name.replace(/\.[^.]+$/, '')
@@ -40,12 +41,16 @@ function Countdown({ t, show, days, onChanged }) {
  * What a library row says: `lead` is the short line (how good it is, how far along, whether it is followed), `rest` the muted one
  * (what is on disk, downloads, who is in it, where the others stopped).
  */
+/** How many episodes a show has in all: its source's count, else the files on disk. */
+export const episodeCount = show => show.total ?? show.episodes
+
 export function showMeta(t, show) {
   const lead = [...workGlance(t, show)]
   if (show.watchedAt) lead.push(t('library.watchedAll'))
   else {
     if (show.finished > 0 && show.episodes > 1) lead.push(fill(t('library.watchedCount'), { n: show.finished, total: show.total ?? show.episodes }))
-    if (show.resume) lead.push(fill(t(show.resume.position > 5 ? 'library.continueFromAt' : 'library.continueFrom'), { n: show.resume.index + 1, time: clock(show.resume.position) }))
+    const stopped = show.resume && stoppedText(t, { count: episodeCount(show), n: show.resume.index + 1, position: show.resume.position, at: clock(show.resume.position) })
+    if (stopped) lead.push(stopped)
   }
   if (show.follow) lead.push(t('follow.following'))
   if (show.seasons > 1) lead.push(fill(t('follow.season'), { n: show.season, total: show.seasons }))
@@ -53,9 +58,11 @@ export function showMeta(t, show) {
   if (show.newSeason) lead.push(t('follow.newSeason'))
 
   const rest = []
-  rest.push(show.sourced
-    ? fill(t('library.cachedOf'), { n: show.episodes, total: show.total })
-    : plural(t, 'library.episodes', show.episodes))
+  if (hasEpisodes(episodeCount(show))) {
+    rest.push(show.sourced
+      ? fill(t('library.cachedOf'), { n: show.episodes, total: show.total })
+      : plural(t, 'library.episodes', show.episodes))
+  }
   if (show.pinned) rest.push(t('library.offline'))
   rest.push(bytes(t, show.size))
   const download = show.download
@@ -63,7 +70,8 @@ export function showMeta(t, show) {
   else if (download?.status === 'queued') rest.push(t('library.queued'))
   else if (download?.status === 'failed') rest.push(fill(t('library.downloadFailed'), { message: download.reason ? t(`error.${download.reason}`) : download.error ?? '' }))
   if (show.inUse) rest.push(t('library.inRoom'))
-  if (!show.watchedAt) for (const stop of show.stops ?? []) rest.push(fill(t('library.viewerStopped'), { name: stop.viewer, n: stop.index + 1, time: clock(stop.position) }))
+  const many = hasEpisodes(episodeCount(show))
+  if (!show.watchedAt) for (const stop of show.stops ?? []) rest.push(fill(t(many || stop.index > 0 ? 'library.viewerStopped' : 'library.viewerStoppedAt'), { name: stop.viewer, n: stop.index + 1, time: clock(stop.position) }))
   if (show.keep) rest.push(t('library.kept'))
   return { lead, rest }
 }
@@ -186,7 +194,9 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
 
   return h('li', { className: 'vsync-show' },
     h('div', { className: 'vsync-row' },
-      h('button', { type: 'button', className: 'vsync-expand', 'aria-expanded': String(open), 'aria-label': t('library.episodesToggle'), onClick: () => setOpen(!open) }, h(Icon.Chevron, { open })),
+      hasEpisodes(episodeCount(show))
+        ? h('button', { type: 'button', className: 'vsync-expand', 'aria-expanded': String(open), 'aria-label': t('library.episodesToggle'), onClick: () => setOpen(!open) }, h(Icon.Chevron, { open }))
+        : h('span', { className: 'vsync-expand', 'aria-hidden': true }),
       h(Poster, { show }),
       h('span', { className: 'vsync-rowText' },
         mode === 'rename'

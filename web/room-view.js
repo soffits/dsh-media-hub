@@ -154,9 +154,9 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
         overlay && h('div', { className: 'vsync-overlay' }, overlay),
         h('div', { className: 'vsync-toasts', role: 'status', 'aria-live': 'polite' }, toasts.map(item => h('span', { key: item.id, className: 'vsync-toast' }, item.text)))),
       room && (room.items.length > 1 || about) && h('aside', { className: 'vsync-episodes', 'aria-label': t('room.episodes') },
-        about && h('div', { className: 'vsync-sideTabs', role: 'tablist' },
+        about && room.items.length > 1 && h('div', { className: 'vsync-sideTabs', role: 'tablist' },
           ['episodes', 'about'].map(tab => h('button', { key: tab, type: 'button', role: 'tab', className: 'vsync-chip', 'aria-selected': String(side === tab), onClick: () => setSide(tab) }, t(`room.tab.${tab}`)))),
-        side === 'about' && about
+        (side === 'about' || room.items.length === 1) && about
           ? h(About, { t, work: about.work, source: about.source, workId: about.id })
           : h(React.Fragment, null,
             !about && h('h2', null, t('room.episodes')),

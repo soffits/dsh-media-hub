@@ -54,7 +54,6 @@
     "search.inLibrary": "已在片库",
     "search.offline": "已离线",
     "search.joinRoom": "加入房间",
-    "search.continueEp": "继续看 第{n}集",
     "search.continue": "继续看",
     "search.open": "打开",
     "link.invalid": "请粘贴视频或播放列表页面的链接。",
@@ -195,9 +194,9 @@
     "room.reconnecting": "正在重新连接…",
     "room.episodeN": "第 {n} 集",
     "room.notCached": "还没下载，选它时会先下载",
-    "room.preparing": "正在准备这一集…",
-    "room.preparingProgress": "正在准备这一集… {n}%",
-    "room.failed": "这一集没能准备好。",
+    "room.preparing": "正在准备…",
+    "room.preparingProgress": "正在准备… {n}%",
+    "room.failed": "没能准备好。",
     "room.tapToJoin": "加入播放",
     "room.tapToContinue": "点一下继续加载",
     "room.you": "你",
@@ -267,6 +266,11 @@
     "ratings.not-for-me": "不太喜欢",
     "ratings.unfinished": "没看完",
     "picks.heading": "推荐",
-    "picks.hint": "每部都写了推荐理由"
+    "picks.hint": "每部都写了推荐理由",
+    "continue.joinOne": "加入{names}",
+    "continue.continueAt": "从 {time} 继续",
+    "continue.play": "播放",
+    "library.continueAt": "从 {time} 继续",
+    "library.viewerStoppedAt": "{name}看到 {time}"
   }
 }

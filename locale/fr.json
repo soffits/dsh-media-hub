@@ -54,7 +54,6 @@
     "search.inLibrary": "Dans la collection",
     "search.offline": "Hors ligne",
     "search.joinRoom": "Rejoindre le salon",
-    "search.continueEp": "Reprendre l’ép. {n}",
     "search.continue": "Reprendre",
     "search.open": "Ouvrir",
     "link.invalid": "Collez l’adresse d’une page de vidéo ou de playlist.",
@@ -195,9 +194,9 @@
     "room.reconnecting": "Reconnexion…",
     "room.episodeN": "Épisode {n}",
     "room.notCached": "Pas encore téléchargé ; il est récupéré dès que vous le choisissez",
-    "room.preparing": "Préparation de cet épisode…",
-    "room.preparingProgress": "Préparation de cet épisode… {n} %",
-    "room.failed": "Impossible de préparer cet épisode.",
+    "room.preparing": "Préparation…",
+    "room.preparingProgress": "Préparation… {n} %",
+    "room.failed": "La préparation a échoué.",
     "room.tapToJoin": "Rejoindre la lecture",
     "room.tapToContinue": "Touchez pour continuer le chargement",
     "room.you": "vous",
@@ -267,6 +266,11 @@
     "ratings.not-for-me": "Pas pour moi",
     "ratings.unfinished": "Pas fini",
     "picks.heading": "Suggestions",
-    "picks.hint": "Chacune avec la raison du choix"
+    "picks.hint": "Chacune avec la raison du choix",
+    "continue.joinOne": "Rejoindre {names}",
+    "continue.continueAt": "Reprendre à {time}",
+    "continue.play": "Lire",
+    "library.continueAt": "reprendre à {time}",
+    "library.viewerStoppedAt": "{name} s’est arrêté·e à {time}"
   }
 }

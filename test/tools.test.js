@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createTool } from '../tools.js'
+import { createTool, historyView } from '../tools.js'
 
 function fakeService() {
   const calls = []
@@ -68,4 +68,13 @@ test('history is a compact summary with the log path', async () => {
     log: '/state/watch-log.jsonl',
     shows: [{ title: 'Drama', with: ['Dana', 'Carol'], from: '2026-11-16T01:00:00.000Z', to: '2026-11-16T02:00:00.000Z', finished: '1-3, 5', stopped: { Carol: 'ep 6 at 1:12' } }],
   })
+})
+
+test('the history speaks of a single video without episodes', () => {
+  const base = { title: 'A talk', with: ['Ana'], from: '2026-11-16T01:00:00.000Z', to: '2026-11-16T02:00:00.000Z', episodes: 1 }
+  assert.deepEqual(historyView({ ...base, episodesFinished: [], stoppedAt: { Ana: { episode: 1, position: 754, finished: false } } }).stopped, { Ana: 'at 12:34' })
+  const done = historyView({ ...base, episodesFinished: [1], stoppedAt: { Ana: { episode: 1, position: 900, finished: true } } })
+  assert.equal(done.finished, 'yes')
+  assert.deepEqual(done.stopped, { Ana: 'finished' })
+  assert.deepEqual(historyView({ ...base, episodes: 9, episodesFinished: [1, 2], stoppedAt: { Ana: { episode: 3, position: 60, finished: false } } }).stopped, { Ana: 'ep 3 at 1:00' })
 })

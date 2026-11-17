@@ -5,7 +5,7 @@
  * works as a plain list. A related work is a row that opens it (onFocus),
  * never a card with details of its own, so details never nest.
  */
-import { metaLabel, popularityText } from './format.js'
+import { hasEpisodes, metaLabel, popularityText } from './format.js'
 import { useKnownWork } from './known.js'
 import { Icon, Spinner, asPerson, base, clock, fill, h, plural, query, React } from './ui.js'
 
@@ -62,7 +62,7 @@ export function glance(t, result) {
   const status = { finished: 'search.finished', ongoing: 'search.ongoing', stopped: 'search.stopped' }[result.status]
   return [
     popularityText(t, result.popularity),
-    result.episodes > 0 && plural(t, result.kind === 'audio' ? 'search.chapters' : 'search.episodes', result.episodes),
+    hasEpisodes(result.episodes) && plural(t, result.kind === 'audio' ? 'search.chapters' : 'search.episodes', result.episodes),
     result.duration > 0 && clock(result.duration),
     status && t(status),
     result.author,

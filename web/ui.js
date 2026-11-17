@@ -4,6 +4,7 @@
  * confirmation and a menu). The page's other modules import this one.
  */
 import { captionName, parseCaption } from './captions.js'
+import { fill } from './format.js'
 import { pick } from './i18n.js'
 
 export let React
@@ -110,7 +111,7 @@ export function nameOf(t, key, label) {
   return own === key ? '' : own
 }
 
-export const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ''))
+export { fill }
 
 /** Like fill, with elements as values (a ticking time inside a sentence): the parts, in the language's own order. */
 export const fillNodes = (template, values) => template.split(/(\{\w+\})/).filter(Boolean).map((part, n) => {

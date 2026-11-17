@@ -54,7 +54,6 @@
     "search.inLibrary": "In library",
     "search.offline": "Offline",
     "search.joinRoom": "Join room",
-    "search.continueEp": "Continue ep {n}",
     "search.continue": "Continue",
     "search.open": "Open",
     "link.invalid": "Paste the address of a video or playlist page.",
@@ -195,9 +194,9 @@
     "room.reconnecting": "Reconnecting…",
     "room.episodeN": "Episode {n}",
     "room.notCached": "Not downloaded yet; it is fetched first when you pick it",
-    "room.preparing": "Preparing this episode…",
-    "room.preparingProgress": "Preparing this episode… {n}%",
-    "room.failed": "This episode could not be prepared.",
+    "room.preparing": "Preparing…",
+    "room.preparingProgress": "Preparing… {n}%",
+    "room.failed": "This could not be prepared.",
     "room.tapToJoin": "Join playback",
     "room.tapToContinue": "Tap to keep loading",
     "room.you": "you",
@@ -267,6 +266,11 @@
     "ratings.not-for-me": "Not for me",
     "ratings.unfinished": "Didn't finish",
     "picks.heading": "Picks",
-    "picks.hint": "Each with why it was picked"
+    "picks.hint": "Each with why it was picked",
+    "continue.joinOne": "Join {names}",
+    "continue.continueAt": "Continue at {time}",
+    "continue.play": "Play",
+    "library.continueAt": "continue at {time}",
+    "library.viewerStoppedAt": "{name} stopped at {time}"
   }
 }

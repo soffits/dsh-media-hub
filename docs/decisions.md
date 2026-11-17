@@ -107,6 +107,7 @@
 - **The Continue card is about the shared room someone is in now, else the show watched last** (`continueSubject`), since joining people beats picking up alone; its strip is a window of 18 episodes with six before the current one, so a 200-episode show stays readable on a phone.
 - **Optional Watching parts are switched in `presence` and draw nothing without data**: the hub has no taste and writes no recaps itself; ratings, picks and recaps come from people, a recommender extension and whatever writes through the tool. A recap is filtered on the server by where the show's viewers are, so a spoiler never reaches a page.
 - **Ratings are watch log lines keyed by the person** (`requestIdentity`), so "How was it?" is asked per person and a tracker extension can later read them with the rest of the log.
+- **Episodes are spoken of only from two on** (`hasEpisodes` in `web/format.js`, `episode.of` in the watch log): a film, one video or a single link plays, continues at a time and is joined, with no picker, strip or "1 of 1"; every view takes its words from the same helpers.
 - **Tests load web modules the way the browser does**: a Node resolve hook (`test/fixtures/web-modules.mjs`) maps the names the Host serves from `src/` (`MODULES` in `src/http.js`) so the list exists once.
 
 ## Media hub and books
