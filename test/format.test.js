@@ -3,17 +3,19 @@ import { test } from 'node:test'
 import { formatCount, metaLabel, popularityText } from '../web/format.js'
 
 const words = {
-  'time.locale': 'zh-CN',
   'pop.plays': '{n}次播放',
   'pop.readers': '{n}人读过',
   'meta.cast': '演员',
 }
-const zh = key => words[key] ?? key
-const en = key => ({ 'time.locale': 'en-US', 'pop.plays': '{n} plays' }[key] ?? key)
+// A page's `t` carries the viewer's language tag, as DSH's locale store names it.
+const zh = Object.assign(key => words[key] ?? key, { language: 'zh' })
+const en = Object.assign(key => ({ 'pop.plays': '{n} plays' }[key] ?? key), { language: 'en' })
 
-test('counts are written the way the page language writes them', () => {
+test('counts are written the way the page language writes them, by Intl', () => {
   assert.deepEqual([0, 999, 3667, 12345, 415590, 3546984, 33740000, 130000000].map(n => formatCount(n, 'zh-CN')), ['0', '999', '3667', '1.2万', '41.6万', '354.7万', '3374万', '1.3亿'])
   assert.deepEqual([0, 999, 3667, 12345, 415590, 3546984, 33740000].map(n => formatCount(n, 'en-US')), ['0', '999', '3.7K', '12.3K', '415.6K', '3.5M', '33.7M'])
+  // French puts a decimal comma and a (no-break) space before the unit; which space depends on the ICU version.
+  assert.deepEqual([999, 36700, 3546984].map(n => formatCount(n, 'fr').replace(/\s/gu, ' ')), ['999', '36,7 k', '3,5 M'])
   assert.equal(formatCount(-1, 'en'), '')
   assert.equal(formatCount(Number.NaN, 'zh-CN'), '')
 })

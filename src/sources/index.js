@@ -4,8 +4,8 @@
  * A source is a plain object:
  *
  *   id        stable id ('fanqie'), used in URLs and saved downloads
- *   label     name shown on its tab
- *   kinds     [{ id, label }]: what it can search for (short dramas, audiobooks...)
+ *   label     name shown on its tab: a string or { <tag>: text }; empty uses the page's words for the id
+ *   kinds     [{ id, label, media }]: what it can search for (short dramas, audiobooks...); labels as above
  *   available()                    -> Promise<boolean>   whether it can run here (its tool is installed)
  *   search(query, { kind, limit }) -> Promise<Result[]>
  *   info(id)                       -> Promise<Result>    with `episodes` known
@@ -39,7 +39,7 @@ export const RESERVED_IDS = Object.freeze(['local', 'youtube', ALL_SOURCES])
 
 /**
  * The sources this install offers, in tab order.
- * @param {{ id: string, label: string, kinds: { id: string, label: string }[], command: string[], env?: Record<string, string> }[]} definitions - the `sources` setting
+ * @param {{ id: string, label: string | Record<string, string>, kinds: { id: string, label: string | Record<string, string> }[], command: string[], env?: Record<string, string> }[]} definitions - the `sources` setting
  * @param {{ stateDir: string, logger: { warn: Function } }} options - each command runs in `<stateDir>/<id>`
  */
 export function createSources(definitions, { stateDir, logger }) {

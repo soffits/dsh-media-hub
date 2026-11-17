@@ -71,7 +71,7 @@ export function apply(ctx, config) {
     const disposeHttp = ctx.webServer.register({
       kind: 'prefix',
       path: ROUTE,
-      handler: createHandler({ connection: ctx.connection, service: () => current, label: () => config.label }),
+      handler: createHandler({ connection: ctx.connection, service: () => current, label: () => config.label, logger }),
     })
     const disposeUpgrade = ctx.webServer.registerUpgrade({
       path: WS_PATH,

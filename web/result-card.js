@@ -52,7 +52,7 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
     actions = h(Confirm, {
       t,
       danger: false,
-      question: fill(t('search.saveAllQuestion'), { n: episodes, size: bytes(episodes * (EPISODE_BYTES[result.kind] ?? EPISODE_BYTES.drama)) }),
+      question: fill(t('search.saveAllQuestion'), { n: episodes, size: bytes(t, episodes * (EPISODE_BYTES[result.kind] ?? EPISODE_BYTES.drama)) }),
       confirmLabel: t('search.saveAll'),
       onCancel: () => setState({ step: 'idle' }),
       onConfirm: () => fetchIt({ watch: false, all: true }),

@@ -19,6 +19,7 @@
  *   POST   /media-hub/api/library/refresh      { path }: ask the show's source for its work's details again
  *   POST   /media-hub/api/library/pin           { path, pinned, by? }: keep the whole show offline, or back to the rolling cache
  *   GET    /media-hub/api/settings             { label }: the sidebar entry's configured name
+ *   GET    /media-hub/api/locales              { <tag>: { <key>: text } }: the page's words, one table per locale/<tag>.json
  *   GET    /media-hub/api/sources              searchable sources, their kinds (with media) and filters
  *   GET    /media-hub/api/search?source=&q=&kind=[&offset=][&language=&format=&yearFrom=&yearTo=&maxMb=]   { results, next, failed? }; source `all` asks every source with the kind
  *   GET    /media-hub/api/info?source=&id=
@@ -36,6 +37,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { PREFIX } from './delivery.js'
 import { parseFilters } from './filters.js'
+import { readLocales } from './locales.js'
 
 export const ROUTE = `/${PREFIX}`
 export const WS_PATH = `${ROUTE}/ws`
@@ -66,11 +68,13 @@ const WEB_TYPES = Object.freeze({ '.js': 'text/javascript; charset=utf-8', '.mjs
 /** Browser files outside web/, by the name they are served under; everything in web/ is served by its own name. */
 const here = fileURLToPath(new URL('.', import.meta.url))
 const WEB_DIR = resolve(here, '../web')
+const LOCALE_DIR = resolve(here, '../locale')
 /** The modules that also run in the browser, by the name they are served under. `here` is src/ or dist/ (the built entries), both one level below the plugin's folder. */
 export const MODULES = Object.freeze({
   'sync.js': resolve(here, '../src/sync.js'),
   'youtube-url.js': resolve(here, '../src/youtube-url.js'),
   'formats.js': resolve(here, '../src/formats.js'),
+  'i18n.js': resolve(here, '../src/i18n.js'),
 })
 
 /** hls.js's browser build: next to the built entries, else from the package (a source checkout). */
@@ -196,7 +200,9 @@ const STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsuppo
  * The HTTP handler for everything under /media-hub.
  * @param {{ connection: object, service: () => object | undefined }} options - `service` answers the running room service
  */
-export function createHandler({ connection, service, label = () => '' }) {
+export function createHandler({ connection, service, label = () => '', localeDir = LOCALE_DIR, logger }) {
+  /** Read once per start: the files ship with the plugin. */
+  let locales
   return async (req, res) => {
     const admitted = admitOwner(connection, req)
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? 'Sign in to DSH first.' : 'Forbidden.')
@@ -258,6 +264,7 @@ export function createHandler({ connection, service, label = () => '' }) {
         if (route === 'POST library/refresh') return sendJson(res, 200, { work: await hub.refreshWork((await readJson(req)).path) })
         if (route === 'POST library/cancel') return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path))
         if (route === 'GET settings') return sendJson(res, 200, { label: label() })
+        if (route === 'GET locales') return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)))
         if (route === 'GET sources') return sendJson(res, 200, { sources: await hub.sources() })
         if (route === 'GET search') return sendJson(res, 200, await hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query)))
         if (route === 'GET info') return sendJson(res, 200, await hub.info(query('source'), query('id')))

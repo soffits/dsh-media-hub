@@ -4,7 +4,7 @@
  * deleting a show or one episode. Deleting asks first, in place.
  */
 import { WorkDetails } from './details.js'
-import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, api, base, bytes, clock, day, displayName, fill, h, post, query, React, watchMark } from './ui.js'
+import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, api, base, bytes, clock, day, displayName, fill, h, plural, post, query, React, watchMark } from './ui.js'
 
 const titleOf = name => name.replace(/\.[^.]+$/, '')
 
@@ -45,15 +45,15 @@ export function showMeta(t, show) {
   }
   if (show.follow) lead.push(t('follow.following'))
   if (show.seasons > 1) lead.push(fill(t('follow.season'), { n: show.season, total: show.seasons }))
-  if (show.newEpisodes) lead.push(fill(t('follow.newEpisodes'), { n: show.newEpisodes.n }))
+  if (show.newEpisodes) lead.push(plural(t, 'follow.newEpisodes', show.newEpisodes.n))
   if (show.newSeason) lead.push(t('follow.newSeason'))
 
   const rest = []
   rest.push(show.sourced
     ? fill(t('library.cachedOf'), { n: show.episodes, total: show.total })
-    : fill(t(show.episodes === 1 ? 'library.episode' : 'library.episodes'), { n: show.episodes }))
+    : plural(t, 'library.episodes', show.episodes))
   if (show.pinned) rest.push(t('library.offline'))
-  rest.push(bytes(show.size))
+  rest.push(bytes(t, show.size))
   const download = show.download
   if (download?.status === 'running') rest.push(t('library.downloading'))
   else if (download?.status === 'queued') rest.push(t('library.queued'))
@@ -91,7 +91,7 @@ function Episodes({ t, show, onStart, onChanged }) {
           h('span', { className: 'vsync-episodeTitle' }, title),
           mark.bar),
         mark.note,
-        h('span', { className: 'vsync-episodeState' }, episode.cached ? bytes(episode.size) : t('library.notCached'))),
+        h('span', { className: 'vsync-episodeState' }, episode.cached ? bytes(t, episode.size) : t('library.notCached'))),
       !episode.cached ? null : confirming === episode.name
         ? h(Confirm, {
           t,
@@ -136,7 +136,7 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
   if (mode === 'delete') {
     actions = h(Confirm, {
       t,
-      question: fill(t('library.deleteQuestion'), { size: bytes(show.size) }),
+      question: fill(t('library.deleteQuestion'), { size: bytes(t, show.size) }),
       confirmLabel: t('action.delete'),
       onCancel: () => setMode('idle'),
       onConfirm: async () => {
@@ -149,7 +149,7 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
     actions = h(Confirm, {
       t,
       danger: false,
-      question: fill(t('library.downloadAllQuestion'), { n: missing, size: bytes(missing * (EPISODE_BYTES[show.media === 'audio' ? 'audio' : 'drama'])) }),
+      question: fill(t('library.downloadAllQuestion'), { n: missing, size: bytes(t, missing * (EPISODE_BYTES[show.media === 'audio' ? 'audio' : 'drama'])) }),
       confirmLabel: t('library.downloadAll'),
       onCancel: () => setMode('idle'),
       onConfirm: async () => {
@@ -213,8 +213,8 @@ export function LibrarySection({ t, library, onOpen, onChanged, onOpenWork }) {
     h('div', { className: 'vsync-sectionHead' },
       h('h2', { id: 'vsync-library' }, t('start.library')),
       library && h('span', { className: 'vsync-sectionMeta' }, [
-        shows.length > 0 && bytes(library.total),
-        library.free !== null && fill(t('library.free'), { size: bytes(library.free) }),
+        shows.length > 0 && bytes(t, library.total),
+        library.free !== null && fill(t('library.free'), { size: bytes(t, library.free) }),
       ].filter(Boolean).join(' · '))),
     library && shows.length === 0 && h('p', { className: 'vsync-empty' }, t('start.libraryEmpty')),
     h('ul', { className: 'vsync-rows' }, shows.map(show => h(ShowRow, { key: show.path, t, show, days: library.autoDeleteDays, onOpen, onChanged, onOpenWork }))))

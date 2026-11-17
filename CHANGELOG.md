@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Languages: the page's words moved to `locale/<tag>.json`, one file per language, and the page now ships in French as well as English and Chinese. A language is added by adding its file; nothing in the code names a language. The sidebar `label` and source and kind labels take a string or `{ "<tag>": "text" }` (exact tag, then primary subtag, then English). The default sources' names come from the locale files (番茄 and 图书 in Chinese, Livres in French).
+- Counts, sizes, dates, plural forms and language names are written by `Intl` for the viewer's language (sizes read "565 ko" in French; "1 episode" and "0 épisode" are right).
+- The book language filter offers your language, the one picked and the languages in the results, instead of a fixed list.
+- Phones: compact cards with a small fixed cover, the title and one info line beside it, and no gap under the cover; *Ask* is an icon in the card's corner; the search button stays beside the field; book filters fold behind a *Filters* button that shows how many are set; touch controls are at least 40 px. Wider screens: covers fill the card's height.
+
 ## 0.2.0
 
 - Renamed from Video Sync to the media hub (`@soffits/dsh-media-hub`, repository soffits/dsh-media-hub). The page is *Media* in the sidebar (`label` renames it); routes moved from `/videosync` to `/media-hub`; room links are `?media-room=<id>`, and old `?videosync=<id>` links still open; an existing `$DSH_HOME/videosync` folder keeps being used. The agent tool keeps its name, `videosync`.

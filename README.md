@@ -34,11 +34,15 @@ The bundle adds two rows: `media-hub` (the page, shelves, rooms, media) and `med
 
 A room link looks like `https://dsh.example.com/?media-room=<room>` (DSH's advertised URL, `--public-url` when set) and opens the panel on that room.
 
+## Languages
+
+The page follows DSH's language setting. It ships in English, French and Chinese; its words are in `locale/<tag>.json`, one file per language, and the plugin offers whatever files are there, so a language is added by copying `locale/en.json` to `locale/<tag>.json` (a tag DSH knows, such as `de` or `pt-BR`) and translating the `ui` texts. A missing text falls back along DSH's chain for that language, ending at English. Counts, sizes, dates and language names are written by the browser's `Intl` for the viewer's language. Titles, tags and descriptions from sources stay as the source gives them.
+
 ## Configuration
 
 | Field | Default | |
 |---|---|---|
-| `label` | empty | Name of the sidebar entry; empty shows *Media* in the viewer's language. |
+| `label` | empty | Name of the sidebar entry: a string, or `{ "<tag>": "text" }` with one per language, picked by the viewer's language tag, then its primary subtag (`pt-BR` → `pt`), then `en`. Empty shows the page's own name (*Media*) in the viewer's language. |
 | `libraryRoots` | `[]` | More folders the panel may start rooms from. |
 | `delivery` | `origin` | `origin` serves media from DSH's own web server. `r2` (object storage with signed links) is reserved and not built yet. |
 | `stateDir` | `$DSH_HOME/media-hub` (or an existing `$DSH_HOME/videosync`) | Open rooms, the default library folder (downloads go there), shelves and book files (`books/`), prepared media, posters, the watch log and library notes. |
@@ -55,7 +59,7 @@ A room link looks like `https://dsh.example.com/?media-room=<room>` (DSH's adver
 | `coverCacheMb` | `50` | Most disk (MB) search result covers may use. They are fetched through the source's `cover` command, never by the browser, and the least recently shown are dropped past this. `0` is no limit. |
 | `bookCacheGb` | `5` | Most disk (GB) downloaded books may use; past it the least recently used files go and stay on their shelves to fetch again. `0` is no limit. |
 | `converter` | `ebook-convert` | Calibre's converter; when installed, books can be downloaded in formats their source lacks. Empty turns conversion off. |
-| `sources` | `fanqie`, `bookfetch` | The sources: a list of `{ id, label, kinds: [{ id, label, media }], filters, command: [program, ...fixed arguments], env }`; `label` is the source's name in Discover's picker and each kind's `label` its category (set them in the language you want to see; the page translates only the kinds it has words for); `media` is `video`, `audio` or `book`; `filters` lists the search filters the command understands (`language`, `format`, `year`). The list replaces the default, so keep the default entries when adding one; an empty list turns sources off. See [docs/source-protocol.md](docs/source-protocol.md). |
+| `sources` | `fanqie`, `bookfetch` | The sources: a list of `{ id, label, kinds: [{ id, label, media }], filters, command: [program, ...fixed arguments], env }`; `label` is the source's name in Discover's picker and each kind's `label` its category, each a string or `{ "<tag>": "text" }` like the sidebar's; left empty, the page uses its own words for that id (`source.name.<id>`, `kind.<id>` in `locale/`), else the id; `media` is `video`, `audio` or `book`; `filters` lists the search filters the command understands (`language`, `format`, `year`). The list replaces the default, so keep the default entries when adding one; an empty list turns sources off. See [docs/source-protocol.md](docs/source-protocol.md). |
 
 The tools row takes `agentName` (shown as who opened the agent's rooms) and `waitSeconds` (how long `start` waits for the first episode to be ready).
 
