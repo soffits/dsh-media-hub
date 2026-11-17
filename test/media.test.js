@@ -530,39 +530,62 @@ test('a show saved from a source keeps its work\'s details, covers as routes; ep
   assert.match(show.work.related[0].cover, /^covers\/[0-9a-f]{32}$/)
   assert.equal(JSON.stringify(show).includes('cdn.invalid'), false)
   assert.deepEqual((await hub.episodes(saved.path)).map(e => e.title), ['Title 1', 'Title 2', 'Title 3'])
-  assert.deepEqual(hub.roomWork(saved.room.id).work.related.map(w => w.title), ['Next'])
-  assert.equal(calls.length, 1, 'saving asked the source once')
+  assert.deepEqual((await hub.roomWork(saved.room.id)).work.related.map(w => w.title), ['Next'])
+  assert.equal(calls.length > 1, true, 'saving asked the source, and so did every read')
   const [room] = await hub.listRooms()
   assert.match(room.cover, /^covers\/[0-9a-f]{32}$/)
   assert.equal('file' in room, false)
 })
 
-test('shows saved before details were kept get them once, one request at a time; a failure waits for a refresh by hand', async (t) => {
+test('a work is read from its source each time it is shown; the saved copy is only the offline fallback, flagged and stamped', async (t) => {
   const dir = tempDir(t)
   const calls = []
-  const first = makeHub(dir, workSource(2, calls))
-  await first.load()
-  for (const id of ['1', 'bad', '2']) await first.fetch({ source: 'stub', id, watch: false })
-  await first.dispose()
-  // The notes as an older version left them: no details.
-  const file = join(dir, 'state', 'shows.json')
-  const notes = JSON.parse(readFileSync(file, 'utf8'))
-  for (const entry of Object.values(notes.shows)) { delete entry.work; delete entry.workTriedAt }
-  writeFileSync(file, JSON.stringify(notes))
-  calls.length = 0
-  const hub = makeHub(dir, workSource(2, calls, ['bad']), { backfillPauseMs: 30 })
-  t.after(() => hub.dispose())
+  const down = []
+  let title = 'Show 1'
+  let clock = 1_000
+  const source = { ...workSource(2, calls, down), info: async (id) => { calls.push(id); if (down.includes(id)) throw new Error('source is down'); return { id, title, kind: 'drama', episodes: 2, episodeTitles: [`${title} a`, `${title} b`], related: [] } } }
+  const hub = makeHub(dir, source, { now: () => clock })
   await hub.load()
-  await until('every show was asked once', () => calls.length === 3)
-  await sleep(200)
-  assert.deepEqual(calls.sort(), ['1', '2', 'bad'], 'one request per show, none repeated')
-  const shows = (await hub.library()).shows
-  assert.deepEqual(shows.filter(show => show.work).map(show => show.work.title).sort(), ['Show 1', 'Show 2'])
-  const failed = shows.find(show => !show.work)
-  await assert.rejects(hub.refreshWork(failed.path), /source is down/)
-  assert.equal(calls.filter(id => id === 'bad').length, 2, 'only the refresh by hand asked again')
-  const refreshed = await hub.refreshWork(shows.find(show => show.work).path)
-  assert.equal(refreshed.title.startsWith('Show'), true)
+  t.after(() => hub.dispose())
+  const saved = await hub.fetch({ source: 'stub', id: '1', watch: false })
+  title = 'Show 1 (renamed)'
+  clock = 5_000
+  let [show] = (await hub.library()).shows
+  assert.equal(show.work.title, 'Show 1 (renamed)', 'the source\'s new answer shows at once')
+  assert.equal(show.work.offline, undefined)
+  assert.deepEqual((await hub.episodes(saved.path)).map(e => e.title), ['Show 1 (renamed) a', 'Show 1 (renamed) b'])
+  down.push('1')
+  title = 'never seen'
+  ;[show] = (await hub.library()).shows
+  assert.equal(show.work.title, 'Show 1 (renamed)', 'the source can\'t answer: the last copy')
+  assert.equal(show.work.offline, true)
+  assert.equal(show.work.at, 5_000, 'stamped with when it was fetched')
+  assert.equal((await hub.episodes(saved.path))[0].title, 'Show 1 (renamed) a')
+  down.length = 0
+  ;[show] = (await hub.library()).shows
+  assert.equal(show.work.title, 'never seen')
+  assert.equal(show.work.offline, undefined)
+})
+
+test('readers of one work share the request in flight, and a slow source shows the saved copy while the request goes on', async (t) => {
+  const dir = tempDir(t)
+  let release
+  let started = 0
+  let slow = false
+  const base = workSource(2, [])
+  const source = { ...base, info: async (id) => { started += 1; if (slow) await new Promise((done) => { release = done }); return base.info(id) } }
+  const hub = makeHub(dir, source, { liveWorkWaitMs: 40 })
+  await hub.load()
+  t.after(() => hub.dispose())
+  await hub.fetch({ source: 'stub', id: '1', watch: false })
+  slow = true
+  started = 0
+  const [a, b] = await Promise.all([hub.library(), hub.library()])
+  assert.equal(started, 1, 'one request for two readers')
+  assert.equal(a.shows[0].work.offline, true)
+  assert.equal(b.shows[0].work.offline, true)
+  release()
+  await until('the request ends and nothing stays in flight', async () => { slow = false; return (await hub.library()).shows[0].work.offline !== true })
 })
 
 test('two works with one title get two folders in the library, whatever their ids look like', async (t) => {

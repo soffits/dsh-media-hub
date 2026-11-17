@@ -15,7 +15,6 @@
  *   POST   /media-hub/api/library/rename|keep|countdown|retry|cancel   { path, name?, by? }
  *   POST   /media-hub/api/follow               { source, id, follow }: follow a work (an empty show when it is new), or stop
  *   POST   /media-hub/api/library/seen         { path }: the news of a followed show (new season, new episodes) was seen
- *   POST   /media-hub/api/library/refresh      { path }: ask the show's source for its work's details again
  *   POST   /media-hub/api/library/pin           { path, pinned, by? }: keep the whole show offline, or back to the rolling cache
  *   GET    /media-hub/api/settings             { label, presence }: the sidebar entry's configured name, which parts of Watching show
  *   GET    /media-hub/api/locales              { <tag>: { <key>: text } }: the page's words, one table per locale/<tag>.json
@@ -249,7 +248,7 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         const route = `${req.method} ${parts.slice(1).join('/')}`
         const query = name => url.searchParams.get(name) ?? ''
         if (route === 'GET rooms') return sendJson(res, 200, { rooms: await hub.listRooms() })
-        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, hub.roomWork(parts[2]))
+        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, await hub.roomWork(parts[2]))
         if (req.method === 'DELETE' && parts[1] === 'rooms' && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]))
         if (req.method === 'POST' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'together') return sendJson(res, 200, hub.watchTogether(parts[2]))
         if (route === 'GET library') return sendJson(res, 200, await hub.library())
@@ -265,7 +264,6 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         if (route === 'POST library/pin') { const body = await readJson(req); return sendJson(res, 200, await hub.pinShow(body.path, body.pinned === true, byOf(body))) }
         if (route === 'POST follow') return sendJson(res, 200, await hub.followWork(pick(await readJson(req), ['source', 'id', 'follow'])))
         if (route === 'POST library/seen') return sendJson(res, 200, hub.dismissNews((await readJson(req)).path))
-        if (route === 'POST library/refresh') return sendJson(res, 200, { work: await hub.refreshWork((await readJson(req)).path) })
         if (route === 'POST library/cancel') return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path))
         if (route === 'GET settings') return sendJson(res, 200, settings())
         if (route === 'GET locales') return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)))

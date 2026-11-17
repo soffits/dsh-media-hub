@@ -1,7 +1,7 @@
 /**
- * What the library keeps of a work from a source (the snapshot saved with a
- * show): enough to show it again without asking the source, its related
- * works one level deep and its episode titles. Pure.
+ * What the library keeps of a work from a source (the copy saved with a show):
+ * the offline fallback for when the source can't answer (src/live-work.js),
+ * with its related works one level deep and its episode titles. Pure.
  */
 
 const RELATED_FIELDS = ['id', 'title', 'kind', 'relation', 'author', 'score', 'cover', 'popularity', 'episodes', 'status', 'tags']

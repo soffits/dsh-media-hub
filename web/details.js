@@ -7,7 +7,7 @@
  */
 import { hasEpisodes, metaLabel, popularityText } from './format.js'
 import { useKnownWork } from './known.js'
-import { Icon, Spinner, asPerson, base, clock, fill, h, plural, query, React } from './ui.js'
+import { Icon, Spinner, asPerson, base, clock, day, fill, h, plural, query, React } from './ui.js'
 
 const INFO_CONCURRENCY = 3
 
@@ -92,6 +92,7 @@ export function WorkDetails({ t, info, source, onFocus }) {
   const rows = info.meta ?? []
   const related = info.related ?? []
   return h('div', { className: 'vsync-details' },
+    info.offline && h('p', { className: 'vsync-note', role: 'status' }, fill(t('library.offlineCopy'), { date: info.at ? day(t, info.at) : '?' })),
     info.blurb && h('p', { className: 'vsync-fullBlurb' }, info.blurb),
     info.latest && h('p', { className: 'vsync-note' }, fill(t('search.latest'), { title: info.latest })),
     rows.length > 0 && h('dl', { className: 'vsync-facts' }, rows.flatMap(row => [h('dt', { key: `${row.key}-k` }, metaLabel(t, row)), h('dd', { key: `${row.key}-v` }, row.value)])),

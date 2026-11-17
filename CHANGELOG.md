@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0
+
+- A show's details (title, blurb, score, related works, episode titles, cover) are now read from its source every time the page shows them, so a rename or a new season on the source appears without any refresh. The copy saved with the show is only an offline fallback: when the source can't answer in a few seconds, the page shows it with a note saying when it was saved, and the next answer refreshes it. Nothing is cached between page loads.
+- The "Refresh info" menu item and the quiet backfill of details are gone: reading live makes both unnecessary.
+
 ## 0.6.2
 
 - The page's tabs line up again: the selected tab no longer runs into the next one, and Discover's sort buttons keep their own width.

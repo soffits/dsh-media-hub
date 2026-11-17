@@ -12255,7 +12255,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         const route = `${req.method} ${parts.slice(1).join("/")}`;
         const query = (name2) => url.searchParams.get(name2) ?? "";
         if (route === "GET rooms") return sendJson(res, 200, { rooms: await hub.listRooms() });
-        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "work") return sendJson(res, 200, hub.roomWork(parts[2]));
+        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "work") return sendJson(res, 200, await hub.roomWork(parts[2]));
         if (req.method === "DELETE" && parts[1] === "rooms" && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]));
         if (req.method === "POST" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "together") return sendJson(res, 200, hub.watchTogether(parts[2]));
         if (route === "GET library") return sendJson(res, 200, await hub.library());
@@ -12283,7 +12283,6 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         }
         if (route === "POST follow") return sendJson(res, 200, await hub.followWork(pick3(await readJson(req), ["source", "id", "follow"])));
         if (route === "POST library/seen") return sendJson(res, 200, hub.dismissNews((await readJson(req)).path));
-        if (route === "POST library/refresh") return sendJson(res, 200, { work: await hub.refreshWork((await readJson(req)).path) });
         if (route === "POST library/cancel") return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path));
         if (route === "GET settings") return sendJson(res, 200, settings());
         if (route === "GET locales") return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)));
@@ -14205,14 +14204,15 @@ function createLibrary(options) {
     if (isNearEnd(resume2.position, resume2.duration)) return index + 1 < slots.length ? slots[index + 1].n : null;
     return slots[index].n;
   }
-  async function describe(path) {
+  const liveOr = (live, path, entry) => live && options.liveWork ? options.liveWork(path, entry) : Promise.resolve(entry.work ?? null);
+  async function describe(path, live = false) {
     const info = await stat9(path).catch(() => null);
     if (info === null) return null;
     const files = await episodeFiles(path);
     const state = download(path);
     if ((files === null || files.length === 0) && state === null && !isSourced(record(path))) return null;
     const names = (files ?? []).map((file) => file.name);
-    const entry = record(path);
+    const entry = { ...record(path), work: await liveOr(live, path, record(path)) };
     const slots = slotsOf(entry, files ?? []);
     if (names.length === 0 && state === null && !isSourced(entry)) return null;
     const resume2 = resumeFrom(path, slots);
@@ -14264,16 +14264,13 @@ function createLibrary(options) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    /** Every show, newest first, with totals and the free space of the download folder's disk. */
-    async list() {
-      const shows = [];
+    /** Every show, newest first, with totals and the free space of the download folder's disk. `live` has each sourced show's work asked of its source (see `options.liveWork`). */
+    async list({ live = false } = {}) {
+      const paths = [];
       for (const root of roots) {
-        for (const name2 of await readdir7(root).catch(() => [])) {
-          if (name2.startsWith(".")) continue;
-          const show = await describe(join15(root, name2));
-          if (show !== null) shows.push(show);
-        }
+        for (const name2 of await readdir7(root).catch(() => [])) if (!name2.startsWith(".")) paths.push(join15(root, name2));
       }
+      const shows = (await Promise.all(paths.map((path) => describe(path, live)))).filter((show) => show !== null);
       shows.sort((a, b) => b.addedAt - a.addedAt);
       groupSeasons(shows);
       const disk = await statfs(roots[0]).catch(() => null);
@@ -14286,7 +14283,8 @@ function createLibrary(options) {
     },
     async episodes(path) {
       const target = requireShow(path);
-      const slots = slotsOf(record(target), await episodeFiles(target) ?? []);
+      const entry = { ...record(target), work: await liveOr(true, target, record(target)) };
+      const slots = slotsOf(entry, await episodeFiles(target) ?? []);
       return slots.map((slot) => ({
         n: slot.n,
         name: slot.file?.name ?? null,
@@ -14406,16 +14404,17 @@ function createLibrary(options) {
       update(path, { source: { ...entry.source, episodes } });
       changed(path);
     },
-    /** The snapshot of a show's work saved with it (or null), and the sourced shows without one, for backfilling. */
+    /** The saved (offline fallback) copy of a show's work, or null. */
     workOf: (path) => record(path).work ?? null,
     /** Which source and work id a show came from (`{ source, id, ... }`), or null. */
     workSource: (path) => path === null || path === void 0 ? null : record(path).source ?? null,
-    withoutWork: () => Object.keys(meta).filter((path) => isSourced(meta[path]) && !meta[path].work && !meta[path].workTriedAt),
-    setWork(path, work) {
-      update(path, { work, workTriedAt: null });
+    /** The saved copy of a work, refreshed from its source: an offline fallback only, and no change of the show. */
+    keepWork(path, work) {
+      if (meta[path]) update(path, { work });
     },
-    /** Note that fetching a show's work failed, so it is not asked for again unless someone refreshes it. */
-    noteWorkFailed: (path) => update(path, { workTriedAt: now() }),
+    setWork(path, work) {
+      update(path, { work });
+    },
     /** Note a show coming from a source, before its files arrive. */
     async adopt(path, source, { pinned = false } = {}) {
       await mkdir9(path, { recursive: true });
@@ -14609,15 +14608,68 @@ function createFollows({ library, source, refreshed, addSeason, record, notify, 
   };
 }
 
+// src/live-work.js
+var DAY_MS3 = 864e5;
+var sameAs = (saved, work, at) => saved != null && at - saved.at < DAY_MS3 && JSON.stringify({ ...saved, at: 0 }) === JSON.stringify({ ...work, at: 0 });
+function createLiveWork({ source, keep, waitMs = 8e3, parallel = 4, now = Date.now, logger }) {
+  const flying = /* @__PURE__ */ new Map();
+  const queue = [];
+  let running = 0;
+  function turn() {
+    while (running < parallel && queue.length > 0) {
+      running += 1;
+      queue.shift()();
+    }
+  }
+  const limited = (task) => new Promise((resolve7, reject) => {
+    queue.push(() => task().then(resolve7, reject).finally(() => {
+      running -= 1;
+      turn();
+    }));
+    turn();
+  });
+  function ask(path, entry) {
+    const { source: sourceId, id } = entry.source;
+    const key = `${sourceId}
+${id}`;
+    if (!flying.has(key)) {
+      const request = limited(() => source(sourceId).info(id, { person: entry.source.person })).then((info) => {
+        const work = snapshotOf(info, now());
+        if (!sameAs(entry.work, work, now())) keep(path, work);
+        return work;
+      }).finally(() => flying.delete(key));
+      request.catch(() => {
+      });
+      flying.set(key, request);
+    }
+    return flying.get(key);
+  }
+  const offline = (entry) => entry.work ? { ...entry.work, offline: true } : null;
+  return async function read(path, entry) {
+    const found = entry.source?.source ? source(entry.source.source) : void 0;
+    if (found === void 0) return entry.work ?? null;
+    let timer;
+    const late = new Promise((resolve7) => {
+      timer = setTimeout(() => resolve7(null), waitMs);
+    });
+    try {
+      return await Promise.race([ask(path, entry), late]) ?? offline(entry);
+    } catch (error) {
+      logger.warn("no live details for %s from %s: %s", path, entry.source.source, error.message);
+      return offline(entry);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
 // src/media.js
 var HOUR_MS = 36e5;
-var BACKFILL_PAUSE_MS = 3e4;
 var MIN_FREE_BYTES = 1e9;
 var NO_CONVERTER = Object.freeze({ command: "", available: async () => false });
 var hubError = (code, message) => Object.assign(new Error(message), { code });
 function createMediaHub(options) {
   const { stateDir, libraryRoots, logger, now = Date.now } = options;
-  const backfillPause = options.backfillPauseMs ?? BACKFILL_PAUSE_MS;
   const sources = new Map(options.sources.map((source2) => [source2.id, source2]));
   const covers = createCovers({ dir: join16(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
   const log = createWatchLog({ file: join16(stateDir, LOG_NAME), now, logger });
@@ -14638,7 +14690,9 @@ function createMediaHub(options) {
     logger,
     now
   });
+  const liveWork = createLiveWork({ source: (id) => sources.get(id), keep: (path, work) => library.keepWork(path, work), waitMs: options.liveWorkWaitMs, logger, now });
   const library = createLibrary({
+    liveWork,
     roots: libraryRoots,
     stateDir,
     autoDeleteDays: options.autoDeleteDays,
@@ -14686,27 +14740,6 @@ function createMediaHub(options) {
     if (job.status === "failed") rooms.failWaiting(job.dir, job.error ?? "the download failed", job.reason ?? null);
     await cache.enforce();
   }
-  let backfilling = false;
-  async function backfill() {
-    if (backfilling) return;
-    backfilling = true;
-    try {
-      for (const path of library.withoutWork()) {
-        const entry = library.workSource(path);
-        if (!sources.has(entry?.source)) continue;
-        try {
-          library.setWork(path, snapshotOf(await source(entry.source).info(entry.id), now()));
-        } catch (error) {
-          library.noteWorkFailed(path);
-          logger.warn("no details for %s from %s: %s", path, entry.source, error.message);
-        }
-        await new Promise((done) => backfillTimer = setTimeout(done, backfillPause));
-      }
-    } finally {
-      backfilling = false;
-    }
-  }
-  let backfillTimer;
   function notify(event) {
     const [command, ...args] = options.notifyCommand ?? [];
     if (command === void 0) return;
@@ -14747,6 +14780,10 @@ function createMediaHub(options) {
     now,
     ...options.follow
   });
+  const liveEntry = async (show) => {
+    const entry = { source: library.workSource(show), work: library.workOf(show) };
+    return { ...entry, work: await liveWork(show, entry) };
+  };
   const withCovers = (show) => show.work && show.source?.source ? { ...show, work: covers.decorate(show.source.source, show.work) } : show;
   function source(id) {
     const found = sources.get(id);
@@ -14774,8 +14811,6 @@ ${item.id}`).digest("hex").slice(0, 8);
       await downloads.load();
       await library.sweep();
       await cache.refreshActive();
-      backfillTimer = setTimeout(() => backfill().catch(() => {
-      }), backfillPause);
       follows.start();
     },
     // ---------------------------------------------------------- rooms
@@ -14801,7 +14836,7 @@ ${item.id}`).digest("hex").slice(0, 8);
     /** Open rooms with a preview of what plays: the show's cover and a frame of the episode now on. */
     async listRooms() {
       return Promise.all(rooms.listRooms().map(async ({ file, ...room }) => {
-        const show = room.show === null ? null : withCovers({ source: library.workSource(room.show), work: library.workOf(room.show) });
+        const show = room.show === null ? null : withCovers(await liveEntry(room.show));
         return { ...room, cover: show?.work?.cover ?? null, frame: file === null ? null : await covers.ofFrame(file, room.duration > 30 ? Math.round(room.duration / 10) : 3) };
       }));
     },
@@ -14836,22 +14871,14 @@ ${item.id}`).digest("hex").slice(0, 8);
     },
     // ---------------------------------------------------------- library
     async library() {
-      const list = await library.list();
+      const list = await library.list({ live: true });
       return { ...list, shows: list.shows.map(withCovers) };
     },
     /** The details of the work a room's show came from, or null. */
-    roomWork(id) {
+    async roomWork(id) {
       const room = rooms.listRooms().find((entry) => entry.id === id);
       if (room === void 0) throw hubError("not_found", "no such room");
-      return { work: room.show === null ? null : withCovers({ source: library.workSource(room.show), work: library.workOf(room.show) }).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null };
-    },
-    /** Ask the show's source for its work's details again (by hand: the library never repeats it by itself). */
-    async refreshWork(path) {
-      const show = library.showPath(path);
-      const entry = show === null ? null : library.workSource(show);
-      if (entry === null || !sources.has(entry.source)) throw hubError("not_found", "this show did not come from a source");
-      library.setWork(show, snapshotOf(await source(entry.source).info(entry.id), now()));
-      return withCovers({ source: entry, work: library.workOf(show) }).work;
+      return { work: room.show === null ? null : withCovers(await liveEntry(room.show)).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null };
     },
     episodes: (path) => library.episodes(path),
     removeShow: (path, by) => library.remove(path, { by }),
@@ -14964,7 +14991,6 @@ ${item.id}`).digest("hex").slice(0, 8);
     logFile: log.file,
     async dispose() {
       clearInterval(sweepTimer);
-      clearTimeout(backfillTimer);
       follows.stop();
       await books.dispose();
       await downloads.dispose();
@@ -15117,7 +15143,7 @@ function createShelfRoutes({ books, identity }) {
 var name = "dsh-media-hub";
 var inject = ["webServer", "connection"];
 var ROOM_ID = /^[A-Za-z0-9_-]{6,32}$/;
-var DAY_MS3 = 864e5;
+var DAY_MS4 = 864e5;
 function apply(ctx, config) {
   const logger = ctx.logger("media-hub");
   let current;
@@ -15152,7 +15178,7 @@ function apply(ctx, config) {
     const prune = setInterval(() => {
       service.pruneCache(config.cacheDays).catch(() => {
       });
-    }, DAY_MS3);
+    }, DAY_MS4);
     const identity = () => ctx.get("requestIdentity");
     const fetchRoutes = [
       ...createShelfRoutes({ books: () => current?.books, identity }),

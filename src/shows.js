@@ -54,6 +54,7 @@ export function cleanName(value) {
  * @param {(path: string) => object | null} options.download - the download state of a show folder
  * @param {(path: string) => void} options.forget - stop anything working on a show being removed
  * @param {(type: string, fields: object) => void} [options.record] - library actions for the watch log
+ * @param {(path: string, entry: object) => Promise<object | null>} [options.liveWork] - a show's work as its source says now (or the saved copy, flagged `offline`, when the source can't answer); without it the saved copy
  * @param {{ info: Function, warn: Function }} options.logger
  * @param {() => number} [options.now]
  */
@@ -238,14 +239,16 @@ export function createLibrary(options) {
 
   // ------------------------------------------------------------ views
 
-  async function describe(path) {
+  const liveOr = (live, path, entry) => (live && options.liveWork ? options.liveWork(path, entry) : Promise.resolve(entry.work ?? null))
+
+  async function describe(path, live = false) {
     const info = await stat(path).catch(() => null)
     if (info === null) return null
     const files = await episodeFiles(path)
     const state = download(path)
     if ((files === null || files.length === 0) && state === null && !isSourced(record(path))) return null
     const names = (files ?? []).map(file => file.name)
-    const entry = record(path)
+    const entry = { ...record(path), work: await liveOr(live, path, record(path)) }
     const slots = slotsOf(entry, files ?? [])
     if (names.length === 0 && state === null && !isSourced(entry)) return null
     const resume = resumeFrom(path, slots)
@@ -299,16 +302,13 @@ export function createLibrary(options) {
       return () => listeners.delete(listener)
     },
 
-    /** Every show, newest first, with totals and the free space of the download folder's disk. */
-    async list() {
-      const shows = []
+    /** Every show, newest first, with totals and the free space of the download folder's disk. `live` has each sourced show's work asked of its source (see `options.liveWork`). */
+    async list({ live = false } = {}) {
+      const paths = []
       for (const root of roots) {
-        for (const name of await readdir(root).catch(() => [])) {
-          if (name.startsWith('.')) continue
-          const show = await describe(join(root, name))
-          if (show !== null) shows.push(show)
-        }
+        for (const name of await readdir(root).catch(() => [])) if (!name.startsWith('.')) paths.push(join(root, name))
       }
+      const shows = (await Promise.all(paths.map(path => describe(path, live)))).filter(show => show !== null)
       shows.sort((a, b) => b.addedAt - a.addedAt)
       groupSeasons(shows)
       const disk = await statfs(roots[0]).catch(() => null)
@@ -322,7 +322,8 @@ export function createLibrary(options) {
 
     async episodes(path) {
       const target = requireShow(path)
-      const slots = slotsOf(record(target), (await episodeFiles(target)) ?? [])
+      const entry = { ...record(target), work: await liveOr(true, target, record(target)) }
+      const slots = slotsOf(entry, (await episodeFiles(target)) ?? [])
       return slots.map(slot => ({
         n: slot.n,
         name: slot.file?.name ?? null,
@@ -452,16 +453,17 @@ export function createLibrary(options) {
       changed(path)
     },
 
-    /** The snapshot of a show's work saved with it (or null), and the sourced shows without one, for backfilling. */
+    /** The saved (offline fallback) copy of a show's work, or null. */
     workOf: path => record(path).work ?? null,
     /** Which source and work id a show came from (`{ source, id, ... }`), or null. */
     workSource: path => (path === null || path === undefined ? null : record(path).source ?? null),
-    withoutWork: () => Object.keys(meta).filter(path => isSourced(meta[path]) && !meta[path].work && !meta[path].workTriedAt),
-    setWork(path, work) {
-      update(path, { work, workTriedAt: null })
+    /** The saved copy of a work, refreshed from its source: an offline fallback only, and no change of the show. */
+    keepWork(path, work) {
+      if (meta[path]) update(path, { work })
     },
-    /** Note that fetching a show's work failed, so it is not asked for again unless someone refreshes it. */
-    noteWorkFailed: path => update(path, { workTriedAt: now() }),
+    setWork(path, work) {
+      update(path, { work })
+    },
 
     /** Note a show coming from a source, before its files arrive. */
     async adopt(path, source, { pinned = false } = {}) {
