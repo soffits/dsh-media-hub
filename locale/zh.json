@@ -243,6 +243,9 @@
     "progress.speed": "{speed}/秒",
     "progress.left": "还剩 {time}",
     "link.account": "使用 {name} 的账号",
-    "link.accountHint": "读取这个网站时用的账号，能选哪些画质由它决定"
+    "link.accountHint": "读取这个网站时用的账号，能选哪些画质由它决定",
+    "caption.auto": "{name}（自动）",
+    "room.watchTogether": "一起看",
+    "room.togetherCopied": "链接已复制，打开链接的人会从这里和你一起看"
   }
 }

@@ -13,15 +13,17 @@
  * `maxHeight`, H.264 and AAC first, so the file plays as it is), a height
  * cap, or `audio` only.
  */
-import { mkdir, readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { dirname, extname, join } from 'node:path'
+import { captionLabel } from '../captions.js'
 import { episodeNumber } from '../episodes.js'
 import { isMedia } from '../library.js'
 import { parseInfo } from './command.js'
 import { accountView } from '../cookies.js'
 import { proxyAnswers } from '../proxy.js'
 import { commandExists, lastLine, parseLine, run } from './process.js'
-import { PROGRESS_ARGS, createProgress, failureReason, startTemplate, subtitleArgs, subtitleLanguages } from './ytdlp.js'
+import { runFfmpeg } from '../prepare.js'
+import { PROGRESS_ARGS, captionArgs, chooseCaptions, createProgress, failureReason, sizeEstimate } from './ytdlp.js'
 
 export const LINK_SOURCE = 'link'
 export const AUTO = 'auto'
@@ -95,16 +97,36 @@ export function infoDocument(data, url, maxHeight) {
 
 /** yt-dlp's format choice for a quality. */
 export function formatArgs(quality, maxHeight) {
-  if (quality === AUDIO) return ['-f', 'ba/b', '-S', 'acodec:aac', '-x', '--audio-format', 'm4a']
+  if (quality === AUDIO) return ['-f', 'ba/b', '-S', 'acodec:aac']
   const height = quality === AUTO || !isQuality(quality) ? maxHeight : Math.min(Number(quality), maxHeight)
-  return ['-f', 'bv*+ba/b', '-S', `res:${height},vcodec:h264,acodec:aac`, '--merge-output-format', 'mp4']
+  return ['-f', 'bv*+ba/b', '-S', `res:${height},vcodec:h264,acodec:aac`]
+}
+
+/** An audio-only episode becomes an m4a file. */
+const AUDIO_FILE = Object.freeze(['-x', '--audio-format', 'm4a'])
+const MAX_STEM_BYTES = 100
+/** Containers two fetched parts are merged into, in order of preference. */
+const MERGED = Object.freeze(['mp4', 'mkv'])
+/** Where an episode is fetched before it lands, inside the show's folder. */
+export const INCOMING = '.incoming'
+
+/** An episode's file name before its extension: its number, then its title as any file system takes it. */
+export function episodeStem(number, title) {
+  const clean = String(title ?? '').replace(/[\u0000-\u001f\u007f/\\:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim()
+  let cut = ''
+  for (const char of clean) {
+    if (Buffer.byteLength(cut + char) > MAX_STEM_BYTES) break
+    cut += char
+  }
+  const number3 = String(number).padStart(3, '0')
+  return cut === '' ? number3 : `${number3} ${cut}`
 }
 
 /**
- * @param {{ ytDlp: string, proxies: ReturnType<import('../proxy.js').createProxies>, cookies: ReturnType<import('../cookies.js').createCookies>, maxHeight: number, cwd: string, logger: { warn: Function } }} options
+ * @param {{ ytDlp: string, ffmpeg?: string, proxies: ReturnType<import('../proxy.js').createProxies>, cookies: ReturnType<import('../cookies.js').createCookies>, maxHeight: number, cwd: string, logger: { warn: Function } }} options
  * @returns {import('./index.js').Source}
  */
-export function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logger }) {
+export function createLinkSource({ ytDlp, ffmpeg = 'ffmpeg', proxies, cookies, maxHeight, cwd, logger }) {
   async function workDir() {
     await mkdir(cwd, { recursive: true })
     return cwd
@@ -130,8 +152,11 @@ export function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logg
     return { proxy, account }
   }
 
-  /** One yt-dlp run on `url` for `person`; a failed run becomes its reason. */
-  async function ytdlp(url, args, { person = '', ...options } = {}) {
+  /**
+   * One yt-dlp run on `url` for `person`, with the route and account of its page. `load` reads
+   * an earlier run's document instead of the page, so the video is not looked up again.
+   */
+  async function ytdlp(url, args, { person = '', load = null, ...options } = {}) {
     const { proxy, account } = await access(url, person)
     const dir = await workDir()
     let session
@@ -142,7 +167,8 @@ export function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logg
       throw failure('sign_in')
     }
     try {
-      const result = await run([ytDlp, '--no-warnings', '--no-playlist', '--proxy', proxy, ...session.args, ...args, '--', url], { cwd: dir, ...options })
+      const target = load === null ? ['--', url] : ['--load-info-json', load]
+      const result = await run([ytDlp, '--no-warnings', '--no-playlist', '--proxy', proxy, ...session.args, ...args, ...target], { cwd: dir, ...options })
       return { ...result, proxy, account }
     } finally {
       await session.done()
@@ -156,6 +182,55 @@ export function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logg
     return failure(reason)
   }
 
+  /** A `-J` document, or why there is none. */
+  async function lookUp(url, args, options) {
+    const result = await ytdlp(url, ['-J', ...args], options)
+    if (result.oversized) throw linkError('source_failed', 'the page lists too much to read', 'failed')
+    if (result.code !== 0) throw await reasonOf(url, result)
+    try {
+      return { data: JSON.parse(result.stdout), account: result.account }
+    } catch {
+      throw linkError('source_failed', 'yt-dlp answered something that is not JSON', 'failed')
+    }
+  }
+
+  /** The captions chosen for `language` into `dir` beside the episode's file-to-be; they never stop the episode. */
+  async function fetchCaptions(url, { entry, load, work, dir, stem, language, person, signal }) {
+    const chosen = chooseCaptions(entry, language)
+    if (chosen.length === 0) return []
+    const result = await ytdlp(url, ['--skip-download', ...captionArgs(chosen), '-o', join(work, 'captions')], { person, load, signal })
+    if (result.code !== 0) logger.warn('link %s: captions: %s', url, lastLine(result.stderr))
+    const placed = []
+    for (const track of chosen) {
+      const label = captionLabel(track)
+      const target = join(dir, `${stem}.${label}.vtt`)
+      if (await rename(join(work, `captions.${track.tag}.vtt`), target).then(() => true, () => false)) placed.push({ path: target, label })
+    }
+    return placed
+  }
+
+  /** The fetched parts as one file in `dir`: a single part as it is, a video and an audio file merged without re-encoding. */
+  async function assemble(files, dir, stem) {
+    if (files.length === 1) {
+      const target = join(dir, `${stem}${extname(files[0])}`)
+      await rename(files[0], target)
+      return target
+    }
+    let last = null
+    for (const ext of MERGED) {
+      const target = join(dir, `${stem}.${ext}`)
+      const part = join(dirname(files[0]), `merged.${ext}`)
+      try {
+        await runFfmpeg(['-y', ...files.flatMap(file => ['-i', file]), ...files.flatMap((_, n) => ['-map', String(n)]), '-c', 'copy', ...(ext === 'mp4' ? ['-movflags', '+faststart'] : []), part], { ffmpeg, duration: null })
+        await rename(part, target)
+        return target
+      } catch (error) {
+        last = error
+      }
+    }
+    throw last
+  }
+
   return {
     id: LINK_SOURCE,
     label: '',
@@ -164,26 +239,13 @@ export function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logg
     filters: [],
     available: () => commandExists(ytDlp),
 
-    /**
-     * The work at an address, read with the account `person` would use (so its qualities are what that account gets).
-     * `language` is the viewer's, for choosing generated subtitles.
-     */
-    async info(url, { person = '', language = '' } = {}) {
-      // Some extractors list a video's subtitles only when asked to write them (-J writes nothing). Not
-      // --write-auto-subs: it makes some sites list every translation pair, tens of megabytes of JSON.
-      const result = await ytdlp(String(url), ['-J', '--flat-playlist', '--write-subs'], { person, timeoutMs: INFO_TIMEOUT_MS })
-      if (result.oversized) throw linkError('source_failed', 'the page lists too much to read', 'failed')
-      if (result.code !== 0) throw await reasonOf(url, result)
-      let data
-      try {
-        data = JSON.parse(result.stdout)
-      } catch {
-        throw linkError('source_failed', 'yt-dlp answered something that is not JSON', 'failed')
-      }
+    /** The work at an address, read with the account `person` would use (so its qualities are what that account gets). */
+    async info(url, { person = '' } = {}) {
+      const { data, account } = await lookUp(String(url), ['--flat-playlist'], { person, timeoutMs: INFO_TIMEOUT_MS })
       const document = infoDocument(data, String(url), maxHeight)
       if (document.id.length > MAX_URL) throw linkError('invalid', 'the address is too long')
       if (document.episodes.length === 0) throw linkError('empty', 'there is no video at this address', 'not_found')
-      return { ...parseInfo(document), qualities: document.qualities, account: accountView(result.account), subtitles: subtitleLanguages(data, language) }
+      return { ...parseInfo(document), qualities: document.qualities, account: accountView(account) }
     },
 
     /** The thumbnail, through the route of its own host or its page's. */
@@ -192,41 +254,66 @@ export function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logg
     },
 
     /**
-     * Episodes `from`..`to` into `dir`, one file each, named by number, with their subtitles; yt-dlp skips the ones already there.
-     * `subtitles` is the language list `info` chose (null when unknown, then `language`'s), `person` whose account to use.
+     * Episodes `from`..`to` into `dir`, one file each, named by number, with the captions chosen for the viewer's
+     * `language` beside them; episodes already there are skipped. Each episode is looked up once, then its formats
+     * (a video and an audio file) are fetched side by side, so `onPartial` can hand over files that play while they
+     * grow, and `onProgress` tells the episode's progress as a whole.
      */
-    async download({ id, dir, from = 1, to = from, quality = AUTO, person = '', subtitles = null, language = '', signal, onEpisode, onStart, onProgress }) {
+    async download({ id, dir, from = 1, to = from, quality = AUTO, person = '', language = '', signal, onEpisode, onStart, onProgress, onPartial }) {
       await mkdir(dir, { recursive: true })
-      const progress = createProgress((number, value) => onProgress?.(number, value))
-      const onLine = (line) => {
-        const event = parseLine(line)
-        if (event === null) return
-        progress.event(event)
-        if (!Number.isInteger(event.number)) return
-        if (event.event === 'start') onStart?.(event.number)
+      const url = String(id)
+      const failed = []
+      let first = null
+      for (let number = from; number <= to && !signal?.aborted; number++) {
+        if ((await readdir(dir)).some(name => isMedia(name) && episodeNumber(name) === number)) continue
+        onStart?.(number)
+        const work = join(dir, INCOMING, String(number))
+        try {
+          await fetchEpisode(number, work)
+        } catch (error) {
+          if (signal?.aborted) break
+          failed.push(String(number))
+          first ??= error
+          logger.warn('link download %s, episode %d: %s', url, number, error.message)
+        } finally {
+          await rm(work, { recursive: true, force: true })
+        }
         onEpisode?.()
       }
-      const number = '%(playlist_index|1)'
-      const args = [
-        ...formatArgs(quality, maxHeight),
-        ...subtitleArgs(subtitles, language),
-        '-i', '--no-mtime', ...PROGRESS_ARGS,
-        '-P', `home:${dir}`, '-P', `temp:${join(dir, '.incoming')}`,
-        '-o', `${number}03d %(title).100B.%(ext)s`,
-        '--playlist-items', `${from}:${to}`,
-        '--print', startTemplate(number),
-        '--print', `after_move:{"event":"done","number":${number}s}`,
-      ]
-      const result = await ytdlp(String(id), args, { person, signal, onStdoutLine: onLine })
-      onEpisode?.()
-      if (signal?.aborted) return { failed: [] }
-      const have = new Set((await readdir(dir)).filter(isMedia).map(episodeNumber).filter(n => n !== null))
-      const failed = []
-      for (let n = from; n <= to; n++) if (!have.has(n)) failed.push(String(n))
       // Nothing landed: the reason is the site's or the route's, not a count of episodes.
-      if (result.code !== 0 && failed.length === to - from + 1) throw await reasonOf(id, result)
-      if (failed.length > 0) logger.warn('link download %s ended with %s: %s', id, result.code, lastLine(result.stderr))
+      if (first !== null && failed.length === to - from + 1) throw first
       return { failed }
+
+      async function fetchEpisode(number, work) {
+        await rm(work, { recursive: true, force: true })
+        await mkdir(work, { recursive: true })
+        const { data } = await lookUp(url, [...formatArgs(quality, maxHeight), '--write-subs', '--playlist-items', String(number)], { person, signal, timeoutMs: INFO_TIMEOUT_MS })
+        const entry = data._type === 'playlist' ? (data.entries ?? []).find(item => item !== null && typeof item === 'object') : data
+        if (entry === undefined) throw failure('not_found')
+        const load = join(work, 'info.json')
+        await writeFile(load, JSON.stringify(entry))
+        const stem = episodeStem(number, entry.title)
+        const captions = await fetchCaptions(url, { entry, load, work, dir, stem, language, person, signal })
+        try {
+          const parts = Array.isArray(entry.requested_formats) && entry.requested_formats.length > 0 ? entry.requested_formats : [entry]
+          const progress = createProgress(parts.map(part => ({ format: String(part.format_id), estimate: sizeEstimate(part, entry.duration) })), value => onProgress?.(number, value))
+          const runs = parts.map((part, n) => ytdlp(url, [
+            '-f', String(part.format_id), '--no-part', ...(quality === AUDIO ? AUDIO_FILE : []), ...PROGRESS_ARGS, '-o', join(work, `part${n}.%(ext)s`),
+          ], { person, load, signal, onStdoutLine: (line) => { const event = parseLine(line); if (event !== null) progress.event(event) } }).then((result) => {
+            if (result.code === 0) progress.finished(part.format_id)
+            return result
+          }))
+          if (quality !== AUDIO) onPartial?.(number, { files: parts.map((part, n) => join(work, `part${n}.${part.ext}`)), subtitles: captions, growing: Promise.allSettled(runs) })
+          const results = await Promise.all(runs)
+          const broken = results.find(result => result.code !== 0)
+          if (broken !== undefined) throw await reasonOf(url, broken)
+          const names = (await readdir(work)).filter(name => /^part\d+\./.test(name)).sort()
+          await assemble(names.map(name => join(work, name)), dir, stem)
+        } catch (error) {
+          for (const caption of captions) await rm(caption.path, { force: true })
+          throw error
+        }
+      }
     },
   }
 }

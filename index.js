@@ -49,7 +49,7 @@ export function apply(ctx, config) {
       webUrl: () => ctx.get('webApp')?.getAdvertisedUrl(),
       lifetime: { emptyMinutes: config.emptyMinutes, unopenedHours: config.unopenedHours },
       autoDeleteDays: config.autoDeleteDays,
-      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, proxies: createProxies(config.proxies), cookies: createCookies(config.cookies), maxHeight: config.maxHeight } }),
+      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, ffmpeg: config.ffmpeg, proxies: createProxies(config.proxies), cookies: createCookies(config.cookies), maxHeight: config.maxHeight } }),
       coverCacheBytes: config.coverCacheMb * 1e6,
       books: {
         capBytes: config.bookCacheGb * 1e9,

@@ -94,7 +94,8 @@ export function Page({ t, initialRoom }) {
 
   const load = React.useCallback(async () => {
     const [list, lib] = await Promise.all([api('rooms'), api('library')])
-    if (list.rooms) setRooms(list.rooms)
+    // A room someone watches alone is theirs: it is listed once they open it to others.
+    if (list.rooms) setRooms(list.rooms.filter(room => room.together))
     if (lib.shows) setLibrary(lib)
   }, [])
 

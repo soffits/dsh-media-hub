@@ -3,6 +3,7 @@
  * to the Host half, formatting, icons and two small controls (an inline
  * confirmation and a menu). The page's other modules import this one.
  */
+import { captionName, parseCaption } from './captions.js'
 import { pick } from './i18n.js'
 
 export let React
@@ -128,6 +129,12 @@ export function bytes(t, value) {
   }
   const digits = n >= 10 || unit === 0 ? 0 : 1
   return new Intl.NumberFormat(t.language, { style: 'unit', unit: BYTE_UNITS[unit], unitDisplay: unit === 0 ? 'narrow' : 'short', maximumFractionDigits: digits }).format(n)
+}
+
+/** A caption track's name for the picker: its language in that language, marked when a machine made it. */
+export function captionText(t, label) {
+  const name = captionName(label)
+  return parseCaption(label).auto ? fill(t('caption.auto'), { name }) : name
 }
 
 /** A language's name in the viewer's language (Intl.DisplayNames), else the text as it is (a label that names no known language). */

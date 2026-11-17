@@ -136,11 +136,12 @@ stdout is one JSON object per line, each with an `event`:
 | `work` | `id`, `title`, `kind`, `selected`, `total` | first line (optional) |
 | `skipped` | `number`, `name` | the file is already there |
 | `start` | `number`, `name`, `index`, `of`, `label` | an episode begins downloading |
+| `partial` | `number`, `files` | optional: the episode's files in `dir` while they are being written (one file, or a video and an audio file), readable from their start as they grow |
 | `done` | `number`, `name`, `bytes`, `sha256` | the file is complete |
 | `failed` | `number`, `name`, `reason` | this episode could not be fetched; the run goes on |
 | `result` | `folder`, `files` (each `number`, `name`, `bytes`, `sha256`), `written`, `skipped`, `bytes`, `failed` | the last line |
 
-Lines that are not JSON objects and events it does not know are ignored. What the hub uses: `start` (which episode the run is on), `done` (look at the folder again, after checking the file), `failed`, and `result` (a run that exits 0 without one is an error).
+Lines that are not JSON objects and events it does not know are ignored. What the hub uses: `start` (which episode the run is on), `partial` (play the episode while it downloads: the hub follows those files until the episode's `done` or `failed`, or the end of the run), `done` (look at the folder again, after checking the file), `failed`, and `result` (a run that exits 0 without one is an error).
 
 A `done` file is checked against the `bytes` and `sha256` it reports; one that does not match is deleted and counted as failed, so the next run fetches it again. Exit non-zero when any episode failed (after printing `result`), so a failure is never silent; The hub then shows the failed episodes and stops until someone retries.
 

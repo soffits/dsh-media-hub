@@ -231,28 +231,44 @@ export function createCommandSource(definition, { logger, cwd }) {
       if (code !== 0) throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
     },
 
-    async download({ id, dir, from = 1, to = null, signal, onEpisode, onStart }) {
+    async download({ id, dir, from = 1, to = null, signal, onEpisode, onStart, onPartial }) {
       if (!ID.test(String(id))) throw sourceError('invalid', `not a ${name()} id`)
       const failed = []
       let result = null
       let checking = Promise.resolve()
+      /** Episodes whose files are handed over while they grow: settled when the episode is done or failed, or the run ends. */
+      const growing = new Map()
+      const settle = (number) => {
+        growing.get(number)?.()
+        growing.delete(number)
+      }
       const episodes = to === null ? `${from}-` : from === to ? String(from) : `${from}-${to}`
       const onLine = (line) => {
         const event = parseLine(line)
         if (event?.event === 'start' && Number.isInteger(event.number)) {
           onStart?.(event.number)
           onEpisode?.()
+        } else if (event?.event === 'partial' && Number.isInteger(event.number) && !growing.has(event.number)) {
+          const names = Array.isArray(event.files) ? event.files.filter(file => typeof file === 'string' && file !== '' && basename(file) === file) : []
+          if (names.length === 0) return
+          const until = new Promise(done => growing.set(event.number, done))
+          onPartial?.(event.number, { files: names.map(file => join(dir, file)), subtitles: [], growing: until })
         } else if (event?.event === 'done') {
+          if (Number.isInteger(event.number)) settle(event.number)
           // Each finished file is checked against the size and hash the command reports, in order as they come.
           checking = checking.then(() => verify(dir, event, name(), logger)).then((file) => {
             if (file.ok) onEpisode?.()
             else failed.push(file.name)
           })
-        } else if (event?.event === 'failed' && typeof event.name === 'string') failed.push(event.name)
+        } else if (event?.event === 'failed' && typeof event.name === 'string') {
+          if (Number.isInteger(event.number)) settle(event.number)
+          failed.push(event.name)
+        }
         else if (event?.event === 'result') result = event
       }
       const argv = [...command, 'download', `--id=${String(id)}`, '--episodes', episodes, '--output', dir, '--json']
       const { code, stderr } = await run(argv, { signal, cwd: await workDir(), env, onStdoutLine: onLine })
+      for (const number of [...growing.keys()]) settle(number)
       await checking
       onEpisode?.()
       if (signal?.aborted) return { failed }

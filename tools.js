@@ -106,11 +106,11 @@ export function createTool({ getService, agentName = '', waitSeconds = 120 }) {
         if (args.action !== 'start') return failure('invalid_arguments', 'action must be start, list, close, library or history')
         let room
         if (args.source === undefined || args.source === 'local') {
-          ({ room } = await service.createRoom({ path: args.path, title: args.title, by: agentName }))
+          ({ room } = await service.createRoom({ path: args.path, title: args.title, by: agentName, together: true }))
         } else {
           const id = args.source === LINK_SOURCE ? args.url : args.id
           if (typeof id !== 'string') return failure('invalid_arguments', `start with source ${args.source} needs ${args.source === LINK_SOURCE ? 'url' : 'id'}`)
-          room = (await service.fetch({ source: args.source, id, watch: true, all: args.offline === true, quality: args.quality ?? '', by: agentName })).room
+          room = (await service.fetch({ source: args.source, id, watch: true, together: true, all: args.offline === true, quality: args.quality ?? '', by: agentName })).room
         }
         await service.waitReady(room.id, service.room(room.id).index, waitSeconds * 1000)
         const detail = service.room(room.id)
