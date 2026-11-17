@@ -10,7 +10,7 @@ function fakeService() {
     closeRoom: id => ({ closed: id }),
     createRoom: async (input) => {
       calls.push(input)
-      if (input.source === 'local' && input.path === '/nope') throw Object.assign(new Error('/nope does not exist'), { code: 'not_found' })
+      if (input.path === '/nope') throw Object.assign(new Error('/nope does not exist'), { code: 'not_found' })
       return { room: { id: 'r1' } }
     },
     waitReady: async () => { calls.push('wait') },
@@ -28,7 +28,7 @@ test('start opens a room, waits for the first local episode and returns the link
   const service = fakeService()
   const tool = createTool({ getService: () => service, agentName: 'Helper' })
   const result = await tool.execute({ action: 'start', source: 'local', path: '/videos/Show' })
-  assert.deepEqual(service.calls, [{ source: 'local', path: '/videos/Show', urls: undefined, title: undefined, by: 'Helper' }, 'wait'])
+  assert.deepEqual(service.calls, [{ path: '/videos/Show', title: undefined, by: 'Helper' }, 'wait'])
   assert.equal(result.link, 'https://dsh.example.com/?media-room=r1')
   assert.equal(result.episodes, 2)
   assert.equal(result.firstEpisode, 'ready')
@@ -46,11 +46,19 @@ test('start from a source opens the room at once, rolling by default and the who
   const service = fakeService()
   const tool = createTool({ getService: () => service, agentName: 'Helper', waitSeconds: 5 })
   const result = await tool.execute({ action: 'start', source: 'stub', id: '7600000000000000001' })
-  assert.deepEqual(service.calls[0], { source: 'stub', id: '7600000000000000001', watch: true, all: false, by: 'Helper' })
+  assert.deepEqual(service.calls[0], { source: 'stub', id: '7600000000000000001', watch: true, all: false, quality: '', by: 'Helper' })
   assert.equal(result.link, 'https://dsh.example.com/?media-room=r1')
   await tool.execute({ action: 'start', source: 'stub', id: '7600000000000000001', offline: true })
   assert.equal(service.calls.find(call => call.all === true)?.id, '7600000000000000001')
   assert.equal((await tool.execute({ action: 'start', source: 'stub' })).error.code, 'invalid_arguments')
+})
+
+test('start from a link takes its address as the work and passes the quality', async () => {
+  const service = fakeService()
+  const tool = createTool({ getService: () => service, agentName: 'Helper' })
+  await tool.execute({ action: 'start', source: 'link', url: 'https://video.example/watch/1', quality: '720' })
+  assert.deepEqual(service.calls, [{ source: 'link', id: 'https://video.example/watch/1', watch: true, all: false, quality: '720', by: 'Helper' }, 'wait'])
+  assert.match((await tool.execute({ action: 'start', source: 'link', id: 'x' })).error.message, /needs url/)
 })
 
 test('history is a compact summary with the log path', async () => {

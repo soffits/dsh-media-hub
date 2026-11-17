@@ -4,8 +4,7 @@
  *   GET    /media-hub/web/<file>               the page's browser modules and styles (web/), the sync math
  *   GET    /media-hub/media/<room>/<i>/<file>  an episode (Range), or an HLS playlist and its segments
  *   GET    /media-hub/subs/<room>/<i>/<n>.vtt  a subtitle track
- *   GET    /media-hub/thumbs/<key>.jpg         a show's poster frame
- *   GET    /media-hub/covers/<key>             a search result's cover, fetched through its source and cached
+ *   GET    /media-hub/covers/<key>             a picture: a work's cover, a show's poster, a room's frame (src/covers.js)
  *   GET    /media-hub/api/rooms                open rooms
  *   POST   /media-hub/api/rooms                create a room
  *   DELETE /media-hub/api/rooms/<id>           close a room
@@ -23,7 +22,7 @@
  *   GET    /media-hub/api/sources              searchable sources, their kinds (with media) and filters
  *   GET    /media-hub/api/search?source=&q=&kind=[&offset=][&language=&format=&yearFrom=&yearTo=&maxMb=]   { results, next, failed? }; source `all` asks every source with the kind
  *   GET    /media-hub/api/info?source=&id=
- *   POST   /media-hub/api/fetch                { source, id, watch, all, by }: into the library (the rolling cache's window, or the whole show with `all`), or watch now
+ *   POST   /media-hub/api/fetch                { source, id, watch, all, quality, by }: into the library (the rolling cache's window, or the whole show with `all`), or watch now
  *   WS     /media-hub/ws?room=<id>             the room's sync channel (src/hub.js)
  *
  * Every request passes `connection.admit`, the check DSH applies to its own
@@ -72,7 +71,6 @@ const LOCALE_DIR = resolve(here, '../locale')
 /** The modules that also run in the browser, by the name they are served under. `here` is src/ or dist/ (the built entries), both one level below the plugin's folder. */
 export const MODULES = Object.freeze({
   'sync.js': resolve(here, '../src/sync.js'),
-  'youtube-url.js': resolve(here, '../src/youtube-url.js'),
   'formats.js': resolve(here, '../src/formats.js'),
   'i18n.js': resolve(here, '../src/i18n.js'),
 })
@@ -218,10 +216,6 @@ export function createHandler({ connection, service, label = () => '', localeDir
         res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': WEB_TYPES[extname(file)], 'content-length': body.length }).end(body)
         return
       }
-      if (parts[0] === 'thumbs' && parts.length === 2 && req.method === 'GET') {
-        const file = hub.thumbFile(parts[1])
-        return file === null ? sendText(res, 404, 'Not found.') : sendFile(req, res, file)
-      }
       if (parts[0] === 'covers' && parts.length === 2 && req.method === 'GET') {
         const cover = await hub.coverFile(parts[1])
         if (cover === null) return sendText(res, 404, 'Not found.')
@@ -246,7 +240,7 @@ export function createHandler({ connection, service, label = () => '', localeDir
         const query = name => url.searchParams.get(name) ?? ''
         if (route === 'GET rooms') return sendJson(res, 200, { rooms: await hub.listRooms() })
         if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, hub.roomWork(parts[2]))
-        if (route === 'POST rooms') return sendJson(res, 200, await hub.createRoom({ ...pick(await readJson(req), ['source', 'path', 'urls', 'title', 'by', 'start']), fromPanel: true }))
+        if (route === 'POST rooms') return sendJson(res, 200, await hub.createRoom({ ...pick(await readJson(req), ['path', 'title', 'by', 'start']), fromPanel: true }))
         if (req.method === 'DELETE' && parts[1] === 'rooms' && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]))
         if (route === 'GET library') return sendJson(res, 200, await hub.library())
         if (route === 'GET library/episodes') return sendJson(res, 200, { episodes: await hub.episodes(query('path')) })
@@ -268,7 +262,7 @@ export function createHandler({ connection, service, label = () => '', localeDir
         if (route === 'GET sources') return sendJson(res, 200, { sources: await hub.sources() })
         if (route === 'GET search') return sendJson(res, 200, await hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query)))
         if (route === 'GET info') return sendJson(res, 200, await hub.info(query('source'), query('id')))
-        if (route === 'POST fetch') return sendJson(res, 200, await hub.fetch(pick(await readJson(req), ['source', 'id', 'watch', 'all', 'by'])))
+        if (route === 'POST fetch') return sendJson(res, 200, await hub.fetch(pick(await readJson(req), ['source', 'id', 'watch', 'all', 'quality', 'by'])))
       }
       return sendText(res, 404, 'Not found.')
     } catch (error) {

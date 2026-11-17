@@ -3,7 +3,8 @@ import { chmodSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
-import { commandExists, createCommandSource, parseInfo, parseSearch } from '../src/sources/command.js'
+import { createCommandSource, parseInfo, parseSearch } from '../src/sources/command.js'
+import { commandExists } from '../src/sources/process.js'
 import { createSources, describeSources } from '../src/sources/index.js'
 import { quietLogger, tempDir } from './helpers.js'
 
@@ -24,7 +25,7 @@ test('search documents become results; hits of undeclared kinds and unusable one
       { id: 3, title: '初尝玫瑰！', kind: 'audio', score: 'bad' },
     ],
   }
-  const bare = { cover: null, popularity: null, status: '', tags: [], latest: '', meta: [], episodes: null, year: null, language: '', publisher: '', origin: '', formats: [], bytes: null }
+  const bare = { cover: null, url: null, duration: null, popularity: null, status: '', tags: [], latest: '', meta: [], episodes: null, year: null, language: '', publisher: '', origin: '', formats: [], bytes: null }
   assert.deepEqual(parseSearch(document, KINDS), [
     { id: '1', title: '总裁是我前女友', author: '某公司', kind: 'drama', score: 8, blurb: '年少相爱 多年后重逢。', ...bare },
     { id: '3', title: '初尝玫瑰！', author: '', kind: 'audio', score: null, blurb: '', ...bare },
@@ -53,7 +54,7 @@ test('the optional descriptive fields are read when well formed and ignored when
 
 test('an info document becomes one result whose episode count is the length of its list', () => {
   const info = parseInfo({ id: '9', title: '初尝玫瑰！', kind: 'drama', author: '云景文化', status: 'finished', score: 8.2, blurb: '温薏成长于书香家庭。', episodes: [{ number: 1, title: '第1集' }, { number: 2, title: '第2集' }] })
-  assert.deepEqual(info, { id: '9', title: '初尝玫瑰！', kind: 'drama', author: '云景文化', status: 'finished', episodes: 2, episodeTitles: ['第1集', '第2集'], score: 8.2, blurb: '温薏成长于书香家庭。', cover: null, popularity: null, tags: [], latest: '', meta: [], year: null, language: '', publisher: '', origin: '', formats: [], bytes: null, related: [] })
+  assert.deepEqual(info, { id: '9', title: '初尝玫瑰！', kind: 'drama', author: '云景文化', status: 'finished', episodes: 2, episodeTitles: ['第1集', '第2集'], score: 8.2, blurb: '温薏成长于书香家庭。', cover: null, url: null, duration: null, popularity: null, tags: [], latest: '', meta: [], year: null, language: '', publisher: '', origin: '', formats: [], bytes: null, related: [] })
   assert.equal(parseInfo({ id: '9', title: 'x', episode_count: 40 }).episodes, null, 'a count without a list is not an episode list')
   assert.throws(() => parseInfo({ title: 'no id' }), { code: 'source_failed' })
 })

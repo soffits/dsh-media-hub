@@ -41,7 +41,7 @@ export function createJournal({ log, library, now = Date.now }) {
   return (type, detail) => {
     const { room } = detail
     if (type === 'opened') {
-      log.append('room.opened', { ...base(room), source: room.source, by: room.createdBy || null })
+      log.append('room.opened', { ...base(room), by: room.createdBy || null })
     } else if (type === 'closed') {
       position(room, room.index, detail.position, detail.viewers)
       log.append('room.closed', base(room))

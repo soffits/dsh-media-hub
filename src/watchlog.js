@@ -2,7 +2,7 @@
  * The watch log: an append-only JSON Lines file of what was watched, by
  * whom, and how far. One object per line, `at` an ISO time:
  *
- *   { type: 'room.opened',      room, title, source, show, by }
+ *   { type: 'room.opened',      room, title, show, by }
  *   { type: 'room.closed',      room, title, show }
  *   { type: 'viewer.joined',    room, title, show, viewer }
  *   { type: 'viewer.left',      room, title, show, viewer }
@@ -13,7 +13,7 @@
  *         | 'library.deleted' | 'library.episodeDeleted' | 'library.renamed'
  *         | 'library.pinned' | 'library.unpinned' | 'library.cacheDropped' (episodes, reason), show, title, by, ... }
  *
- * `show` is the library path of a local show (null for YouTube), `title` the
+ * `show` is the path the room plays (a library show, or a file or folder), `title` the
  * room's title, `episode` { index, title }. `position` lines are written when
  * a viewer leaves, when the room moves to another episode, when it closes and
  * every few minutes while it plays, so the last one per viewer and episode
@@ -63,7 +63,7 @@ export function createWatchLog({ file, now = Date.now, logger }) {
 
   /**
    * What was watched, newest first: one entry per show (or per room title
-   * for YouTube), with the episodes finished, where each viewer stopped,
+   * when a room has no show), with the episodes finished, where each viewer stopped,
    * who watched and when.
    * @param {{ days?: number, limit?: number }} [options]
    */

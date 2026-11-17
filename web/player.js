@@ -14,7 +14,6 @@
  */
 import { DRIFT, clockOffset, correction, expectedPosition, preloadDue } from './sync.js'
 import { canStart, offerTap, shouldPrime } from './readiness.js'
-import { createYouTubePlayer } from './youtube.js'
 
 /** Reconcile the player with the room this often. */
 const TICK_MS = 500
@@ -206,7 +205,6 @@ function createVideoPlayer(stage, events, { base }) {
 
   return {
     kind: 'file',
-    fineRate: true,
     /** Load the next episode in the background, so switching to it is near-instant. Not for HLS through hls.js, which is not preloaded. */
     preload(item) {
       const url = absolute(item)
@@ -332,7 +330,6 @@ export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
   let pingSeq = 0
   let state = null
   let player = null
-  let playerKind = null
   let loadedIndex = null
   let lastSeq = null
   let lastMembers = null
@@ -558,12 +555,9 @@ export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
     current.prime().then(() => reconcile())
   }
 
-  function ensurePlayer(item) {
-    const kind = item.kind === 'youtube' ? 'youtube' : 'file'
-    if (player !== null && playerKind === kind) return player
-    player?.destroy()
-    player = kind === 'youtube' ? createYouTubePlayer(stage, events) : createVideoPlayer(stage, events, { base })
-    playerKind = kind
+  function ensurePlayer() {
+    if (player !== null) return player
+    player = createVideoPlayer(stage, events, { base })
     loadedIndex = null
     return player
   }
@@ -593,13 +587,12 @@ export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
       if (player !== null && loadedIndex !== room.index) {
         player.destroy()
         player = null
-        playerKind = null
         loadedIndex = null
       }
       return
     }
     const target = expectedPosition(clock, serverNow())
-    const current = ensurePlayer(item)
+    const current = ensurePlayer()
     if (loadedIndex !== room.index) {
       loadedIndex = room.index
       settleUntil = advancing ? 0 : Date.now() + SEEK_SETTLE_MS
@@ -629,7 +622,7 @@ export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
     }
     if (current.paused()) {
       if (Date.now() < settleUntil) return
-      // A player that cannot report a refused autoplay (YouTube) is still paused after its attempt.
+      // A refused autoplay that the element did not report leaves it paused after its attempt.
       if (playAttempts >= 2 && !needsGesture) {
         needsGesture = true
         view()
@@ -651,7 +644,7 @@ export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
       view()
     }
     if (current.buffering() || Date.now() < settleUntil) return
-    const fix = correction({ local: current.position(), expected: target, rate: clock.rate, fineRate: current.fineRate, nudging })
+    const fix = correction({ local: current.position(), expected: target, rate: clock.rate, nudging })
     lastDrift = fix.drift
     if (fix.action === 'seek') {
       current.seek(fix.to)
@@ -669,9 +662,9 @@ export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
 
   /** Start loading the next episode in the background once this one is close to its end (or short). */
   function preloadNext() {
-    if (player === null || playerKind !== 'file' || state === null) return
+    if (player === null || state === null) return
     const next = state.room.items[state.room.index + 1]
-    if (next === undefined || next.status !== 'ready' || next.kind === 'youtube' || loadedIndex !== state.room.index) return
+    if (next === undefined || next.status !== 'ready' || loadedIndex !== state.room.index) return
     if (preloadDue({ duration: player.duration(), position: player.position() })) player.preload(next)
     // Tell the room this viewer can switch with no waiting, so it can schedule the switch for the end of the episode.
     if (nextSent !== state.room.index && player.nextReady?.()) {

@@ -35,13 +35,12 @@ export const OPS = Object.freeze(['play', 'pause', 'seek', 'rate', 'select', 'en
 
 /**
  * A new room, waiting for its first viewers.
- * @param {{ id: string, title: string, source: 'local' | 'youtube', items: object[], createdBy: string, now: number }} input
+ * @param {{ id: string, title: string, items: object[], createdBy: string, now: number }} input
  */
-export function createRoom({ id, title, source, items, createdBy, now }) {
+export function createRoom({ id, title, items, createdBy, now }) {
   const room = {
     id,
     title,
-    source,
     items,
     index: 0,
     playing: false,

@@ -18,7 +18,6 @@ import { isAbsolute, join, resolve } from 'node:path'
 import { SKIP_AFTER_MS, advance, advanceOf, applyOp, clockOf, createRoom, hold, positionAt, settle, updateItems } from './room.js'
 import { scanSource } from './library.js'
 import { createQueue, prepareEpisode, pruneCache } from './prepare.js'
-import { youtubeItems, youtubeTitle } from './youtube-items.js'
 
 /** Keep-alive ping on each socket; a tunnel drops idle sockets after about 100 s. */
 const PING_MS = 20_000
@@ -43,11 +42,10 @@ const cleanText = (value, max) => (typeof value === 'string' ? value.replace(/[\
  * @param {string} options.stateDir - rooms.json and the prepared-media cache live here
  * @param {string[]} options.libraryRoots - folders the panel may start rooms from
  * @param {import('./delivery.js').Delivery} options.delivery
- * @param {{ ffmpeg: string, ffprobe: string, ytDlp: string, maxHeight: number, threads: number }} options.tools
+ * @param {{ ffmpeg: string, ffprobe: string, maxHeight: number, threads: number }} options.tools
  * @param {() => string | undefined} options.webUrl - the Web UI's advertised root URL, for links
  * @param {{ emptyMinutes: number, unopenedHours: number }} options.lifetime - a room closes this long after its last viewer left, or after it was created when nobody opened it
  * @param {{ info: Function, warn: Function }} options.logger
- * @param {(url: string) => Promise<string | null>} [options.fetchTitle] - title of a YouTube video
  * @param {(item: object, show: string | undefined) => object | null} [options.watchOf] - how far an episode was watched, shown in the room's episode list
  * @param {(path: string) => Promise<{ n: number, title: string | null, path: string | null }[] | null>} [options.directory] - every episode of a show from a source (null for other folders), on disk or not
  * @param {(showPath: string, change: { retry: boolean }) => void} [options.focus] - told when a room on a show goes to another episode, or opens
@@ -65,7 +63,6 @@ export function createRoomService(options) {
       logger.warn('watch log: %s', error.message)
     }
   }
-  const fetchTitle = options.fetchTitle ?? youtubeTitle
   const cacheDir = join(stateDir, 'cache')
   const file = join(stateDir, 'rooms.json')
   const rooms = new Map()
@@ -131,9 +128,8 @@ export function createRoomService(options) {
       progress: item.progress ?? null,
       error: item.error ?? null,
       duration: item.duration ?? null,
-      videoId: item.videoId ?? null,
       watch: options.watchOf?.(item, room.showPath) ?? null,
-      src: ready && item.kind !== 'youtube' ? delivery.mediaUrl(roomId, index, item) : null,
+      src: ready ? delivery.mediaUrl(roomId, index, item) : null,
       subtitles: ready ? (item.subtitles ?? []).map((sub, n) => ({ label: sub.label, src: delivery.subtitleUrl(roomId, index, n) })) : [],
     }
   }
@@ -142,7 +138,6 @@ export function createRoomService(options) {
     return {
       id: room.id,
       title: room.title,
-      source: room.source,
       index: room.index,
       seq: room.seq,
       last: room.last,
@@ -168,7 +163,6 @@ export function createRoomService(options) {
       emptySince: room.emptySince ?? null,
       id: room.id,
       title: room.title,
-      source: room.source,
       show: room.showPath ?? null,
       episodes: room.items.length,
       index: room.index,
@@ -451,21 +445,19 @@ export function createRoomService(options) {
     load,
 
     /**
-     * Create a room.
-     * @param {{ source: 'local' | 'youtube', path?: string, urls?: string[] | string, title?: string, by?: string, fromPanel?: boolean, start?: { index: number, position: number } | null }} input
+     * Create a room on a local file or folder of episodes.
+     * @param {{ path: string, title?: string, by?: string, fromPanel?: boolean, start?: { index: number, position: number } | null }} input
      */
     async createRoom(input) {
-      const source = input.source
-      if (source !== 'local' && source !== 'youtube') throw serviceError('invalid', 'source must be "local" or "youtube"')
-      if (source === 'local' && !delivery.available) throw serviceError('unsupported', delivery.reason)
-      const items = source === 'local' ? await localItems(input.path, input.fromPanel === true) : await youtubeItems(input.urls, { ytDlp: tools.ytDlp, fetchTitle })
+      if (!delivery.available) throw serviceError('unsupported', delivery.reason)
+      const items = await localItems(input.path, input.fromPanel === true)
       const id = randomBytes(9).toString('base64url')
-      const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : (source === 'local' ? input.path.split('/').filter(Boolean).pop() : items[0].title))
-      const created = createRoom({ id, title, source, items, createdBy: cleanText(input.by, MAX_NAME), now: now() })
+      const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : input.path.split('/').filter(Boolean).pop())
+      const created = createRoom({ id, title, items, createdBy: cleanText(input.by, MAX_NAME), now: now() })
       const start = input.start
       const room = {
         ...created,
-        ...(source === 'local' ? { showPath: resolve(input.path) } : {}),
+        showPath: resolve(input.path),
         ...(Number.isInteger(start?.index) && start.index >= 0 && start.index < items.length ? { index: start.index, position: Math.max(0, Number(start.position) || 0) } : {}),
       }
       commit(wanting(room))
@@ -540,7 +532,7 @@ export function createRoomService(options) {
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {
       const item = rooms.get(roomId)?.items[index]
-      return item?.status === 'ready' && item.kind !== 'youtube' ? { file: item.file, kind: item.kind } : undefined
+      return item?.status === 'ready' ? { file: item.file, kind: item.kind } : undefined
     },
 
     subtitleFile(roomId, index, n) {

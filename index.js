@@ -1,5 +1,5 @@
 /**
- * DeepSeek Harness Host plugin: rooms for watching a video together.
+ * DeepSeek Harness Host plugin: the media hub (rooms for watching together, the library, sources, shelves).
  *
  * Mounts /media-hub on DSH's web server (media, subtitles, the page's
  * browser modules, a JSON API for rooms, the library and sources) and the
@@ -13,8 +13,9 @@ import { createDelivery } from './src/delivery.js'
 import { ROUTE, WS_PATH, admitOwner, createHandler, refuseUpgrade } from './src/http.js'
 import { createMediaHub } from './src/media.js'
 import { createShelfRoutes } from './src/shelf-routes.js'
-import { commandExists } from './src/sources/command.js'
+import { createProxies } from './src/proxy.js'
 import { createSources } from './src/sources/index.js'
+import { commandExists } from './src/sources/process.js'
 
 export const name = 'dsh-media-hub'
 export const inject = ['webServer', 'connection']
@@ -40,11 +41,11 @@ export function apply(ctx, config) {
       stateDir,
       libraryRoots: [join(stateDir, 'library'), ...config.libraryRoots.map(root => resolve(root))],
       delivery: createDelivery({ mode: config.delivery }),
-      tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, ytDlp: config.ytDlp, maxHeight: config.maxHeight, threads: config.threads },
+      tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, maxHeight: config.maxHeight, threads: config.threads },
       webUrl: () => ctx.get('webApp')?.getAdvertisedUrl(),
       lifetime: { emptyMinutes: config.emptyMinutes, unopenedHours: config.unopenedHours },
       autoDeleteDays: config.autoDeleteDays,
-      sources: createSources(config.sources, { stateDir, logger }),
+      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, proxies: createProxies(config.proxies), maxHeight: config.maxHeight } }),
       coverCacheBytes: config.coverCacheMb * 1e6,
       books: {
         capBytes: config.bookCacheGb * 1e9,

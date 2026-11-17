@@ -19,12 +19,11 @@
  * episodes through `dropEpisodes` and `cacheInfo`, unless the show is
  * pinned (kept offline), which the cache never trims.
  */
-import { createHash } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { episodeNumber, isSourced, keyOf, noteFor, numbersOf, slotsOf, titleOf } from './episodes.js'
 import { isAudio, isMedia, naturalSort } from './library.js'
-import { dropPrepared, preparedBytes, runFfmpeg } from './prepare.js'
+import { dropPrepared, preparedBytes } from './prepare.js'
 import { isNearEnd } from './watchlog.js'
 
 const DAY_MS = 86_400_000
@@ -49,7 +48,7 @@ export function cleanName(value) {
  * @param {string[]} options.roots - library folders; the first one receives downloads
  * @param {string} options.stateDir
  * @param {number} options.autoDeleteDays - 0 keeps watched shows
- * @param {{ ffmpeg: string }} options.tools
+ * @param {ReturnType<import('./covers.js').createCovers>} options.covers - makes the poster frame of a show's first episode
  * @param {(path: string) => boolean} options.inUse - whether an open room plays from this show
  * @param {(path: string) => object | null} options.download - the download state of a show folder
  * @param {(path: string) => void} options.forget - stop anything working on a show being removed
@@ -79,13 +78,11 @@ export function groupSeasons(shows) {
 }
 
 export function createLibrary(options) {
-  const { roots, stateDir, tools, inUse, download, forget, logger, now = Date.now } = options
+  const { roots, stateDir, covers, inUse, download, forget, logger, now = Date.now } = options
   const metaFile = join(stateDir, 'shows.json')
-  const thumbDir = join(stateDir, 'thumbs')
   const cacheDir = join(stateDir, 'cache')
   let meta = {}
   let saving = Promise.resolve()
-  const thumbJobs = new Map()
   const listeners = new Set()
   const changed = show => { for (const listener of listeners) listener(show) }
 
@@ -230,43 +227,6 @@ export function createLibrary(options) {
     return slots[index].n
   }
 
-  // ------------------------------------------------------------ posters
-
-  function thumbKey(path, first) {
-    return createHash('sha256').update(`${join(path, first.name)}\0${first.size}\0${first.mtimeMs}`).digest('hex').slice(0, 20)
-  }
-
-  /** A poster frame of a show's first episode, made once in the background. */
-  async function thumbnail(path, files, isFile) {
-    const first = files[0]
-    if (first === undefined) return null
-    const source = isFile ? path : join(path, first.name)
-    const key = thumbKey(isFile ? dirname(path) : path, first)
-    const out = join(thumbDir, `${key}.jpg`)
-    if (await stat(out).then(() => true, () => false)) return `${key}.jpg`
-    if (thumbJobs.has(key) || await stat(`${out}.none`).then(() => true, () => false)) return null
-    thumbJobs.set(key, makeThumb(source, out).finally(() => thumbJobs.delete(key)))
-    return null
-  }
-
-  async function makeThumb(source, out, seek = 3) {
-    // A poster is optional: no folder to put it in (state removed while a job runs) means no poster, never an unhandled rejection.
-    if (await mkdir(thumbDir, { recursive: true }).then(() => false, () => true)) return
-    const frame = ['-map', '0:V:0', '-frames:v', '1', '-vf', 'scale=-2:180', '-q:v', '5', '-f', 'image2', `${out}.part`]
-    // A frame a few seconds in for videos; the cover picture, if any, for audio.
-    const attempts = isAudio(source) ? [['-y', '-i', source, ...frame]] : [['-y', '-ss', String(seek), '-i', source, ...frame], ['-y', '-i', source, ...frame]]
-    for (const args of attempts) {
-      try {
-        await runFfmpeg(args, { ffmpeg: tools.ffmpeg, duration: null })
-        await rename(`${out}.part`, out)
-        return
-      } catch {
-        await rm(`${out}.part`, { force: true })
-      }
-    }
-    await writeFile(`${out}.none`, '').catch(() => {})
-  }
-
   // ------------------------------------------------------------ views
 
   async function describe(path) {
@@ -289,7 +249,7 @@ export function createLibrary(options) {
       pinned: entry.pinned === true,
       total: entry.source?.episodes ?? null,
       size: await folderBytes(path),
-      thumb: files === null ? null : await thumbnail(path, files, info.isFile()),
+      frame: files === null || files.length === 0 ? null : await covers.ofFrame(info.isFile() ? path : join(path, files[0].name)),
       source: entry.source ?? null,
       keep: entry.keep === true,
       watchedAt: entry.watchedAt ?? null,
@@ -442,28 +402,6 @@ export function createLibrary(options) {
       note(pinned ? 'library.pinned' : 'library.unpinned', target, { by })
       return { path: target, pinned }
     },
-
-    /**
-     * A frame of one episode, about a tenth of the way in (3 s when its length is not known), made once in the background;
-     * its file name under /thumbs once it exists, else null.
-     */
-    async frame(path, file, duration = null) {
-      const target = showPath(path) ?? showPath(dirname(path))
-      if (target === null || typeof file !== 'string' || (dirname(file) !== target && file !== target)) return null
-      const info = await stat(file).catch(() => null)
-      if (info === null || !info.isFile()) return null
-      const key = createHash('sha256').update(`frame\0${file}\0${info.size}\0${info.mtimeMs}`).digest('hex').slice(0, 20)
-      const out = join(thumbDir, `${key}.jpg`)
-      if (await stat(out).then(() => true, () => false)) return `${key}.jpg`
-      if (thumbJobs.has(key) || await stat(`${out}.none`).then(() => true, () => false)) return null
-      thumbJobs.set(key, makeThumb(file, out, duration > 30 ? Math.round(duration / 10) : 3).finally(() => thumbJobs.delete(key)))
-      return null
-    },
-
-    /** Wait for the poster frames being made, so nothing writes into the state folder after shutdown. */
-    settleThumbs: () => Promise.allSettled([...thumbJobs.values()]),
-
-    thumbFile: name => (/^[0-9a-f]{20}\.jpg$/.test(name) ? join(thumbDir, name) : null),
 
     /** Followed shows with when they were last checked and are next due. */
     follows: () => Object.entries(meta).filter(([, entry]) => entry.follow && isSourced(entry)).map(([path, entry]) => ({ path, follow: entry.follow, source: entry.source, group: entry.group ?? null })),

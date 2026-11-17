@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { DELIVERY_MODES } from './delivery.js'
+import { PROXY_URL } from './proxy.js'
 import { FILTERS } from './sources/command.js'
 import { MEDIA } from './sources/index.js'
 
@@ -26,7 +27,7 @@ const Label = z.union([z.string(), z.dict(z.string())])
 
 const SourceConfig = z.object({
   id: z.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/)
-    .description('Stable id, lowercase letters, digits, - and _. Names the source in URLs and saved downloads, and the folder the command runs in (stateDir/<id>). Not local or youtube.'),
+    .description('Stable id, lowercase letters, digits, - and _. Names the source in URLs and saved downloads, and the folder the command runs in (stateDir/<id>). Not local, link or all.'),
   label: Label.default('')
     .description('Name on the source\'s tab: a string, or { <tag>: text } per language. Empty uses the page\'s own words for this source id (source.name.<id> in locale/), else the id.'),
   kinds: z.array(z.object({
@@ -41,6 +42,15 @@ const SourceConfig = z.object({
     .description('The command and its fixed arguments, one entry per word; the plugin adds the protocol verbs after them.'),
   env: z.dict(z.string()).default({})
     .description('Extra environment variables for the command.'),
+})
+
+const ProxyRule = z.object({
+  url: z.string().pattern(PROXY_URL)
+    .description('The proxy: socks5h://host:port (names resolved by the proxy), socks5://, socks4://, http:// or https://.'),
+  hosts: z.array(z.string()).default([])
+    .description('Hosts it carries: example.com (that host and every host under it), .example (every host ending so), * (every host).'),
+  hostsFile: z.string().default('')
+    .description('A file with more such patterns, one per line, # starting a comment; read again when it changes. While it cannot be read, requests fail instead of going direct.'),
 })
 
 /** Default sources, each hidden while its command is not installed: Fanqie (fanqie-cli) for short dramas, audiobooks and novels, and bookfetch (bookfetch-cli) for ebooks and papers. */
@@ -100,5 +110,8 @@ export const Config = z.object({
     .description('A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run.'),
   ffmpeg: z.string().default('ffmpeg').description('ffmpeg command.'),
   ffprobe: z.string().default('ffprobe').description('ffprobe command.'),
-  ytDlp: z.string().default('yt-dlp').description('yt-dlp command, used to list the videos of a YouTube playlist.'),
+  ytDlp: z.string().default('yt-dlp')
+    .description('yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file (cookies, for example) applies.'),
+  proxies: z.array(ProxyRule).default([])
+    .description('Which proxy each outbound request takes, by host: the first rule naming the host wins, any other host goes direct. Applies to every yt-dlp call (by the page\'s host) and every picture the hub fetches itself. Sources\' commands keep their own network setup.'),
 })

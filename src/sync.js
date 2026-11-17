@@ -16,8 +16,6 @@ export const DRIFT = Object.freeze({
   settle: 0.1,
   /** Rate change while catching up, as a fraction of the room's rate. */
   nudge: 0.05,
-  /** For players without fine rate control: seek once drift passes this. */
-  coarseSeek: 1,
 })
 
 /**
@@ -56,18 +54,13 @@ export function clockOffset(samples) {
  * @param {number} input.local - the player's position, seconds
  * @param {number} input.expected - the room's position, seconds
  * @param {number} input.rate - the room's rate
- * @param {boolean} [input.fineRate=true] - whether the player can play at arbitrary rates
  * @param {boolean} [input.nudging=false] - whether the player is catching up by rate now
  * @returns {{ action: 'none', rate: number, drift: number } | { action: 'rate', rate: number, drift: number } | { action: 'seek', to: number, rate: number, drift: number }}
  *   drift is local minus expected (positive: ahead)
  */
-export function correction({ local, expected, rate, fineRate = true, nudging = false }) {
+export function correction({ local, expected, rate, nudging = false }) {
   const drift = local - expected
   const size = Math.abs(drift)
-  if (!fineRate) {
-    if (size > DRIFT.coarseSeek) return { action: 'seek', to: expected, rate, drift }
-    return { action: 'none', rate, drift }
-  }
   if (size > DRIFT.seek) return { action: 'seek', to: expected, rate, drift }
   if (size >= DRIFT.ignore || (nudging && size > DRIFT.settle)) {
     const factor = drift > 0 ? 1 - DRIFT.nudge : 1 + DRIFT.nudge

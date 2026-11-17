@@ -16,6 +16,7 @@ import { createRoomService } from './hub.js'
 import { createJournal } from './journal.js'
 import { cleanName, createLibrary } from './shows.js'
 import { ALL_SOURCES, EPISODE_BYTES, describeSources } from './sources/index.js'
+import { isQuality } from './sources/link.js'
 import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { snapshotOf } from './work.js'
@@ -45,7 +46,7 @@ export function createMediaHub(options) {
   const { stateDir, libraryRoots, logger, now = Date.now } = options
   const backfillPause = options.backfillPauseMs ?? BACKFILL_PAUSE_MS
   const sources = new Map(options.sources.map(source => [source.id, source]))
-  const covers = createCovers({ dir: join(stateDir, 'covers'), capBytes: options.coverCacheBytes, logger }, id => sources.get(id))
+  const covers = createCovers({ dir: join(stateDir, 'covers'), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, id => sources.get(id))
   const log = createWatchLog({ file: join(stateDir, LOG_NAME), now, logger })
   const books = createBooks({ dir: join(stateDir, 'books'), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now })
   let rooms
@@ -66,7 +67,7 @@ export function createMediaHub(options) {
     roots: libraryRoots,
     stateDir,
     autoDeleteDays: options.autoDeleteDays,
-    tools: options.tools,
+    covers,
     inUse: path => rooms.usesPath(path),
     download: path => downloads.state(path),
     forget: path => downloads.cancel(path),
@@ -220,7 +221,7 @@ export function createMediaHub(options) {
     async listRooms() {
       return Promise.all(rooms.listRooms().map(async ({ file, ...room }) => {
         const show = room.show === null ? null : withCovers({ source: library.workSource(room.show), work: library.workOf(room.show) })
-        return { ...room, cover: show?.work?.cover ?? null, frame: file === null ? null : await library.frame(room.show ?? file, file, room.duration) }
+        return { ...room, cover: show?.work?.cover ?? null, frame: file === null ? null : await covers.ofFrame(file, room.duration > 30 ? Math.round(room.duration / 10) : 3) }
       }))
     },
     closeRoom: id => rooms.closeRoom(id),
@@ -257,7 +258,6 @@ export function createMediaHub(options) {
     renameShow: (path, name, by) => library.rename(path, name, { by }),
     keepShow: (path, by) => library.keep(path, { by }),
     countdownShow: (path, by) => library.countdown(path, { by }),
-    thumbFile: name => library.thumbFile(name),
     sweepLibrary: () => library.sweep(),
 
     // ---------------------------------------------------------- shelves
@@ -280,7 +280,7 @@ export function createMediaHub(options) {
       if (sourceId !== ALL_SOURCES) return ask(source(sourceId))
       const candidates = []
       for (const one of sources.values()) {
-        if (one.kinds.some(entry => entry.id === kind) && await one.available()) candidates.push(one)
+        if (typeof one.search === 'function' && one.kinds.some(entry => entry.id === kind) && await one.available()) candidates.push(one)
       }
       const answers = await Promise.allSettled(candidates.map(one => ask(one)))
       const failed = answers.flatMap((answer, index) => (answer.status === 'rejected' ? [{ source: candidates[index].id, message: answer.reason?.message ?? String(answer.reason) }] : []))
@@ -294,16 +294,16 @@ export function createMediaHub(options) {
      * Put a work from a source into the library. `watch` opens a room on it
      * at once (its episode shows as preparing until it is fetched); either
      * way only the rolling cache's window is downloaded, unless `all` keeps
-     * the whole show offline.
-     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, by?: string }} input
+     * the whole show offline. `quality` is kept with the show for a source that offers a choice (Link).
+     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, all = false, by = '' }) {
+    async fetch({ source: sourceId, id, watch = false, all = false, quality = '', by = '' }) {
       const item = await source(sourceId).info(id)
       if (!(item.episodes > 0)) throw hubError('empty', `${item.title || id} has no episodes`)
       const disk = await statfs(libraryRoots[0]).catch(() => null)
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError('no_space', 'the library disk is almost full; delete something first')
       const dir = await folderFor(sourceId, item)
-      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title }, { pinned: all })
+      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...(isQuality(quality) ? { quality } : {}) }, { pinned: all })
       library.setWork(dir, snapshotOf(item, now()))
       let room = null
       if (watch) room = (await rooms.createRoom({ source: 'local', path: dir, title: item.title, by, start: await library.resumeFrom(dir) })).room
@@ -378,7 +378,7 @@ export function createMediaHub(options) {
       await books.dispose()
       await downloads.dispose()
       await rooms.dispose()
-      await library.settleThumbs()
+      await covers.settle()
       await library.flush()
       await log.flush()
     },
