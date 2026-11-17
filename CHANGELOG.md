@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1
+
+- Replaying an episode that has to be transcoded now plays in Chrome, Brave and Edge. Their own HLS player can't take an episode that's still being made and stopped with "could not parse"; the page now uses hls.js there. Safari and iPhone keep their own player.
+
 ## 0.9.0
 
 - Points extras (`points` setting, [docs/points-protocol.md](docs/points-protocol.md)): with a points extension, the people it plays with pay points for starting a series that is new to the hub and for a binge night (starting to watch late at night, one ticket for the whole night). The page shows the price and their balance at that moment and buys on *Buy*; going on with a series, later seasons, films, single videos and rooms already playing stay free. Without an extension, or for anyone it doesn't play with, nothing changes.
