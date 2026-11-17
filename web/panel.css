@@ -356,7 +356,7 @@
 .vsync-pickWhy{display:flex;gap:6px;font-size:13px;line-height:19px;color:var(--dsw-alias-label-secondary)}
 .vsync-pickWhy .uk-icon{margin-top:2px}
 .vsync-pickActions{margin-top:auto;padding-top:6px}
-@media (width<=640px){.vsync-cc{flex-direction:column;gap:14px}.vsync-ccPoster{width:112px;height:150px}}
+@media (width<=640px){.vsync-cc{flex-direction:column;gap:14px}.vsync-ccPoster{width:112px;height:150px}.vsync-ccStrip .uk-segmentsLabelled{flex-wrap:wrap;row-gap:4px}.vsync-ccStrip .uk-segments{flex-basis:100%}}
 /* Interface chrome is not selectable and pictures don't drag; titles, recaps and reasons stay selectable. */
 .vsync-tabs,.vsync-ccActions,.vsync-rateAnswers,.vsync-pickActions,.vsync-ccLive,.vsync-sectionMeta,.vsync-sectionHead h2,.vsync-actions,.vsync-tabCount,.vsync-ccStrip,.vsync-rateHead .uk-tile{user-select:none;-webkit-user-select:none}
 .vsync-page img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}

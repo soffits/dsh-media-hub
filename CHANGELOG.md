@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - A new Watching tab. At the top, a card for the show someone is in now, or the one you watched last, over its blurred cover: who is in the room, the title, where it stands, a strip of its episodes (watched, now, on disk), and *Join … · episode n*, or *Continue* alone (still the default) with *Watch together* beside it, the room's link and *Ask*. Below it, news from followed works, the shared rooms as cards, and the other shows you started.
 - Optional parts, each switched in the new `presence` setting and off by default: *So far*, a recap without spoilers kept with a show and shown only to viewers past what it covers; *How was it?*, asked once about a show finished or removed in the last two weeks, where one tap writes a `rating` line into the watch log, per person; and *Picks*, works a recommender extension suggests, each with its reason, to watch together or follow (the new `recommender` setting and docs/recommender-protocol.md).
