@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Link reads any video or playlist page yt-dlp reads (YouTube, Vimeo, Bilibili and over a thousand more sites): it shows as one work with its thumbnail, length, uploader and episodes (a playlist's videos), and plays like a show from a source, downloaded through the rolling cache and served by DSH to every viewer. A quality picker on the card (*Auto*, a height, *Audio only*) sets yt-dlp's format choice; the show keeps it. Following a playlist adds its new videos as episodes.
 - **Breaking:** YouTube no longer plays in an embedded player; it is one yt-dlp site like the others, so a room on it syncs as finely as a local file, works for viewers who can't reach YouTube, and is not split by ads. The agent tool's `start` takes `source: link` with `url` (and `quality`) instead of `source: youtube` with `urls`. Rooms lose their `source` field, and the watch log's `room.opened` lines no longer carry one.
