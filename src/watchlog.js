@@ -12,6 +12,8 @@
  *   { type: 'library.kept' | 'library.countdownStarted' | 'library.countdownRestarted'
  *         | 'library.deleted' | 'library.episodeDeleted' | 'library.renamed'
  *         | 'library.pinned' | 'library.unpinned' | 'library.cacheDropped' (episodes, reason), show, title, by, ... }
+ *   { type: 'rating',           show, title, rating, person, by }   "How was it?" (src/presence.js RATINGS)
+ *   { type: 'step.started',     show, title, step, person, by }     a suggested next step was started
  *
  * `show` is the path the room plays (a library show, or a file or folder), `title` the
  * room's title, `episode` { index, title }. `position` lines are written when
@@ -22,6 +24,9 @@
 import { appendFile, readFile } from 'node:fs/promises'
 
 export const LOG_NAME = 'watch-log.jsonl'
+
+/** The lines that say something was watched; the rest (library changes, ratings, steps) are about it. */
+const isWatching = type => /^(?:room|viewer|episode)\./.test(type) || type === 'position'
 
 /** Whether a position counts as having watched an episode: the last 10 % (credits), at most five minutes, at least three seconds. */
 export function isNearEnd(position, duration) {
@@ -72,7 +77,7 @@ export function createWatchLog({ file, now = Date.now, logger }) {
     const shows = new Map()
     for (const event of await read()) {
       const at = Date.parse(event.at)
-      if (!(at >= since) || event.title === undefined || event.type.startsWith('library.')) continue
+      if (!(at >= since) || event.title === undefined || !isWatching(event.type)) continue
       const key = event.show ?? `title:${event.title}`
       if (!shows.has(key)) shows.set(key, { title: event.title, show: event.show ?? null, firstAt: at, lastAt: at, viewers: new Set(), finished: new Map(), stopped: new Map() })
       const entry = shows.get(key)

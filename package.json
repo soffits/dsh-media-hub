@@ -1,6 +1,6 @@
 {
   "name": "@soffits/dsh-media-hub",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "A media hub for DeepSeek Harness: search shows, novels, ebooks and papers across sources, watch together in sync, and download books in the format you want onto your own shelf.",
   "type": "module",
   "license": "MIT",
@@ -56,6 +56,7 @@
       "inject": [
         "@deepseek-ai/dsh-client-locale",
         "@soffits/dsh-ui-actions",
+        "@soffits/dsh-ui-kit",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-sidebar"
       ]
@@ -71,7 +72,9 @@
     "build": "node scripts/build.mjs"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.2-rc.1",
     "@deepseek-ai/schemastery": "^3.19.0",
+    "@soffits/dsh-ui-kit": "0.2.0",
     "esbuild": "^0.28.2",
     "hls.js": "^1.7.4",
     "https-proxy-agent": "^9.1.0",

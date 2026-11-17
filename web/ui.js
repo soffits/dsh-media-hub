@@ -10,13 +10,22 @@ export let React
 export let h
 /** What the page knows of the library and the open rooms (web/known.js): set by Page, read anywhere a work is shown. */
 export let Known
+/** DSH's own components (@deepseek-ai/dsh-client-ui-primitives): Button, Tag, StateDot, SegmentedTabs, icons. */
+export let P
+/** The shared kit (@soffits/dsh-ui-kit, ctx.uiKit): Surface, Segments, Tile, Icon, TimeAgo, Suggested, TOUCH. */
+export let K
 
-/** Called once by client.js with the page's React before any view renders. */
-export function init(react) {
+/** Called once by client.js with the page's React, DSH's components and the kit before any view renders. */
+export function init(react, { primitives, kit }) {
   React = react
   h = react.createElement
+  P = primitives
+  K = kit
   Known = react.createContext({ library: null, rooms: undefined, reload: () => {} })
 }
+
+/** DSH's Button, compact on a desk and 40 px tall on touch screens: `variant` outline (default), primary, ghost or toolbar. */
+export const Btn = ({ variant = 'outline', size = 'sm', className, ...rest }) => h(P.Button, { variant, size, className: className ? `${K.TOUCH} ${className}` : K.TOUCH, ...rest })
 
 export const base = () => new URL('media-hub/', document.baseURI)
 export const LINK_PARAM = 'media-room'
@@ -102,6 +111,12 @@ export function nameOf(t, key, label) {
 }
 
 export const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ''))
+
+/** Like fill, with elements as values (a ticking time inside a sentence): the parts, in the language's own order. */
+export const fillNodes = (template, values) => template.split(/(\{\w+\})/).filter(Boolean).map((part, n) => {
+  const key = /^\{(\w+)\}$/.exec(part)?.[1]
+  return key !== undefined && key in values ? h(React.Fragment, { key: n }, values[key]) : part
+})
 
 /** A count in words: the `<key>.<category>` text the viewer's language's plural rules pick for `n` (Intl.PluralRules), else `<key>.other`. */
 export function plural(t, key, n) {

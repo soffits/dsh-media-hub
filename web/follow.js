@@ -4,9 +4,10 @@
  * the library is added as an empty show when followed.
  */
 import { useKnownWork } from './known.js'
-import { Known, h, post, React } from './ui.js'
+import { Btn, K, Known, h, post, React } from './ui.js'
 
-export function FollowButton({ t, source, work }) {
+/** `compact`: the bell alone, its words on hover and for screen readers. */
+export function FollowButton({ t, source, work, compact = false }) {
   const known = useKnownWork(source, work.id)
   const { reload } = React.useContext(Known)
   const [busy, setBusy] = React.useState(false)
@@ -21,6 +22,8 @@ export function FollowButton({ t, source, work }) {
     reload()
   }
   return h(React.Fragment, null,
-    h('button', { type: 'button', className: `vsync-btn${following ? ' vsync-following' : ''}`, 'aria-pressed': String(following), disabled: busy, title: t('follow.hint'), onClick: toggle }, t(following ? 'follow.following' : 'follow.follow')),
+    compact
+      ? h(Btn, { 'aria-pressed': String(following), 'aria-label': t(following ? 'follow.following' : 'follow.follow'), title: t(following ? 'follow.following' : 'follow.hint'), disabled: busy, onClick: toggle, icon: h(K.Icon, { name: following ? 'bell-ring' : 'bell-plus', size: 16 }) })
+      : h('button', { type: 'button', className: `vsync-btn${following ? ' vsync-following' : ''}`, 'aria-pressed': String(following), disabled: busy, title: t('follow.hint'), onClick: toggle }, t(following ? 'follow.following' : 'follow.follow')),
     error && h('span', { className: 'vsync-error', role: 'alert' }, error))
 }

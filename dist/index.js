@@ -11979,6 +11979,16 @@ var DEFAULT_SOURCES = Object.freeze([
     env: {}
   }
 ]);
+var Presence = Schema.object({
+  continue: Schema.boolean().default(true).description("The Continue card at the top of Watching: the show someone is in or last watched, its episodes and joining it."),
+  recap: Schema.boolean().default(false).description('"So far" on the Continue card: a summary without spoilers kept with the show, written from outside through the tool (annotate). Shown only to viewers past the episodes it covers.'),
+  ratings: Schema.boolean().default(false).description('"How was it?": asks once about a show watched to the end or removed in the last two weeks; one tap writes a rating line to the watch log.'),
+  picks: Schema.boolean().default(false).description("Picks: works the recommender command suggests, each with its reason, to watch together or follow. Needs `recommender`.")
+});
+var Recommender = Schema.object({
+  command: Schema.array(Schema.string()).default([]).description("A command speaking docs/recommender-protocol.md (program and fixed arguments, the plugin adds the verbs). Empty means no picks."),
+  env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command.")
+});
 var Config = Schema.object({
   label: Label.default("").description("Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer's tag, then its primary subtag, then en). Empty uses the page's own name in the viewer's language."),
   libraryRoots: Schema.array(Schema.string()).default([]).description(`Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The assistant's tool can open any path.`),
@@ -11998,6 +12008,8 @@ var Config = Schema.object({
   bookCacheGb: Schema.number().min(0).default(5).description("The most disk, in GB, that downloaded books may use (stateDir/books). Past it the least recently used files go; they stay on their shelves and can be downloaded again. 0 means no limit."),
   converter: Schema.string().default("ebook-convert").description("Calibre's ebook-convert command. When it is installed, books can be downloaded in formats their source does not have (converted from the best one it has). Empty turns conversion off."),
   notifyCommand: Schema.array(Schema.string()).default([]).description("A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run."),
+  presence: Presence.default({ continue: true, recap: false, ratings: false, picks: false }).description("What the Watching tab shows besides the open rooms and the library. Each part can be switched on or off."),
+  recommender: Recommender.default({ command: [], env: {} }).description("Where picks come from: a recommender extension. The hub has no taste of its own."),
   ffmpeg: Schema.string().default("ffmpeg").description("ffmpeg command."),
   ffprobe: Schema.string().default("ffprobe").description("ffprobe command."),
   ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file applies."),
@@ -12203,7 +12215,7 @@ async function readJson(req) {
 }
 var STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 });
 var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, message: error?.message ?? String(error) } });
-function createHandler({ connection, service, label = () => "", localeDir = LOCALE_DIR, logger }) {
+function createHandler({ connection, service, settings = () => ({ label: "", presence: {} }), localeDir = LOCALE_DIR, logger }) {
   let locales;
   return async (req, res) => {
     const admitted = admitOwner(connection, req);
@@ -12273,7 +12285,7 @@ function createHandler({ connection, service, label = () => "", localeDir = LOCA
         if (route === "POST library/seen") return sendJson(res, 200, hub.dismissNews((await readJson(req)).path));
         if (route === "POST library/refresh") return sendJson(res, 200, { work: await hub.refreshWork((await readJson(req)).path) });
         if (route === "POST library/cancel") return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path));
-        if (route === "GET settings") return sendJson(res, 200, { label: label() });
+        if (route === "GET settings") return sendJson(res, 200, settings());
         if (route === "GET locales") return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)));
         if (route === "GET sources") return sendJson(res, 200, { sources: await hub.sources() });
         if (route === "GET search") return sendJson(res, 200, await hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query)));
@@ -13785,6 +13797,7 @@ function createRoomService(options) {
 // src/watchlog.js
 import { appendFile, readFile as readFile9 } from "node:fs/promises";
 var LOG_NAME = "watch-log.jsonl";
+var isWatching = (type) => /^(?:room|viewer|episode)\./.test(type) || type === "position";
 function isNearEnd(position, duration) {
   if (!(duration > 0) || !(position >= 0)) return false;
   return duration - position <= Math.min(300, Math.max(3, duration * 0.1));
@@ -13820,7 +13833,7 @@ function createWatchLog({ file, now = Date.now, logger }) {
     const shows = /* @__PURE__ */ new Map();
     for (const event of await read()) {
       const at = Date.parse(event.at);
-      if (!(at >= since) || event.title === void 0 || event.type.startsWith("library.")) continue;
+      if (!(at >= since) || event.title === void 0 || !isWatching(event.type)) continue;
       const key = event.show ?? `title:${event.title}`;
       if (!shows.has(key)) shows.set(key, { title: event.title, show: event.show ?? null, firstAt: at, lastAt: at, viewers: /* @__PURE__ */ new Set(), finished: /* @__PURE__ */ new Map(), stopped: /* @__PURE__ */ new Map() });
       const entry = shows.get(key);
@@ -13911,6 +13924,127 @@ function createJournal({ log, library, now = Date.now }) {
 // src/shows.js
 import { mkdir as mkdir9, readFile as readFile10, readdir as readdir7, rename as rename7, rm as rm8, stat as stat9, statfs, writeFile as writeFile6 } from "node:fs/promises";
 import { basename as basename5, dirname as dirname5, extname as extname7, join as join15, resolve as resolve4 } from "node:path";
+
+// src/presence.js
+var RATINGS = Object.freeze(["loved", "fine", "not-for-me", "unfinished"]);
+var RATE_WITHIN_DAYS = 14;
+var MAX_PENDING = 3;
+var MAX_RECAP_CHARS = 1200;
+var MAX_STEPS = 3;
+var STEP_ID = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+var MAX_LABEL_CHARS = 120;
+var MAX_PROMPT_CHARS = 2e3;
+var PICKS_LIMIT = 6;
+var PICKS_TIMEOUT_MS = 6e4;
+var MAX_WHY_CHARS = 280;
+var badInput = (message) => Object.assign(new Error(message), { code: "invalid_arguments" });
+function pendingRatings({ shows, events, person, now, days = RATE_WITHIN_DAYS, limit = MAX_PENDING }) {
+  const since = now - days * 864e5;
+  const rated = new Set(events.filter((event) => event.type === "rating" && event.person === person).map((event) => event.show));
+  const asks = /* @__PURE__ */ new Map();
+  const offer = (show, title, why, at) => {
+    if (typeof show !== "string" || rated.has(show) || !(at >= since) || !(at <= now)) return;
+    const known2 = asks.get(show);
+    if (known2 === void 0 || known2.at < at) asks.set(show, { show, title, why, at });
+  };
+  for (const show of shows) if (show.watchedAt) offer(show.path, show.work?.title ?? show.name, "finished", show.watchedAt);
+  for (const event of events) if (event.type === "library.deleted") offer(event.show, event.title, "removed", Date.parse(event.at));
+  const present = new Set(shows.map((show) => show.path));
+  return [...asks.values()].filter((ask) => ask.why === "finished" || !present.has(ask.show)).sort((a, b) => b.at - a.at).slice(0, limit);
+}
+function ratingLine({ show, title, rating }, person) {
+  if (!RATINGS.includes(rating)) throw badInput(`rating must be one of ${RATINGS.join(", ")}`);
+  if (typeof show !== "string" || show === "") throw badInput("rating needs the show");
+  return { show, title: typeof title === "string" ? title.slice(0, 200) : "", rating, person: person.key, by: person.name };
+}
+var textOrPerLanguage = (value, max) => {
+  if (typeof value === "string" && value.trim() !== "") return value.trim().slice(0, max);
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value).filter(([tag, text3]) => /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(tag) && typeof text3 === "string" && text3.trim() !== "");
+    if (entries.length > 0) return Object.fromEntries(entries.map(([tag, text3]) => [tag, text3.trim().slice(0, max)]));
+  }
+  return null;
+};
+function parseAnnotation({ recap, steps } = {}) {
+  const out = {};
+  if (recap === null) out.recap = null;
+  else if (recap !== void 0) {
+    if (typeof recap?.text !== "string" || recap.text.trim() === "") throw badInput("recap needs text");
+    if (!Number.isInteger(recap.upTo) || recap.upTo < 1) throw badInput("recap needs upTo, the last episode it covers (1 or more)");
+    out.recap = { text: recap.text.trim().slice(0, MAX_RECAP_CHARS), upTo: recap.upTo };
+  }
+  if (steps === null) out.steps = null;
+  else if (steps !== void 0) {
+    if (!Array.isArray(steps) || steps.length > MAX_STEPS) throw badInput(`steps is a list of at most ${MAX_STEPS}`);
+    out.steps = steps.map((step, n) => {
+      const id = step?.id ?? `step-${n + 1}`;
+      if (typeof id !== "string" || !STEP_ID.test(id)) throw badInput("a step id is lowercase letters, digits, - and _");
+      const label = textOrPerLanguage(step?.label, MAX_LABEL_CHARS);
+      if (label === null) throw badInput("a step needs a label that says the step");
+      const prompt = textOrPerLanguage(step?.prompt, MAX_PROMPT_CHARS);
+      return { kind: "step", id, label, ...prompt === null ? {} : { payload: { prompt } } };
+    });
+    if (new Set(out.steps.map((step) => step.id)).size !== out.steps.length) throw badInput("step ids repeat");
+    if (out.steps.length === 0) out.steps = null;
+  }
+  return out;
+}
+var safeRecap = (recap, through) => recap && recap.upTo <= through ? recap : null;
+function parsePicks(document2, hasSource, limit = PICKS_LIMIT) {
+  if (!Array.isArray(document2?.picks)) throw new Error("the recommender answered without a picks list");
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const pick5 of document2.picks) {
+    const work = pick5?.work;
+    const why = typeof pick5?.why === "string" ? pick5.why.trim().slice(0, MAX_WHY_CHARS) : "";
+    if (typeof work?.source !== "string" || !hasSource(work.source) || typeof work.id !== "string" || work.id === "" || typeof work.title !== "string" || why === "") continue;
+    const key = `${work.source}\0${work.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      work: {
+        source: work.source,
+        id: work.id,
+        title: work.title.slice(0, 200),
+        kind: typeof work.kind === "string" ? work.kind : null,
+        year: Number.isInteger(work.year) ? work.year : null,
+        score: Number.isFinite(work.score) ? work.score : null,
+        scoreLabel: typeof work.scoreLabel === "string" ? work.scoreLabel.slice(0, 40) : "",
+        cover: typeof work.cover === "string" ? work.cover : null,
+        url: typeof work.url === "string" ? work.url : null
+      },
+      why
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+function createPicks({ command, env = {}, cwd, hasSource, decorate, logger, now = Date.now, refreshMs = 6 * 36e5 }) {
+  const cached = /* @__PURE__ */ new Map();
+  async function ask(person) {
+    const argv = [...command, "recommend", "--json", "--limit", String(PICKS_LIMIT), ...person.id ? ["--person", person.id] : []];
+    const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env });
+    if (result.code !== 0) throw new Error(`exit ${result.code}: ${result.stderr.trim().split("\n").pop() ?? ""}`);
+    return parsePicks(JSON.parse(result.stdout), hasSource).map(decorate);
+  }
+  return {
+    enabled: command.length > 0,
+    /** @param {{ key: string, id: string }} person */
+    async list(person) {
+      if (command.length === 0) return [];
+      const entry = cached.get(person.key);
+      if (entry && now() - entry.at < refreshMs) return entry.picks;
+      const picks = await ask(person).catch((error) => {
+        logger.warn("the recommender gave no picks: %s", error.message);
+        return [];
+      });
+      cached.set(person.key, { at: now(), picks });
+      return picks;
+    }
+  };
+}
+
+// src/shows.js
 var DAY_MS = 864e5;
 var STOP_DIFF_S = 30;
 var REFINISH_MS = 36e5;
@@ -14079,6 +14213,8 @@ function createLibrary(options) {
     const entry = record(path);
     const slots = slotsOf(entry, files ?? []);
     if (names.length === 0 && state === null && !isSourced(entry)) return null;
+    const resume2 = resumeFrom(path, slots);
+    const finished = slots.filter((slot) => (entry.finished ?? []).some((name2) => keyOf(entry, name2) === slot.key)).length;
     return {
       path,
       name: basename5(path),
@@ -14100,8 +14236,12 @@ function createLibrary(options) {
       newEpisodes: entry.newEpisodes ?? null,
       group: entry.group ?? null,
       deletesAt: deletesAt(path),
-      resume: resumeFrom(path, slots),
-      finished: slots.filter((slot) => (entry.finished ?? []).some((name2) => keyOf(entry, name2) === slot.key)).length,
+      resume: resume2,
+      finished,
+      // Written from outside (src/presence.js); the recap only once the viewers are past what it covers.
+      recap: safeRecap(entry.recap ?? null, resume2 ? resume2.index : finished),
+      steps: entry.steps ?? null,
+      stepsStarted: entry.stepsStarted ?? {},
       stops: otherStops(path, slots),
       inUse: inUse(path),
       download: state,
@@ -14243,6 +14383,20 @@ function createLibrary(options) {
     },
     /** What a check found: a new season (on the new show) or more episodes (on this one); cleared when someone looks. */
     mark: (path, patch) => update(path, patch),
+    /** Keep what the outside writes about a show (src/presence.js parseAnnotation); new steps start unpressed. */
+    annotate(path, annotation) {
+      const target = requireShow(path);
+      update(target, { ...annotation, ...annotation.steps !== void 0 ? { stepsStarted: {} } : {} });
+      return target;
+    },
+    /** A suggested step was started; returns false for a step the show doesn't have. */
+    stepStarted(path, id) {
+      const target = requireShow(path);
+      const entry = record(target);
+      if (!(entry.steps ?? []).some((step) => step.id === id)) return false;
+      update(target, { stepsStarted: { ...entry.stepsStarted, [id]: now() } });
+      return true;
+    },
     dismiss: (path) => update(requireShow(path), { newSeason: null, newEpisodes: null }),
     /** More episodes in a show's work than it had: its total grows, the rolling cache takes it from there. */
     setEpisodes(path, episodes) {
@@ -14510,6 +14664,15 @@ function createMediaHub(options) {
     cache.refresh(show).catch(() => {
     });
   });
+  const picks = createPicks({
+    command: options.recommender?.command ?? [],
+    env: options.recommender?.env ?? {},
+    cwd: stateDir,
+    hasSource: (id) => sources.has(id),
+    decorate: (pick5) => ({ ...pick5, work: covers.decorate(pick5.work.source, pick5.work) }),
+    logger,
+    now
+  });
   const sweepTimer = setInterval(() => {
     library.sweep().catch(() => {
     });
@@ -14620,11 +14783,11 @@ ${item.id}`).digest("hex").slice(0, 8);
      */
     async createRoom(input) {
       let start = input.start ?? null;
-      if (input.source === "local" && start === null && typeof input.path === "string") {
+      if (start === null && typeof input.path === "string") {
         const show2 = library.showPath(input.path);
         if (show2 !== null) start = await library.resumeFrom(show2);
       }
-      if (input.source === "local" && typeof input.path === "string") follows.opened(library.showPath(input.path));
+      if (typeof input.path === "string") follows.opened(library.showPath(input.path));
       const show = typeof input.path === "string" ? library.showPath(input.path) : null;
       const from2 = show === null ? null : library.workSource(show);
       if (from2 && typeof input.person === "string" && from2.person !== input.person) library.mark(show, { source: { ...from2, person: input.person } });
@@ -14647,6 +14810,28 @@ ${item.id}`).digest("hex").slice(0, 8);
     linkFor: (id) => rooms.linkFor(id),
     sweep: () => rooms.sweep(),
     pruneCache: (days) => rooms.pruneCache(days),
+    // ---------------------------------------------------------- presence (src/presence.js)
+    /** Finished or removed shows this person hasn't said how they found. */
+    async pendingRatings(person) {
+      const [list, events] = await Promise.all([library.list(), log.read()]);
+      return pendingRatings({ shows: list.shows, events, person: person.key, now: now() });
+    },
+    async rate(input, person) {
+      await log.append("rating", ratingLine(input, person));
+      return { ok: true };
+    },
+    picks: (person) => picks.list(person),
+    /** Keep a recap or suggested steps with a show (the tool's annotate). */
+    annotate(path, input) {
+      const show = library.annotate(path, parseAnnotation(input));
+      return { ok: true, show };
+    },
+    async startStep(path, id, person) {
+      const show = library.showPath(path);
+      if (show === null || !library.stepStarted(show, id)) throw hubError("not_found", "no such step");
+      await log.append("step.started", { show, title: library.workOf(show)?.title ?? "", step: id, person: person.key, by: person.name });
+      return { ok: true };
+    },
     // ---------------------------------------------------------- library
     async library() {
       const list = await library.list();
@@ -14839,7 +15024,7 @@ function createPersonRoutes({ hub, identity }) {
       requestBody: "buffered",
       fetch: handle(async (request, current, person) => {
         const input = await body(request);
-        return current.fetch({ ...pick4(input, ["source", "id", "watch", "all", "quality", "by"]), language: text2(input.language), person: person.id });
+        return current.fetch({ ...pick4(input, ["source", "id", "watch", "together", "all", "quality", "by"]), language: text2(input.language), person: person.id });
       })
     },
     {
@@ -14847,6 +15032,27 @@ function createPersonRoutes({ hub, identity }) {
       methods: ["POST"],
       requestBody: "buffered",
       fetch: handle(async (request, current, person) => current.createRoom({ ...pick4(await body(request), ["path", "title", "by", "start"]), fromPanel: true, person: person.id }))
+    },
+    {
+      path: `${PERSON_PATH}/ratings`,
+      methods: ["GET", "POST"],
+      requestBody: "buffered",
+      fetch: handle(async (request, current, person) => request.method === "GET" ? { pending: await current.pendingRatings(person) } : current.rate(await body(request), person))
+    },
+    {
+      path: `${PERSON_PATH}/picks`,
+      methods: ["GET"],
+      requestBody: "buffered",
+      fetch: handle(async (request, current, person) => ({ picks: await current.picks(person) }))
+    },
+    {
+      path: `${PERSON_PATH}/steps`,
+      methods: ["POST"],
+      requestBody: "buffered",
+      fetch: handle(async (request, current, person) => {
+        const input = await body(request);
+        return current.startStep(text2(input.path), text2(input.id), person);
+      })
     }
   ];
 }
@@ -14931,6 +15137,7 @@ function apply(ctx, config) {
         converter: { command: config.converter, available: () => config.converter === "" ? Promise.resolve(false) : commandExists(config.converter) }
       },
       notifyCommand: config.notifyCommand,
+      recommender: config.recommender,
       cache: { ahead: config.cacheAhead, behind: config.cacheBehind, capBytes: config.cacheLimitGb * 1e9 },
       logger
     });
@@ -14953,7 +15160,7 @@ function apply(ctx, config) {
     const disposeHttp = ctx.webServer.register({
       kind: "prefix",
       path: ROUTE,
-      handler: createHandler({ connection: ctx.connection, service: () => current, label: () => config.label, logger })
+      handler: createHandler({ connection: ctx.connection, service: () => current, settings: () => ({ label: config.label, presence: config.presence }), logger })
     });
     const disposeUpgrade = ctx.webServer.registerUpgrade({
       path: WS_PATH,
