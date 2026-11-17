@@ -15,8 +15,11 @@
  * and DSH_HOME of an already running throwaway DSH are given. Never point
  * it at a DSH home people use.
  *
- * Env: CHROME_PATH (default `chromium` on PATH), SCREENSHOT_DIR (optional),
- * YOUTUBE_ID (default a public embeddable video; YOUTUBE_ID=skip skips it).
+ * Link: an address looked up through a stand-in yt-dlp, fetched in the chosen
+ * quality with every call routed by the `proxies` setting (to a proxy that is
+ * down, so the thumbnail fails closed and the library falls back to a frame).
+ *
+ * Env: CHROME_PATH (default `chromium` on PATH), SCREENSHOT_DIR (optional).
  */
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
@@ -29,7 +32,7 @@ import { createWatchLog } from '../../src/watchlog.js'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const screenshots = process.env.SCREENSHOT_DIR
-const youtubeId = process.env.YOUTUBE_ID ?? 'M7lc1UVf-VE'
+const DEAD_PROXY = 'socks5h://127.0.0.1:9'
 const sleep = ms => new Promise(done => setTimeout(done, ms))
 const log = (...args) => console.log('·', ...args)
 
@@ -42,10 +45,14 @@ async function bootDsh() {
   symlinkSync(join(repo, 'test/fixtures/fake-source.mjs'), join(bin, 'fanqie'))
   // and as `bookfetch` (the default book source), answering its book searches.
   symlinkSync(join(repo, 'test/fixtures/fake-source.mjs'), join(bin, 'bookfetch'))
+  // and as `yt-dlp`, for Link: recorded answers, the sample video as every download.
+  symlinkSync(join(repo, 'test/fixtures/fake-yt-dlp.mjs'), join(bin, 'yt-dlp'))
   const sample = join(root, 'sample.mp4')
   makeVideo(sample, 20)
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1' }
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1' }
   execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `link:${repo}`], { env, cwd: root, stdio: 'ignore' })
+  // Every outbound request and yt-dlp call goes to a proxy that is down: nothing in the test reaches the network.
+  writeFileSync(join(env.DSH_HOME, 'profiles/web/cordis.patch.yml'), JSON.stringify([{ id: 'media-hub', config: { proxies: [{ url: DEAD_PROXY, hosts: ['*'] }] } }]))
   const port = 40000 + Math.floor(Math.random() * 20000)
   const child = spawn('dsh', ['--profile', 'web', '--no-open', '--host', '127.0.0.1', '--port', String(port)], { env, cwd: root, stdio: ['ignore', 'pipe', 'pipe'], detached: true })
   let output = ''
@@ -93,9 +100,7 @@ function makeEpisodes(home) {
 
 /** A signed-in browser: its own context with DSH's cookie. */
 async function viewer(browser, signIn, origin, name) {
-  // YouTube's embed won't play for a user agent that says it is headless.
-  const userAgent = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${browser.version()} Safari/537.36`
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, userAgent })
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   // The name the sign-in plugin (dsh-oidc) would report for this browser.
   await context.route('**/_dsh-oidc/session', route => route.fulfill({ json: { name } }))
   const page = await context.newPage()
@@ -475,19 +480,19 @@ async function tabFlows({ a, origin }) {
   await a.page.getByRole('tab', { name: 'Audiobooks' }).click()
   assert.equal(params(a.page)['vs-kind'], 'audio')
   await a.page.locator('.vsync-segment').getByRole('tab', { name: 'Link' }).click()
-  assert.deepEqual(params(a.page), { 'vs-tab': 'discover', 'vs-source': 'youtube' })
+  assert.deepEqual(params(a.page), { 'vs-tab': 'discover', 'vs-source': 'link' })
   assert.equal(await a.page.locator('.vsync-picker .vsync-chip').count(), 0, 'Link has no categories')
-  assert.equal(await a.page.locator('.vsync-searchField').getAttribute('placeholder'), 'Paste a YouTube video or playlist link')
+  assert.equal(await a.page.locator('.vsync-searchField').getAttribute('placeholder'), 'Paste a link to a video or playlist')
   await shot(a.page, 'tab-discover-link')
   await a.page.locator('.vsync-searchField').fill('not a link')
   await a.page.locator('.vsync-search button[type=submit]').click()
-  assert.match(await a.page.locator('.vsync-error').textContent(), /not a YouTube/)
+  assert.match(await a.page.locator('.vsync-error').textContent(), /Paste the address/)
   await a.page.locator('.vsync-searchField').fill('')
   await a.page.locator('.vsync-segment').getByRole('tab', { name: 'Fanqie' }).click()
   assert.equal(params(a.page)['vs-kind'], 'audio', 'a source comes back on the category it had')
 
-  // A YouTube address typed into a source's search box moves to Link, keeping the text.
-  const address = 'https://www.youtube.com/watch?v=abcdefghijk'
+  // A web address typed into a source's search box moves to Link, keeping the text.
+  const address = 'https://video.example/watch/abcdefghijk'
   await a.page.locator('.vsync-searchField').fill(address)
   await until('the Link source is picked', async () => ({ ok: (await place()).source === 'Link', place: await place() }))
   assert.equal(await a.page.locator('.vsync-searchField').inputValue(), address)
@@ -671,6 +676,42 @@ async function pagingFlows({ a }) {
   assert.deepEqual(await titles(), ['分页甲', '分页乙', '分页丙'])
   await a.page.locator('.vsync-searchField').fill('')
   log('paging: sort by plays, load more adds a page without repeats')
+}
+
+/**
+ * Link: an address is looked up through yt-dlp and shows as one work with a
+ * quality choice; watching it fetches episodes in that quality into a show,
+ * every yt-dlp call takes the configured proxy, the thumbnail fails closed
+ * through the dead proxy, and the library falls back to a frame of the file.
+ */
+async function linkFlows({ a, home }) {
+  const calls = () => readFileSync(join(dirname(home), 'yt-dlp-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line))
+  await a.page.goto(`${new URL(a.page.url()).origin}/?vs-tab=discover&vs-source=link`)
+  await a.page.locator('.vsync-searchField').fill('https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG')
+  await a.page.locator('.vsync-search button[type=submit]').click()
+  const card = a.page.locator('.vsync-results .vsync-card')
+  await card.waitFor({ timeout: 20_000 })
+  assert.match(await card.locator('.vsync-rowTitle').textContent(), /Billboard/)
+  assert.match(await card.locator('.vsync-rowMeta').textContent(), /3 episodes.*12:35/)
+  assert.deepEqual(await card.locator('select.vsync-quality option').allTextContents(), ['Auto', '1080p', '720p', '480p', '360p', 'Audio only'])
+  await until('the thumbnail fails closed: the placeholder shows', async () => ({ ok: await card.locator('.vsync-coverEmpty').count() === 1 }), 20_000)
+  await shot(a.page, 'link-result')
+  await card.locator('select.vsync-quality').selectOption('480')
+  await card.getByRole('button', { name: 'Watch together now' }).click()
+  await a.page.waitForSelector('.vsync-media', { timeout: 60_000 })
+  assert.equal(await a.page.locator('.vsync-episode').count(), 3, 'every video of the playlist is an episode')
+  await until('the first episode plays', async () => ({ ok: await a.page.evaluate(() => { const video = document.querySelector('video'); return video !== null && video.readyState >= 2 }) }), 60_000)
+  const downloads = calls().filter(args => args.includes('--playlist-items'))
+  assert.ok(downloads.length > 0, 'an episode was downloaded')
+  assert.equal(downloads[0][downloads[0].indexOf('-S') + 1], 'res:480,vcodec:h264,acodec:aac', 'in the chosen quality')
+  assert.ok(calls().every(args => args[args.indexOf('--proxy') + 1] === DEAD_PROXY), 'every yt-dlp call took the proxy')
+  await shot(a.page, 'link-room')
+  await openTab(a.page, 'Library')
+  const poster = a.page.locator('.vsync-show', { hasText: 'Billboard' }).locator('img.vsync-poster')
+  await until('the show\'s poster is a frame of its episode', async () => ({ ok: await poster.evaluate(img => img.complete && img.naturalWidth > 0).catch(() => false) }), 30_000)
+  await shot(a.page, 'link-library')
+  await closeRooms(a.page)
+  log('link: lookup, quality, proxy on every call, thumbnail failed closed, frame poster')
 }
 
 /** Search → watch together now, the room listing every episode, the watch log, deleting from the library. */
@@ -969,50 +1010,8 @@ async function main() {
     await hubFlows({ a, b, origin, home: dsh.home, show })
     await rollingFlows({ a, b, home: dsh.home })
 
-    if (youtubeId !== 'skip') {
-      const yt = await a.page.evaluate(async (id) => {
-        const response = await fetch('media-hub/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'youtube', urls: [`https://www.youtube.com/watch?v=${id}`], by: 'Alice' }) })
-        return response.json()
-      }, youtubeId)
-      assert.ok(yt.room?.id, JSON.stringify(yt))
-      log('youtube room', yt.room.title)
-      for (const v of [a, b]) await v.open(yt.room.id)
-      const embed = page => page.frames().find(frame => frame.url().startsWith('https://www.youtube.com/embed/'))
-      const ytState = async (page) => {
-        const frame = embed(page)
-        if (!frame) return null
-        return frame.evaluate(() => {
-          const video = document.querySelector('video')
-          return video ? { time: video.currentTime, paused: video.paused, at: Date.now() } : null
-        }).catch(() => null)
-      }
-      await until('both embeds loaded', async () => {
-        const [x, y] = [await ytState(a.page), await ytState(b.page)]
-        return { ok: x !== null && y !== null, x, y }
-      }, 30_000)
-      await sleep(3000)
-      await shot(a.page, 'youtube-ready')
-      await dismissDialogs(a.page)
-      // A presses play in YouTube's own player (its big play button sits in the middle).
-      await a.page.locator('iframe.vsync-media').click()
-      const ytPlaying = await until('B\'s embed plays after A pressed play in the embed', async () => {
-        const [x, y] = [await ytState(a.page), await ytState(b.page)]
-        return { ok: x !== null && y !== null && !x.paused && !y.paused && y.time > 1, x, y }
-      }, 30_000)
-      await sleep(5000)
-      const [x, y] = [await ytState(a.page), await ytState(b.page)]
-      const ytDrift = (y.time + (Math.max(x.at, y.at) - y.at) / 1000) - (x.time + (Math.max(x.at, y.at) - x.at) / 1000)
-      log('youtube playing: A at', x.time.toFixed(2), 'B at', y.time.toFixed(2), 'drift', ytDrift.toFixed(3), 's', ytPlaying.ok)
-      assert.ok(Math.abs(ytDrift) < 1.2, `youtube drift ${ytDrift}`)
-      await shot(b.page, 'youtube-playing')
-      // B pauses by clicking YouTube's picture.
-      await b.page.locator('iframe.vsync-media').click()
-      await until('A\'s embed paused after B paused', async () => {
-        const q = await ytState(a.page)
-        return { ok: q !== null && q.paused, q }
-      }, 15_000)
-      log('youtube pause propagated')
-    }
+    await linkFlows({ a, home: dsh.home })
+
     assert.deepEqual([...a.crashes, ...b.crashes], [], 'no page crashed while rendering')
     console.log('two-browser test passed')
   } finally {

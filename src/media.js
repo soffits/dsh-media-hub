@@ -5,6 +5,7 @@
  * the agent tool talk only to this.
  */
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { statfs, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { createCache } from './cache.js'
@@ -175,10 +176,11 @@ export function createMediaHub(options) {
     return found
   }
 
-  /** A library folder for a work from a source: its title, or title plus id when another show has that name. */
+  /** A library folder for a work from a source: its title, or title plus a short mark of its id (ids may be addresses) when another show has that name. */
   async function folderFor(sourceId, item) {
     const name = cleanName(item.title)
-    for (const candidate of [name, `${name} (${item.id})`]) {
+    const mark = createHash('sha256').update(`${sourceId}\n${item.id}`).digest('hex').slice(0, 8)
+    for (const candidate of [name, `${name} (${mark})`]) {
       const path = join(libraryRoots[0], candidate)
       const exists = await stat(path).then(() => true, () => false)
       const shows = (await library.list()).shows

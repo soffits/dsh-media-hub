@@ -1,6 +1,6 @@
 # Source protocol
 
-A source is a command line tool. The media hub knows nothing about the site behind it: it runs the command from the `sources` setting with a few verbs and reads JSON back. Anything that can do that is a source, for instance a small wrapper around yt-dlp for a video site, or a book catalogue. This document is the hub's public interface for sources; it stays stable across releases, and a change to it is called out in the changelog.
+A source is a command line tool. The media hub knows nothing about the site behind it: it runs the command from the `sources` setting with a few verbs and reads JSON back. Anything that can do that is a source, for instance a site's own app API or a book catalogue. (Video and playlist pages any yt-dlp site serves need no source: the built-in *Link* reads them.) This document is the hub's public interface for sources; it stays stable across releases, and a change to it is called out in the changelog.
 
 ```json
 { "sources": [
@@ -47,6 +47,8 @@ A result (and the `info` document, and each entry of its `related`) may also car
 | field | type | meaning |
 |---|---|---|
 | `cover` | string | `http(s)` URL of a cover picture. See [Covers](#covers); the browser never fetches it. |
+| `url` | string | `http(s)` URL of the work's own page on the site. |
+| `duration` | number | running time in seconds: of the video, or of all episodes together. |
 | `popularity` | `{ "count": n, "label": "plays", "text": "…" }` | how many people watched, read or follow it. `label` says what is counted: `plays`, `readers`, `listeners`, `viewers`, `followers`, `heat`, or another word the source uses (shown as is). `text` is the source's own wording, used only for a label the panel does not know. |
 | `episode_count` | integer | episodes (chapters for a book) in the work. |
 | `status` | `finished`, `ongoing` or `stopped` | whether more is coming. |

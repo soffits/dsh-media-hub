@@ -1,6 +1,6 @@
 # Extensions
 
-Everything the hub knows about the outside world comes from extensions: command line tools that speak a small JSON protocol, run through whatever launcher the owner configures. A launcher keeps its own network rules (a proxy it requires, an account file it reads), so the hub never talks to a site itself. Each extension can be tested on its own and can live in any repository.
+Everything the hub knows about the outside world comes from extensions (command line tools that speak a small JSON protocol, run through whatever launcher the owner configures) and from *Link*, which reads video and playlist pages with yt-dlp. A launcher keeps its own network rules (a proxy it requires, an account file it reads); what the hub fetches itself (Link's yt-dlp calls and thumbnails) takes the route the `proxies` setting gives its host. Each extension can be tested on its own and can live in any repository.
 
 Roles:
 

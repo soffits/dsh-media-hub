@@ -3,12 +3,12 @@
  * A stand-in yt-dlp for tests, with no network. `-J` answers what the real
  * yt-dlp answered for a video and for a playlist (recorded in yt-dlp/, cut
  * down): an address with `list=` is the playlist, one with `fail` an error,
- * anything else the video. A download writes a few bytes per playlist item
- * under the `-o` name into the `-P home:` folder and prints the `--print`
- * templates as yt-dlp would; FAKE_YTDLP_FAIL=N makes item N fail. Every run
+ * anything else the video. A download writes a copy of FAKE_YTDLP_SAMPLE
+ * (or a few bytes) per playlist item under the `-o` name into the `-P home:`
+ * folder and prints the `--print` templates as yt-dlp would; FAKE_YTDLP_FAIL=N makes item N fail. Every run
  * is appended to FAKE_YTDLP_LOG (when set) as one JSON array of arguments.
  */
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const args = process.argv.slice(2)
@@ -55,7 +55,9 @@ for (let index = playlist ? from : 1; index <= (playlist ? Math.min(to, items.le
     failed = true
     continue
   }
-  writeFileSync(join(home, fill(value('-o'), fields)), `episode ${index}`)
+  const file = join(home, fill(value('-o'), fields))
+  if (process.env.FAKE_YTDLP_SAMPLE) copyFileSync(process.env.FAKE_YTDLP_SAMPLE, file)
+  else writeFileSync(file, `episode ${index}`)
   announce('after_move')(fields)
 }
 process.exit(failed ? 1 : 0)

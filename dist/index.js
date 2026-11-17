@@ -2289,7 +2289,7 @@ var require_websocket = __commonJS({
     var net4 = __require("net");
     var querystring = __require("querystring");
     var tls3 = __require("tls");
-    var { randomBytes: randomBytes2, createHash: createHash6 } = __require("crypto");
+    var { randomBytes: randomBytes2, createHash: createHash7 } = __require("crypto");
     var { Duplex, Readable: Readable2 } = __require("stream");
     var { URL: URL4 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -2980,7 +2980,7 @@ var require_websocket = __commonJS({
           abortHandshake(websocket, socket, "Invalid Upgrade header");
           return;
         }
-        const digest = createHash6("sha1").update(key + GUID).digest("base64");
+        const digest = createHash7("sha1").update(key + GUID).digest("base64");
         if (res.headers["sec-websocket-accept"] !== digest) {
           abortHandshake(websocket, socket, "Invalid Sec-WebSocket-Accept header");
           return;
@@ -3365,7 +3365,7 @@ var require_websocket_server = __commonJS({
     var EventEmitter = __require("events");
     var http2 = __require("http");
     var { Duplex } = __require("stream");
-    var { createHash: createHash6 } = __require("crypto");
+    var { createHash: createHash7 } = __require("crypto");
     var extension2 = require_extension();
     var PerMessageDeflate2 = require_permessage_deflate();
     var subprotocol2 = require_subprotocol();
@@ -3675,7 +3675,7 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest = createHash6("sha1").update(key + GUID).digest("base64");
+        const digest = createHash7("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
@@ -11443,6 +11443,7 @@ Content-Length: 0\r
 
 // src/media.js
 import { spawn as spawn4 } from "node:child_process";
+import { createHash as createHash5 } from "node:crypto";
 import { statfs as statfs2, stat as stat9 } from "node:fs/promises";
 import { join as join14, resolve as resolve5 } from "node:path";
 
@@ -13896,7 +13897,9 @@ function createMediaHub(options) {
   }
   async function folderFor(sourceId, item) {
     const name2 = cleanName(item.title);
-    for (const candidate of [name2, `${name2} (${item.id})`]) {
+    const mark = createHash5("sha256").update(`${sourceId}
+${item.id}`).digest("hex").slice(0, 8);
+    for (const candidate of [name2, `${name2} (${mark})`]) {
       const path = join14(libraryRoots[0], candidate);
       const exists2 = await stat9(path).then(() => true, () => false);
       const shows = (await library.list()).shows;
@@ -14092,12 +14095,12 @@ import { stat as stat10 } from "node:fs/promises";
 import { Readable } from "node:stream";
 
 // src/people.js
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 var OWNER = "owner";
 function personOf(identityService) {
   const identity = typeof identityService?.current === "function" ? identityService.current() : null;
   if (identity === null || typeof identity?.id !== "string" || identity.id === "") return { key: OWNER, name: "", verified: false };
-  const key = createHash5("sha256").update(`${identity.issuer ?? ""}
+  const key = createHash6("sha256").update(`${identity.issuer ?? ""}
 ${identity.id}`).digest("hex").slice(0, 20);
   return { key, name: typeof identity.name === "string" ? identity.name.slice(0, 80) : "", verified: true };
 }

@@ -42,7 +42,6 @@
     "LICENSE",
     "dist/*",
     "src/sync.js",
-    "src/youtube-url.js",
     "src/formats.js",
     "src/i18n.js"
   ],
