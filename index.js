@@ -4,7 +4,7 @@
  * Mounts /media-hub on DSH's web server (media, subtitles, the page's
  * browser modules, a JSON API for rooms, the library and sources) and the
  * room WebSocket, all behind DSH's own login. Provides the `mediaHub`
- * service, which the agent tool (tools.js) looks up at call time.
+ * service, which the assistant's tool (tools.js) looks up at call time.
  */
 import { join, resolve } from 'node:path'
 import { WebSocketServer } from 'ws'

@@ -785,7 +785,7 @@ async function hubFlows({ a, b, origin, home, show }) {
   await shot(b.page, 'fanqie-room-watched')
   await b.page.goto(origin)
 
-  // The watch log, read the way the agent's history action reads it.
+  // The watch log, read the way the assistant's history action reads it.
   const logFile = join(home, 'media-hub', 'watch-log.jsonl')
   assert.ok(existsSync(logFile), 'watch log written')
   const types = new Set(readFileSync(logFile, 'utf8').trim().split('\n').map(line => JSON.parse(line).type))

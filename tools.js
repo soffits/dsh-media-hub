@@ -1,5 +1,5 @@
 /**
- * The agent's Video Sync tool: open a room on local media, a library show,
+ * The assistant's Video Sync tool: open a room on local media, a library show,
  * a web video or playlist (Link, through yt-dlp) or a work from a configured source and get the link to send; list and close rooms;
  * list the library; read what was watched (the watch log).
  *
@@ -15,7 +15,7 @@ export const inject = ['tools']
 
 export const Config = z.object({
   agentName: z.string().default('')
-    .description('Name shown as who opened rooms the agent starts. Empty shows "the agent".'),
+    .description('Name shown as who opened rooms the assistant starts. Empty shows "the assistant" in the viewer\'s language.'),
   waitSeconds: z.natural().default(120)
     .description('How long start waits for the first episode to be downloaded and prepared before it returns the link.'),
 })

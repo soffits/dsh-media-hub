@@ -2,7 +2,7 @@
  * The media hub: rooms (src/hub.js), the library (src/shows.js), downloads
  * from sources (src/downloads.js, src/sources/) and the watch log
  * (src/watchlog.js, src/journal.js), wired together. The HTTP routes and
- * the agent tool talk only to this.
+ * the assistant's tool talk only to this.
  */
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -333,7 +333,7 @@ export function createMediaHub(options) {
       library.setFollow(dir, followStart(info))
       return { path: dir, follow: true }
     },
-    /** The checks of followed works, for tests and for the agent: one show now, or whatever is due. */
+    /** The checks of followed works, for tests and for the assistant: one show now, or whatever is due. */
     checkFollow: path => follows.check(path),
     sweepFollows: () => follows.sweep(),
     followsDue: at => dueFollows(library.follows(), at),

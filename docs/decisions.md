@@ -25,7 +25,7 @@
 
 - **The sync channel is the plugin's own WebSocket** on DSH's web server (`registerUpgrade`), not the Web UI's `remote.mux`, so a Web UI reconnect or a profile reload of other plugins does not touch playback.
 - **Every route goes through `connection.admit` and requires the owner principal**, like DSH's own API. Every browser DSH's login admits is the owner, so everyone signed in may use rooms; display names come from the sign-in plugin's profile endpoint and are attribution only.
-- **The panel can only start rooms from the library folders; the agent tool can open any path.** Browsers are owners anyway, but a browser listing arbitrary server paths is needless exposure.
+- **The panel can only start rooms from the library folders; the assistant's tool can open any path.** Browsers are owners anyway, but a browser listing arbitrary server paths is needless exposure.
 - **Media is served by DSH's own web server by default** (`src/delivery.js`). Object storage with signed links is a named option behind the same interface, not built yet.
 
 ## Players and media
@@ -100,4 +100,4 @@
 - **A file per (source, work, format), shared by shelves**: two people downloading the same book keep one copy; the cap evicts files, never shelf entries.
 - **Saving to the device is a link the person taps**, not an automatic download after the fetch: phones only treat a download they started as theirs (iOS hands an epub to Apple Books).
 - **The state folder is not moved on the rename**: shows and the watch log name files by absolute path, so an existing `videosync` folder is used where it is.
-- **The agent tool keeps the name `videosync`**: renaming it would remove a tool from running sessions.
+- **The assistant's tool keeps the name `videosync`**: renaming it would remove a tool from running sessions.

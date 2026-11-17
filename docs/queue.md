@@ -9,7 +9,7 @@
 - **Plex**: copy a library item out through Plex's API into the local pipeline rather than streaming Plex's HLS with a token.
 - **R2 delivery**: upload prepared episodes to an R2 bucket and hand out short-lived presigned URLs (SigV4 query signing); delete after the room closes. `src/delivery.js` has the slot.
 - **Watch beside a conversation**: a right-sidebar tab with the same room view, kept mounted, so playback continues while chatting. The main-column page unmounts (and leaves the room) when another page is opened.
-- **Agent watching along**: let the agent follow a room's state (what is playing, where) through the `mediaHub` service.
+- **The assistant watching along**: let the assistant follow a room's state (what is playing, where) through the `mediaHub` service.
 - **Hidden tabs**: browsers throttle timers in background tabs to about 1 s, so a viewer whose tab is hidden starts up to a second late and catches up by seek.
 - **Preparing progress for several episodes at once**: episodes prepare one after another, starting with the episode the room opens on; a jump to a late episode waits for the ones queued before it.
 - **A source's name per language**: `label` is one string, so Discover's picker shows it as configured ("Fanqie" or "番茄"); an optional `labels: { zh: "番茄" }` in the `sources` entry would follow the page language.

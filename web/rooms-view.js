@@ -15,7 +15,7 @@ function meta(t, room) {
     else if (room.opened === false) parts.push(t('rooms.unopened'))
   }
   if (room.preparing > 0) parts.push(fill(t('rooms.preparing'), { n: room.preparing }))
-  parts.push(fill(t('rooms.openedBy'), { name: room.createdBy || t('agent') }))
+  parts.push(fill(t('rooms.openedBy'), { name: room.createdBy || t('assistant') }))
   return parts
 }
 

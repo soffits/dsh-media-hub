@@ -26,12 +26,12 @@ This plugin was called Video Sync (`@soffits/dsh-video-sync`) until 0.2.0; the r
 dsh plugin --profile web add github:soffits/dsh-media-hub
 ```
 
-The bundle adds two rows: `media-hub` (the page, shelves, rooms, media) and `media-hub-tools` (the agent's `videosync` tool for rooms). Needs `ffmpeg`/`ffprobe` on the PATH for local media, `yt-dlp` for Link (keep it current: sites change), the commands of the sources you use (`fanqie` from fanqie-cli, `bookfetch` from [bookfetch-cli](https://github.com/soffits/bookfetch-cli); a source is hidden without its command), and optionally Calibre's `ebook-convert` for format conversion. Coming from Video Sync: replace the `@soffits/dsh-video-sync` package with this one; an existing `$DSH_HOME/videosync` folder keeps being used. A source's command runs in `<stateDir>/<source id>`, so nothing it writes into its working folder lands in DSH's.
+The bundle adds two rows: `media-hub` (the page, shelves, rooms, media) and `media-hub-tools` (the assistant's `videosync` tool for rooms). Needs `ffmpeg`/`ffprobe` on the PATH for local media, `yt-dlp` for Link (keep it current: sites change), the commands of the sources you use (`fanqie` from fanqie-cli, `bookfetch` from [bookfetch-cli](https://github.com/soffits/bookfetch-cli); a source is hidden without its command), and optionally Calibre's `ebook-convert` for format conversion. Coming from Video Sync: replace the `@soffits/dsh-video-sync` package with this one; an existing `$DSH_HOME/videosync` folder keeps being used. A source's command runs in `<stateDir>/<source id>`, so nothing it writes into its working folder lands in DSH's.
 
 ## Use
 
 - **From the page**: open **Media** in the sidebar (the `label` setting renames it). Three tabs: **Watching** (the default) lists the open rooms for everyone with who is in them and the episode, with copying a room's link or closing it, and the shows someone started, to continue; **Library** manages the shows and starts or continues one; **Discover** searches: pick a source (*All sources*, every configured one, or *Link* to paste the address of a video or playlist), then one of that source's categories, then search. The tab, source and category are in the page's URL (`?vs-tab=library`, `?vs-tab=discover&vs-source=<id>&vs-kind=<id>`), so a refresh and the back button keep them and a link can open a tab directly; the last source and category are remembered per browser.
-- **From the agent**: `videosync` with `action: start` and `source: local` plus `path`, `source: link` plus `url` (and `quality`), or `source: <source id>` plus `id` (and `offline: true` to keep every episode), returns a link to send. `list` and `close` manage rooms, `library` lists the shows, `history` summarises the watch log (shows, episodes finished, where each viewer stopped, with whom, when).
+- **From the assistant**: `videosync` with `action: start` and `source: local` plus `path`, `source: link` plus `url` (and `quality`), or `source: <source id>` plus `id` (and `offline: true` to keep every episode), returns a link to send. `list` and `close` manage rooms, `library` lists the shows, `history` summarises the watch log (shows, episodes finished, where each viewer stopped, with whom, when).
 
 A room link looks like `https://dsh.example.com/?media-room=<room>` (DSH's advertised URL, `--public-url` when set) and opens the panel on that room.
 
@@ -64,7 +64,7 @@ The page follows DSH's language setting. It ships in English, French and Chinese
 | `converter` | `ebook-convert` | Calibre's converter; when installed, books can be downloaded in formats their source lacks. Empty turns conversion off. |
 | `sources` | `fanqie`, `bookfetch` | The sources: a list of `{ id, label, kinds: [{ id, label, media }], filters, command: [program, ...fixed arguments], env }`; `label` is the source's name in Discover's picker and each kind's `label` its category, each a string or `{ "<tag>": "text" }` like the sidebar's; left empty, the page uses its own words for that id (`source.name.<id>`, `kind.<id>` in `locale/`), else the id; `media` is `video`, `audio` or `book`; `filters` lists the search filters the command understands (`language`, `format`, `year`). The list replaces the default, so keep the default entries when adding one; an empty list turns sources off. See [docs/source-protocol.md](docs/source-protocol.md). |
 
-The tools row takes `agentName` (shown as who opened the agent's rooms) and `waitSeconds` (how long `start` waits for the first episode to be ready).
+The tools row takes `agentName` (shown as who opened the assistant's rooms) and `waitSeconds` (how long `start` waits for the first episode to be ready).
 
 ## Development
 

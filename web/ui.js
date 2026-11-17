@@ -59,7 +59,7 @@ export const canChat = () => chat?.available() === true
  * @param {object} about
  * @param {string} about.title
  * @param {string[]} about.lines - what is shown about the item
- * @param {object} about.context - ids that let the agent find it again
+ * @param {object} about.context - ids that let the assistant find it again
  */
 export function chatAbout({ title, lines, context }) {
   return chat?.start({ title, lines: lines.filter(Boolean), context })
