@@ -14,11 +14,12 @@
  */
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { isAbsolute, join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { SKIP_AFTER_MS, advance, advanceOf, applyOp, clockOf, createRoom, hold, positionAt, settle, updateItems } from './room.js'
 import { scanSource } from './library.js'
-import { convertSubtitle, createQueue, prepareEpisode, pruneCache } from './prepare.js'
-import { createStreams } from './stream.js'
+import { convertSubtitle, prepareEpisode, pruneCache } from './prepare.js'
+import { needs, planPreparing } from './preparing.js'
+import { createStreams, finishedPlaylist, streamKey } from './stream.js'
 
 /** Keep-alive ping on each socket; a tunnel drops idle sockets after about 100 s. */
 const PING_MS = 20_000
@@ -51,6 +52,7 @@ const cleanText = (value, max) => (typeof value === 'string' ? value.replace(/[\
  * @param {{ info: Function, warn: Function }} options.logger
  * @param {(item: object, show: string | undefined) => object | null} [options.watchOf] - how far an episode was watched, shown in the room's episode list
  * @param {(path: string) => Promise<{ n: number, title: string | null, path: string | null }[] | null>} [options.directory] - every episode of a show from a source (null for other folders), on disk or not
+ * @param {{ ahead: number }} [options.cache] - how many episodes after the one a room is on are made ready ahead of time
  * @param {(showPath: string, change: { retry: boolean }) => void} [options.focus] - told when a room on a show goes to another episode, or opens
  * @param {(type: string, detail: object) => void} [options.observe] - told what happens in rooms:
  *   opened { room }, closed { room, position }, joined { room, viewer }, left { room, viewer, position },
@@ -71,26 +73,30 @@ export function createRoomService(options) {
   const rooms = new Map()
   const peers = new Map()
   const waiters = new Map()
-  const queue = createQueue()
+  const ahead = options.cache?.ahead ?? 5
+  /** Episode files being prepared: path to the run's controller. */
+  const preparing = new Map()
+  let replanning = false
   let saveTimer = null
   let disposed = false
-  /** Rooms standing on episode `number` of a show while it is not on disk yet. */
+  /** Rooms waiting on episode `number` of a show while it is not on disk yet. */
   const waitingOn = (show, number) => [...rooms.values()].filter(room => room.showPath === show && room.items.some(item => item.slot === number && item.sourcePath === null && item.status === 'preparing'))
   const streams = createStreams({
     cacheDir,
     tools,
     logger,
     convert: (source, dir, name) => convertSubtitle(source, dir, name, { ffmpeg: tools.ffmpeg }),
-    wanted: (show, number) => waitingOn(show, number).length > 0,
+    need: () => needs([...rooms.values()], ahead, (room, item) => (room.showPath !== undefined && item.slot !== undefined ? streamKey(room.showPath, item.slot) : null)),
     ready: (show, number, prepared) => {
       for (const room of waitingOn(show, number)) setItem(room.id, number, { status: 'ready', progress: null, error: null, streamed: true, ...prepared })
     },
+    // The copy stopped before it was complete: the episode waits for its file (and is prepared from it), or for a room to want it again.
     lost: (show, number) => {
       for (const room of [...rooms.values()]) {
-        const index = room.showPath === show ? room.items.findIndex(item => item.slot === number && item.streamed) : -1
-        if (index < 0) continue
-        setItem(room.id, number, { status: 'preparing', streamed: false })
-        schedulePrepare(room.id, index)
+        const item = room.showPath === show ? room.items.find(entry => entry.slot === number && entry.streamed) : undefined
+        if (item === undefined) continue
+        const waited = typeof item.sourcePath === 'string' || room.items[room.index] === item
+        setItem(room.id, number, { status: waited ? 'preparing' : 'remote', streamed: false, progress: null })
       }
     },
   })
@@ -111,9 +117,7 @@ export function createRoomService(options) {
     // Nobody is connected right after a start; viewers who were reconnect within seconds and start together again.
     for (const { holds, ...room } of data.rooms ?? []) rooms.set(room.id, { ...hold({ gate: null, gates: 0, startedAt: null, ...room }, now()), cooldown: {}, nextReady: null, emptySince: room.emptySince ?? (room.opened ? now() : null) })
     sweep()
-    for (const room of rooms.values()) {
-      room.items.forEach((item, index) => { if (item.status === 'preparing') schedulePrepare(room.id, index) })
-    }
+    for (const room of [...rooms.values()]) await reopen(room)
     for (const path of new Set([...rooms.values()].map(room => room.showPath).filter(Boolean))) await syncShow(path)
   }
 
@@ -136,6 +140,7 @@ export function createRoomService(options) {
     rooms.set(room.id, { ...room, touchedAt: now() })
     broadcast(room.id)
     save()
+    replan()
   }
 
   // ---------------------------------------------------------------- views
@@ -362,6 +367,7 @@ export function createRoomService(options) {
     for (const peer of peers.get(id) ?? []) peer.ws.close(4410, 'room closed')
     peers.delete(id)
     save()
+    replan()
     return true
   }
 
@@ -386,32 +392,73 @@ export function createRoomService(options) {
     return { ...room, items: room.items.map((entry, n) => (n === room.index ? { ...entry, status: 'preparing', error: null } : entry)) }
   }
 
-  function schedulePrepare(roomId, index) {
-    const key = itemKey(rooms.get(roomId)?.items[index] ?? {})
-    if (typeof rooms.get(roomId)?.items[index]?.sourcePath !== 'string') return
-    queue(async () => {
-      const item = rooms.get(roomId)?.items.find(entry => itemKey(entry) === key)
-      if (item === undefined || disposed || typeof item.sourcePath !== 'string') return
-      let last = 0
-      try {
-        const prepared = await prepareEpisode({ title: item.title, path: item.sourcePath, subtitles: item.sourceSubtitles ?? [] }, {
-          cacheDir,
-          ffmpeg: tools.ffmpeg,
-          ffprobe: tools.ffprobe,
-          maxHeight: tools.maxHeight,
-          threads: tools.threads,
-          onReady: prepared => setItem(roomId, key, { status: 'ready', progress: null, ...prepared }),
-          onProgress: (fraction) => {
-            if (fraction - last < 0.02) return
-            last = fraction
-            setItem(roomId, key, { progress: { step: 'prepare', fraction: Math.round(fraction * 100) / 100 } })
-          },
-        })
-        setItem(roomId, key, { status: 'ready', progress: null, ...prepared })
-      } catch (error) {
-        logger.warn('could not prepare %s: %s', item.sourcePath, error.message)
-        setItem(roomId, key, { status: 'failed', progress: null, error: error.message, reason: null })
-      }
+  /**
+   * Items saved as playable while their copy was still being made (DSH stopped mid-way) are not playable on their
+   * own: they are made again when a room needs them.
+   */
+  async function reopen(room) {
+    const unfinished = async item => item.status === 'ready' && item.kind === 'hls' && typeof item.file === 'string'
+      && item.file.startsWith(`${cacheDir}/`) && (await finishedPlaylist(dirname(item.file))) === null
+    const items = []
+    for (const item of room.items) {
+      if (!(await unfinished(item))) items.push(item)
+      else items.push({ ...item, status: typeof item.sourcePath === 'string' ? 'preparing' : 'remote', streamed: false, progress: null })
+    }
+    if (items.some((item, n) => item !== room.items[n])) commit(wanting(updateItems(room, items)))
+  }
+
+  /** Bring the work on episodes in line with where the rooms are now (src/preparing.js), once the current change is done. */
+  function replan() {
+    if (replanning || disposed) return
+    replanning = true
+    queueMicrotask(() => {
+      replanning = false
+      if (disposed) return
+      const all = [...rooms.values()]
+      const need = needs(all, ahead, (_, item) => (typeof item.sourcePath === 'string' && !item.streamed ? item.sourcePath : null))
+      const waiting = new Set(all.flatMap(room => room.items.filter(item => item.status === 'preparing' && typeof item.sourcePath === 'string' && !item.streamed).map(item => item.sourcePath)))
+      const { start, stop } = planPreparing(need, waiting, preparing.keys())
+      for (const path of stop) preparing.get(path).abort('left')
+      for (const path of start) prepare(path)
+      streams.update()
+    })
+  }
+
+  /** Change every room's item played from `path` (one prepared copy serves them all). */
+  function setPath(path, patch) {
+    for (const room of [...rooms.values()]) {
+      for (const item of room.items) if (item.sourcePath === path && !item.streamed) setItem(room.id, itemKey(item), patch)
+    }
+  }
+
+  function prepare(path) {
+    const item = [...rooms.values()].flatMap(room => room.items).find(entry => entry.sourcePath === path)
+    const controller = new AbortController()
+    preparing.set(path, controller)
+    let last = 0
+    prepareEpisode({ title: item.title, path, subtitles: item.sourceSubtitles ?? [] }, {
+      cacheDir,
+      ffmpeg: tools.ffmpeg,
+      ffprobe: tools.ffprobe,
+      maxHeight: tools.maxHeight,
+      threads: tools.threads,
+      signal: controller.signal,
+      onReady: prepared => setPath(path, { status: 'ready', progress: null, ...prepared }),
+      onProgress: (fraction) => {
+        if (fraction - last < 0.02) return
+        last = fraction
+        setPath(path, { progress: { step: 'prepare', fraction: Math.round(fraction * 100) / 100 } })
+      },
+    }).then((prepared) => {
+      setPath(path, { status: 'ready', progress: null, ...prepared })
+    }, (error) => {
+      // Stopped because nobody needs it now: what was made so far is not playable on its own.
+      if (controller.signal.aborted) return setPath(path, { status: 'preparing', progress: null })
+      logger.warn('could not prepare %s: %s', path, error.message)
+      return setPath(path, { status: 'failed', progress: null, error: error.message, reason: null })
+    }).finally(() => {
+      preparing.delete(path)
+      replan()
     })
   }
 
@@ -435,8 +482,8 @@ export function createRoomService(options) {
 
   /**
    * Bring the rooms on a show from a source in line with the files on disk:
-   * an episode that landed starts preparing, one that was dropped goes back
-   * to not cached. Rooms from before episodes were numbered are rebuilt.
+   * an episode that landed waits to be prepared (`replan` says when), one
+   * that was dropped goes back to not cached. Rooms from before episodes were numbered are rebuilt.
    */
   async function syncShow(path) {
     const target = resolve(path)
@@ -448,7 +495,6 @@ export function createRoomService(options) {
       if (current === undefined) continue
       const legacy = current.items.some(item => item.slot === undefined)
       const before = new Map(current.items.map(item => [legacy ? item.sourcePath : item.slot, item]))
-      const fresh = []
       const items = entries.map((entry) => {
         const prev = before.get(legacy ? entry.path : entry.n)
         // An episode that plays while it downloads keeps playing from its copy when its file lands.
@@ -458,13 +504,11 @@ export function createRoomService(options) {
           return waiting ? { ...prev, title: entry.title } : slotItem(entry, 'remote')
         }
         if (prev !== undefined && prev.sourcePath === entry.path) return { ...prev, title: entry.title, slot: entry.n }
-        fresh.push(entry.n)
         return slotItem(entry, 'remote')
       })
       const playing = current.items[current.index]
       const index = legacy ? Math.max(0, entries.findIndex(entry => entry.path !== null && entry.path === playing?.sourcePath)) : Math.min(current.index, items.length - 1)
       commit(wanting({ ...updateItems(current, items), index }))
-      items.forEach((item, at) => { if (fresh.includes(item.slot)) schedulePrepare(room.id, at) })
     }
   }
 
@@ -492,9 +536,6 @@ export function createRoomService(options) {
       }
       commit(wanting(room))
       observe('opened', { room })
-      // The episode the room starts on first, then the rest in order.
-      const order = room.items.map((_, n) => (n + room.index) % room.items.length)
-      for (const index of order) if (room.items[index].status === 'preparing') schedulePrepare(id, index)
       if (room.showPath !== undefined) options.focus?.(room.showPath, { retry: true })
       return { room: summary(rooms.get(id)) }
     },
@@ -586,7 +627,7 @@ export function createRoomService(options) {
      * Episode `number` of a show while a source still fetches it, as files that play while they grow
      * (`growing` settles when they are complete): rooms waiting on it play it once enough is there.
      */
-    streamEpisode: (path, number, partial) => streams.start(resolve(path), number, partial),
+    streamEpisode: (path, number, partial) => streams.offer(resolve(path), number, partial),
 
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {
@@ -607,6 +648,8 @@ export function createRoomService(options) {
 
     async dispose() {
       disposed = true
+      for (const controller of preparing.values()) controller.abort('stop')
+      streams.stop()
       for (const timer of advanceTimers.values()) clearTimeout(timer.id)
       clearInterval(sweepTimer)
       clearInterval(progressTimer)

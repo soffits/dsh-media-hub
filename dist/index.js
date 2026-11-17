@@ -11330,40 +11330,81 @@ async function streamEpisode({ files, growing, dir, ffmpeg = "ffmpeg", ffprobe =
   if (!told) onReady?.({ playlist, duration });
   return { playlist, duration };
 }
-function createStreams({ cacheDir, tools, wanted, ready, lost, logger, convert }) {
-  const running = /* @__PURE__ */ new Map();
-  return {
-    /** @param {{ files: string[], subtitles: { path: string, label: string }[], growing: Promise<unknown> }} partial */
-    start(show, number, { files, subtitles = [], growing }) {
-      const key = `${show}\0${number}`;
-      if (running.has(key) || !wanted(show, number)) return;
-      const dir = join5(cacheDir, `stream-${createHash2("sha256").update(`${key}\0${Date.now()}`).digest("hex").slice(0, 20)}`);
-      let played = false;
-      const run3 = streamEpisode({
-        files,
-        growing,
-        dir,
-        ...tools,
-        onReady: async ({ playlist, duration }) => {
-          const converted = [];
-          for (const [n, sub] of subtitles.entries()) {
-            try {
-              converted.push({ file: await convert(sub.path, dir, `external-${n}`), label: sub.label });
-            } catch {
-            }
+function createStreams({ cacheDir, tools, need, ready, lost, logger, convert }) {
+  const episodes = /* @__PURE__ */ new Map();
+  const forget = (key, entry) => {
+    if (episodes.get(key) === entry) episodes.delete(key);
+  };
+  function start(key, entry) {
+    const { show, number, partial: { files, subtitles = [], growing } } = entry;
+    const controller = new AbortController();
+    const dir = join5(cacheDir, `stream-${createHash2("sha256").update(`${key}\0${Date.now()}`).digest("hex").slice(0, 20)}`);
+    entry.controller = controller;
+    entry.prepared = null;
+    streamEpisode({
+      files,
+      growing,
+      dir,
+      ...tools,
+      signal: controller.signal,
+      onReady: async ({ playlist, duration }) => {
+        const converted = [];
+        for (const [n, sub] of subtitles.entries()) {
+          try {
+            converted.push({ file: await convert(sub.path, dir, `external-${n}`), label: sub.label });
+          } catch {
           }
-          played = true;
-          ready(show, number, { file: playlist, kind: "hls", duration, subtitles: converted });
         }
-      });
-      running.set(key, run3);
-      run3.catch((error) => {
+        if (controller.signal.aborted) return;
+        entry.prepared = { file: playlist, kind: "hls", duration, subtitles: converted };
+        ready(show, number, entry.prepared);
+      }
+    }).then(() => {
+      forget(key, entry);
+    }, (error) => {
+      if (!controller.signal.aborted) {
         logger.warn("could not play %s episode %d while it downloads: %s", show, number, error.message);
-        if (played) lost(show, number);
-      }).finally(() => running.delete(key));
+        entry.failed = true;
+      }
+      entry.controller = null;
+      entry.prepared = null;
+      if (entry.ended || entry.failed) forget(key, entry);
+      lost(show, number);
+    });
+  }
+  function update() {
+    const wanted = need();
+    for (const [key, entry] of episodes) {
+      const rank = wanted.get(key);
+      if (rank === void 0) entry.controller?.abort("left");
+      else if (rank === 0 && entry.controller === null && !entry.ended) start(key, entry);
+      else if (rank === 0 && entry.prepared !== null) ready(entry.show, entry.number, entry.prepared);
+    }
+  }
+  return {
+    /**
+     * An episode's files while its download goes on (a source's `onPartial`).
+     * @param {{ files: string[], subtitles: { path: string, label: string }[], growing: Promise<unknown> }} partial
+     */
+    offer(show, number, partial) {
+      const key = streamKey(show, number);
+      episodes.get(key)?.controller?.abort("replaced");
+      const entry = { show, number, partial, controller: null, prepared: null, ended: false, failed: false };
+      episodes.set(key, entry);
+      Promise.resolve(partial.growing).catch(() => {
+      }).finally(() => {
+        entry.ended = true;
+        if (entry.controller === null) forget(key, entry);
+      });
+      update();
+    },
+    update,
+    stop() {
+      for (const entry of episodes.values()) entry.controller?.abort("stop");
     }
   };
 }
+var streamKey = (show, number) => `${show}\0${number}`;
 
 // src/subtitles.js
 var LEGACY_ENCODINGS = Object.freeze(["gb18030", "big5", "shift_jis", "euc-kr"]);
@@ -11410,15 +11451,6 @@ async function dropPrepared(cacheDir, path) {
   const key = await cacheKey(path).catch(() => null);
   if (key !== null) await rm4(join6(cacheDir, key), { recursive: true, force: true });
 }
-function createQueue() {
-  let tail = Promise.resolve();
-  return (job) => {
-    const result = tail.then(job, job);
-    tail = result.catch(() => {
-    });
-    return result;
-  };
-}
 function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
   return new Promise((resolve7, reject) => {
     const child = spawn3("nice", ["-n", "10", ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-progress", "pipe:1", ...args], { stdio: ["ignore", "pipe", "pipe"], signal });
@@ -11460,7 +11492,7 @@ async function convertSubtitle(source, dir, name2, { ffmpeg = "ffmpeg" } = {}) {
   return out;
 }
 async function prepareEpisode(episode, options) {
-  const { cacheDir, ffmpeg = "ffmpeg", ffprobe = "ffprobe", maxHeight = 1080, threads = 2, onProgress, onReady } = options;
+  const { cacheDir, ffmpeg = "ffmpeg", ffprobe = "ffprobe", maxHeight = 1080, threads = 2, onProgress, onReady, signal } = options;
   if (extname3(episode.path).toLowerCase() === ".m3u8") {
     return { file: episode.path, kind: "hls", duration: null, plan: "direct", subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) };
   }
@@ -11476,14 +11508,14 @@ async function prepareEpisode(episode, options) {
     const prepared = (file2) => ({ file: file2, kind: "hls", duration: info.duration, plan, subtitles });
     const done = await finishedPlaylist(hls);
     if (done !== null) return prepared(done);
-    const { playlist } = await streamEpisode({ files: [episode.path], dir: hls, ffmpeg, ffprobe, maxHeight, threads, onReady: (ready) => onReady?.(prepared(ready.playlist)) });
+    const { playlist } = await streamEpisode({ files: [episode.path], dir: hls, ffmpeg, ffprobe, maxHeight, threads, signal, onReady: (ready) => onReady?.(prepared(ready.playlist)) });
     return prepared(playlist);
   }
   let file = episode.path;
   if (plan === "remux") {
     file = join6(dir, "video.mp4");
     if (!await exists(file)) {
-      await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress });
+      await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress, signal });
       await rename(`${file}.part`, file);
     }
   }
@@ -12319,6 +12351,11 @@ function nextRun(want, have) {
 // src/downloads.js
 var ACTIVE = /* @__PURE__ */ new Set(["queued", "running"]);
 var howOf = (source = {}) => ({ quality: source.quality ?? "", person: source.person ?? "", language: source.language ?? "" });
+function nextOfRun(job, onDisk) {
+  const [from2, to] = job.current ?? [0, -1];
+  for (let n = job.at ?? from2; n <= to; n++) if (!onDisk.has(n)) return n;
+  return null;
+}
 var sourceError3 = (code, message) => Object.assign(new Error(message), { code });
 function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {
 }, onPartial = () => {
@@ -12447,10 +12484,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
         job.error = null;
         job.reason = null;
       }
-      if (running === job) {
-        const [from2, to] = job.current ?? [0, -1];
-        if (!(first >= (job.at ?? from2) && first <= to)) job.controller.abort("yield");
-      }
+      if (running === job && nextOfRun(job, onDisk) !== first) job.controller.abort("yield");
       save();
       pump();
       return job;
@@ -13003,7 +13037,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
 // src/hub.js
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { mkdir as mkdir8, readFile as readFile8, rename as rename6, writeFile as writeFile5 } from "node:fs/promises";
-import { isAbsolute as isAbsolute3, join as join14, resolve as resolve3 } from "node:path";
+import { dirname as dirname4, isAbsolute as isAbsolute3, join as join14, resolve as resolve3 } from "node:path";
 
 // src/sync.js
 var DRIFT = Object.freeze({
@@ -13192,6 +13226,31 @@ function updateItems(room, items) {
   return { ...room, items, seq: room.seq + 1 };
 }
 
+// src/preparing.js
+function needs(rooms, ahead, keyOf3) {
+  const out = /* @__PURE__ */ new Map();
+  for (const room of rooms) {
+    for (let distance = 0; distance <= ahead; distance++) {
+      const item = room.items[room.index + distance];
+      if (item === void 0) break;
+      const key = keyOf3(room, item);
+      if (key !== null && !(out.get(key) <= distance)) out.set(key, distance);
+    }
+  }
+  return out;
+}
+function planPreparing(need, waiting, running) {
+  const busy = new Set(running);
+  const idle = [...waiting].filter((key) => !busy.has(key) && need.has(key));
+  const stop = [...busy].filter((key) => !need.has(key));
+  const start = idle.filter((key) => need.get(key) === 0);
+  if (![...busy].some((key) => need.get(key) > 0)) {
+    const next = idle.filter((key) => need.get(key) > 0).sort((a, b) => need.get(a) - need.get(b))[0];
+    if (next !== void 0) start.push(next);
+  }
+  return { start, stop };
+}
+
 // src/hub.js
 var PING_MS = 2e4;
 var SAVE_DELAY_MS = 1e3;
@@ -13218,7 +13277,9 @@ function createRoomService(options) {
   const rooms = /* @__PURE__ */ new Map();
   const peers = /* @__PURE__ */ new Map();
   const waiters = /* @__PURE__ */ new Map();
-  const queue = createQueue();
+  const ahead = options.cache?.ahead ?? 5;
+  const preparing = /* @__PURE__ */ new Map();
+  let replanning = false;
   let saveTimer = null;
   let disposed = false;
   const waitingOn = (show, number) => [...rooms.values()].filter((room) => room.showPath === show && room.items.some((item) => item.slot === number && item.sourcePath === null && item.status === "preparing"));
@@ -13227,16 +13288,17 @@ function createRoomService(options) {
     tools,
     logger,
     convert: (source, dir, name2) => convertSubtitle(source, dir, name2, { ffmpeg: tools.ffmpeg }),
-    wanted: (show, number) => waitingOn(show, number).length > 0,
+    need: () => needs([...rooms.values()], ahead, (room, item) => room.showPath !== void 0 && item.slot !== void 0 ? streamKey(room.showPath, item.slot) : null),
     ready: (show, number, prepared) => {
       for (const room of waitingOn(show, number)) setItem(room.id, number, { status: "ready", progress: null, error: null, streamed: true, ...prepared });
     },
+    // The copy stopped before it was complete: the episode waits for its file (and is prepared from it), or for a room to want it again.
     lost: (show, number) => {
       for (const room of [...rooms.values()]) {
-        const index = room.showPath === show ? room.items.findIndex((item) => item.slot === number && item.streamed) : -1;
-        if (index < 0) continue;
-        setItem(room.id, number, { status: "preparing", streamed: false });
-        schedulePrepare(room.id, index);
+        const item = room.showPath === show ? room.items.find((entry) => entry.slot === number && entry.streamed) : void 0;
+        if (item === void 0) continue;
+        const waited = typeof item.sourcePath === "string" || room.items[room.index] === item;
+        setItem(room.id, number, { status: waited ? "preparing" : "remote", streamed: false, progress: null });
       }
     }
   });
@@ -13254,11 +13316,7 @@ function createRoomService(options) {
     }
     for (const { holds, ...room } of data.rooms ?? []) rooms.set(room.id, { ...hold({ gate: null, gates: 0, startedAt: null, ...room }, now()), cooldown: {}, nextReady: null, emptySince: room.emptySince ?? (room.opened ? now() : null) });
     sweep();
-    for (const room of rooms.values()) {
-      room.items.forEach((item, index) => {
-        if (item.status === "preparing") schedulePrepare(room.id, index);
-      });
-    }
+    for (const room of [...rooms.values()]) await reopen(room);
     for (const path of new Set([...rooms.values()].map((room) => room.showPath).filter(Boolean))) await syncShow(path);
   }
   function save() {
@@ -13277,6 +13335,7 @@ function createRoomService(options) {
     rooms.set(room.id, { ...room, touchedAt: now() });
     broadcast(room.id);
     save();
+    replan();
   }
   function publicItem(room, item, index) {
     const roomId = room.id;
@@ -13473,6 +13532,7 @@ function createRoomService(options) {
     for (const peer of peers.get(id) ?? []) peer.ws.close(4410, "room closed");
     peers.delete(id);
     save();
+    replan();
     return true;
   }
   function setItem(roomId, key, patch) {
@@ -13490,32 +13550,62 @@ function createRoomService(options) {
     if (item === void 0 || item.slot === void 0 || typeof item.sourcePath === "string" || item.status === "preparing") return room;
     return { ...room, items: room.items.map((entry, n) => n === room.index ? { ...entry, status: "preparing", error: null } : entry) };
   }
-  function schedulePrepare(roomId, index) {
-    const key = itemKey(rooms.get(roomId)?.items[index] ?? {});
-    if (typeof rooms.get(roomId)?.items[index]?.sourcePath !== "string") return;
-    queue(async () => {
-      const item = rooms.get(roomId)?.items.find((entry) => itemKey(entry) === key);
-      if (item === void 0 || disposed || typeof item.sourcePath !== "string") return;
-      let last = 0;
-      try {
-        const prepared = await prepareEpisode({ title: item.title, path: item.sourcePath, subtitles: item.sourceSubtitles ?? [] }, {
-          cacheDir,
-          ffmpeg: tools.ffmpeg,
-          ffprobe: tools.ffprobe,
-          maxHeight: tools.maxHeight,
-          threads: tools.threads,
-          onReady: (prepared2) => setItem(roomId, key, { status: "ready", progress: null, ...prepared2 }),
-          onProgress: (fraction) => {
-            if (fraction - last < 0.02) return;
-            last = fraction;
-            setItem(roomId, key, { progress: { step: "prepare", fraction: Math.round(fraction * 100) / 100 } });
-          }
-        });
-        setItem(roomId, key, { status: "ready", progress: null, ...prepared });
-      } catch (error) {
-        logger.warn("could not prepare %s: %s", item.sourcePath, error.message);
-        setItem(roomId, key, { status: "failed", progress: null, error: error.message, reason: null });
+  async function reopen(room) {
+    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname4(item.file)) === null;
+    const items = [];
+    for (const item of room.items) {
+      if (!await unfinished(item)) items.push(item);
+      else items.push({ ...item, status: typeof item.sourcePath === "string" ? "preparing" : "remote", streamed: false, progress: null });
+    }
+    if (items.some((item, n) => item !== room.items[n])) commit(wanting(updateItems(room, items)));
+  }
+  function replan() {
+    if (replanning || disposed) return;
+    replanning = true;
+    queueMicrotask(() => {
+      replanning = false;
+      if (disposed) return;
+      const all = [...rooms.values()];
+      const need = needs(all, ahead, (_, item) => typeof item.sourcePath === "string" && !item.streamed ? item.sourcePath : null);
+      const waiting = new Set(all.flatMap((room) => room.items.filter((item) => item.status === "preparing" && typeof item.sourcePath === "string" && !item.streamed).map((item) => item.sourcePath)));
+      const { start, stop } = planPreparing(need, waiting, preparing.keys());
+      for (const path of stop) preparing.get(path).abort("left");
+      for (const path of start) prepare(path);
+      streams.update();
+    });
+  }
+  function setPath(path, patch) {
+    for (const room of [...rooms.values()]) {
+      for (const item of room.items) if (item.sourcePath === path && !item.streamed) setItem(room.id, itemKey(item), patch);
+    }
+  }
+  function prepare(path) {
+    const item = [...rooms.values()].flatMap((room) => room.items).find((entry) => entry.sourcePath === path);
+    const controller = new AbortController();
+    preparing.set(path, controller);
+    let last = 0;
+    prepareEpisode({ title: item.title, path, subtitles: item.sourceSubtitles ?? [] }, {
+      cacheDir,
+      ffmpeg: tools.ffmpeg,
+      ffprobe: tools.ffprobe,
+      maxHeight: tools.maxHeight,
+      threads: tools.threads,
+      signal: controller.signal,
+      onReady: (prepared) => setPath(path, { status: "ready", progress: null, ...prepared }),
+      onProgress: (fraction) => {
+        if (fraction - last < 0.02) return;
+        last = fraction;
+        setPath(path, { progress: { step: "prepare", fraction: Math.round(fraction * 100) / 100 } });
       }
+    }).then((prepared) => {
+      setPath(path, { status: "ready", progress: null, ...prepared });
+    }, (error) => {
+      if (controller.signal.aborted) return setPath(path, { status: "preparing", progress: null });
+      logger.warn("could not prepare %s: %s", path, error.message);
+      return setPath(path, { status: "failed", progress: null, error: error.message, reason: null });
+    }).finally(() => {
+      preparing.delete(path);
+      replan();
     });
   }
   async function localItems(path, fromPanel) {
@@ -13545,7 +13635,6 @@ function createRoomService(options) {
       if (current === void 0) continue;
       const legacy = current.items.some((item) => item.slot === void 0);
       const before = new Map(current.items.map((item) => [legacy ? item.sourcePath : item.slot, item]));
-      const fresh = [];
       const items = entries.map((entry) => {
         const prev = before.get(legacy ? entry.path : entry.n);
         if (prev?.streamed) return { ...prev, title: entry.title, sourcePath: entry.path, sourceSubtitles: entry.subtitles ?? [] };
@@ -13554,15 +13643,11 @@ function createRoomService(options) {
           return waiting ? { ...prev, title: entry.title } : slotItem(entry, "remote");
         }
         if (prev !== void 0 && prev.sourcePath === entry.path) return { ...prev, title: entry.title, slot: entry.n };
-        fresh.push(entry.n);
         return slotItem(entry, "remote");
       });
       const playing = current.items[current.index];
       const index = legacy ? Math.max(0, entries.findIndex((entry) => entry.path !== null && entry.path === playing?.sourcePath)) : Math.min(current.index, items.length - 1);
       commit(wanting({ ...updateItems(current, items), index }));
-      items.forEach((item, at) => {
-        if (fresh.includes(item.slot)) schedulePrepare(room.id, at);
-      });
     }
   }
   return {
@@ -13586,8 +13671,6 @@ function createRoomService(options) {
       };
       commit(wanting(room));
       observe("opened", { room });
-      const order = room.items.map((_, n) => (n + room.index) % room.items.length);
-      for (const index of order) if (room.items[index].status === "preparing") schedulePrepare(id, index);
       if (room.showPath !== void 0) options.focus?.(room.showPath, { retry: true });
       return { room: summary(rooms.get(id)) };
     },
@@ -13667,7 +13750,7 @@ function createRoomService(options) {
      * Episode `number` of a show while a source still fetches it, as files that play while they grow
      * (`growing` settles when they are complete): rooms waiting on it play it once enough is there.
      */
-    streamEpisode: (path, number, partial) => streams.start(resolve3(path), number, partial),
+    streamEpisode: (path, number, partial) => streams.offer(resolve3(path), number, partial),
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {
       const item = rooms.get(roomId)?.items[index];
@@ -13683,6 +13766,8 @@ function createRoomService(options) {
     pruneCache: (days) => pruneCache(cacheDir, [...rooms.values()].flatMap((room) => room.items.map((item) => item.file)), days, now()),
     async dispose() {
       disposed = true;
+      for (const controller of preparing.values()) controller.abort("stop");
+      streams.stop();
       for (const timer of advanceTimers.values()) clearTimeout(timer.id);
       clearInterval(sweepTimer);
       clearInterval(progressTimer);
@@ -13825,7 +13910,7 @@ function createJournal({ log, library, now = Date.now }) {
 
 // src/shows.js
 import { mkdir as mkdir9, readFile as readFile10, readdir as readdir7, rename as rename7, rm as rm8, stat as stat9, statfs, writeFile as writeFile6 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname4, extname as extname7, join as join15, resolve as resolve4 } from "node:path";
+import { basename as basename5, dirname as dirname5, extname as extname7, join as join15, resolve as resolve4 } from "node:path";
 var DAY_MS = 864e5;
 var STOP_DIFF_S = 30;
 var REFINISH_MS = 36e5;
@@ -13891,7 +13976,7 @@ function createLibrary(options) {
   function showPath(path) {
     if (typeof path !== "string") return null;
     const target = resolve4(path);
-    return roots.includes(dirname4(target)) && !basename5(target).startsWith(".") ? target : null;
+    return roots.includes(dirname5(target)) && !basename5(target).startsWith(".") ? target : null;
   }
   function requireShow(path) {
     const target = showPath(path);
@@ -13900,7 +13985,7 @@ function createLibrary(options) {
   }
   function showOf(episodePath) {
     if (typeof episodePath !== "string") return null;
-    return showPath(episodePath) ?? showPath(dirname4(episodePath));
+    return showPath(episodePath) ?? showPath(dirname5(episodePath));
   }
   async function episodeFiles(path) {
     const info = await stat9(path).catch(() => null);
@@ -14210,7 +14295,7 @@ function createLibrary(options) {
       if (download(target)?.active) throw libraryError("in_use", "this show is still downloading");
       const isFile = (await stat9(target)).isFile();
       const clean = cleanName(name2);
-      const next = join15(dirname4(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
+      const next = join15(dirname5(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
       if (next === target) return { path: target };
       if (await stat9(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
       await rename7(target, next);

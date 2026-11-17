@@ -7,9 +7,10 @@
  * the first wanted episode that is not on disk yet and the ones directly
  * after it as one run for the source, and repeats until nothing is missing.
  * The want list changes while a run goes on (someone jumped, the window
- * moved): a run carries on when the new first episode is one it is about to
- * fetch anyway, and is cut and restarted otherwise, so a jump is fetched at
- * once. A show with a room open goes before a show without one, and may
+ * moved): a run carries on only when the first wanted episode is the one it
+ * fetches now or next, and is cut and restarted otherwise, so a jump is
+ * fetched at once and an episode someone left (unless it is just ahead of
+ * them) is not fetched on. A show with a room open goes before a show without one, and may
  * interrupt it; the interrupted job resumes afterwards.
  */
 import { readFile, rename, writeFile } from 'node:fs/promises'
@@ -20,6 +21,13 @@ const ACTIVE = new Set(['queued', 'running'])
 
 /** How a show's episodes are fetched, from what its notes keep: quality, whose account, and the viewer's language (for captions). */
 export const howOf = (source = {}) => ({ quality: source.quality ?? '', person: source.person ?? '', language: source.language ?? '' })
+
+/** The episode a running job fetches now or next: the first one of its run from where it is that is not on disk, or null. */
+function nextOfRun(job, onDisk) {
+  const [from, to] = job.current ?? [0, -1]
+  for (let n = job.at ?? from; n <= to; n++) if (!onDisk.has(n)) return n
+  return null
+}
 
 const sourceError = (code, message) => Object.assign(new Error(message), { code })
 
@@ -168,10 +176,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
         job.error = null
         job.reason = null
       }
-      if (running === job) {
-        const [from, to] = job.current ?? [0, -1]
-        if (!(first >= (job.at ?? from) && first <= to)) job.controller.abort('yield')
-      }
+      if (running === job && nextOfRun(job, onDisk) !== first) job.controller.abort('yield')
       save()
       pump()
       return job

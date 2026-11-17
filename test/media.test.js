@@ -5,9 +5,11 @@ import { test } from 'node:test'
 import { createDelivery } from '../src/delivery.js'
 import { createMediaHub } from '../src/media.js'
 import { isNearEnd } from '../src/watchlog.js'
+import { fileURLToPath } from 'node:url'
 import { hasFfmpeg, makeVideo, quietLogger, socketServer, tempDir, viewer } from './helpers.js'
 
 const tools = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', maxHeight: 1080, threads: 1 }
+const HELD_FFMPEG = fileURLToPath(new URL('./fixtures/held-ffmpeg.mjs', import.meta.url))
 const sleep = ms => new Promise(done => setTimeout(done, ms))
 
 /** Wait until `check()` is truthy. */
@@ -23,10 +25,10 @@ async function until(what, check, timeoutMs = 5000) {
 const numbered = n => `${String(n).padStart(2, '0')} 第${n}集.mp4`
 
 /**
- * A source of `episodes` small files. `calls` records each run's range.
+ * A source of `episodes` small files (copies of `video` when given). `calls` records each run's range.
  * Gated, every episode waits for `next()`; otherwise they land at once.
  */
-function stubSource(episodes = 3, { gated = false } = {}) {
+function stubSource(episodes = 3, { gated = false, video = null } = {}) {
   let release = null
   const calls = []
   const source = {
@@ -45,7 +47,7 @@ function stubSource(episodes = 3, { gated = false } = {}) {
         onStart?.(n)
         if (gated) await new Promise((done) => { release = done; signal?.addEventListener('abort', done, { once: true }) }).finally(() => { release = null })
         if (signal?.aborted) return { failed: [] }
-        writeFileSync(join(dir, `.${name}.part`), `episode ${n}`)
+        writeFileSync(join(dir, `.${name}.part`), video ?? `episode ${n}`)
         renameSync(join(dir, `.${name}.part`), join(dir, name))
         appendFileSync(join(dir, 'SHA256SUMS.txt'), `${'0'.repeat(64)}  ${name}\n`)
         onEpisode()
@@ -62,6 +64,16 @@ function stubSource(episodes = 3, { gated = false } = {}) {
 }
 
 const cacheOptions = { ahead: 2, behind: 1, capBytes: 0 }
+
+/** Watch episode `index` of a room to its end; `pass(ms)` moves the hub's clock. */
+async function watchThrough(a, index, pass) {
+  a.send({ t: 'op', op: 'duration', index, duration: 100 })
+  a.send({ t: 'op', op: 'play', position: 0 })
+  await sleep(30)
+  pass(99_000)
+  a.send({ t: 'op', op: 'ended', from: index })
+  await sleep(60)
+}
 
 function makeHub(dir, source, overrides = {}) {
   return createMediaHub({
@@ -169,18 +181,11 @@ test('the window rolls with the room: watched episodes more than one behind are 
   const a = await viewer(url(room.id), 'a', 'Alice')
   await a.next(m => m.t === 'state')
 
-  const watchThrough = async (index) => {
-    a.send({ t: 'op', op: 'duration', index, duration: 100 })
-    a.send({ t: 'op', op: 'play', position: 0 })
-    await sleep(30)
-    clock += 99_000
-    a.send({ t: 'op', op: 'ended', from: index })
-    await sleep(60)
-  }
-  await watchThrough(0)
+  const pass = (ms) => { clock += ms }
+  await watchThrough(a, 0, pass)
   await until('episode 4 is fetched as the window moves', () => numbersIn(show).includes(4))
   assert.deepEqual(numbersIn(show), [1, 2, 3, 4], 'one behind stays')
-  await watchThrough(1)
+  await watchThrough(a, 1, pass)
   await until('episode 1 is deleted and 5 fetched', () => !numbersIn(show).includes(1) && numbersIn(show).includes(5))
   assert.deepEqual(numbersIn(show), [2, 3, 4, 5])
   assert.doesNotMatch(readFileSync(join(show, 'SHA256SUMS.txt'), 'utf8'), /第1集/)
@@ -230,6 +235,71 @@ test('a jump while an earlier run is in flight cuts it and fetches the jump targ
   await stub.next()
   await stub.next()
   await until('the rest of the window', () => numbersIn(show).length === 3)
+  a.ws.close()
+})
+
+/**
+ * Episodes that take long to prepare (a codec browsers do not play, encoded by a stand-in ffmpeg that holds), and
+ * what that ffmpeg was asked: `started()` and `stopped()` list the episode numbers.
+ */
+function heldEncoding(t, dir) {
+  const video = join(dir, 'mpeg4.mp4')
+  makeVideo(video, { seconds: 1, codec: 'mpeg4' })
+  const log = join(dir, 'ffmpeg.log')
+  writeFileSync(log, '')
+  const previous = process.env.HELD_FFMPEG_LOG
+  process.env.HELD_FFMPEG_LOG = log
+  t.after(() => { process.env.HELD_FFMPEG_LOG = previous })
+  const lines = kind => readFileSync(log, 'utf8').split('\n').filter(line => line.startsWith(`${kind} `)).map(line => Number.parseInt(line.slice(kind.length + 1), 10))
+  return { video: readFileSync(video), tools: { ...tools, ffmpeg: HELD_FFMPEG }, started: () => lines('start'), stopped: () => lines('stop') }
+}
+
+test('replaying an episode the cache deleted fetches it again and plays it at once, whatever else is being prepared', { skip: !hasFfmpeg }, async (t) => {
+  const dir = tempDir(t)
+  const held = heldEncoding(t, dir)
+  const stub = stubSource(12, { video: held.video })
+  let clock = Date.parse('2026-11-16T20:00:00Z')
+  const hub = makeHub(dir, stub.source, { tools: held.tools, now: () => clock })
+  await hub.load()
+  t.after(() => hub.dispose())
+  const { room, path: show } = await hub.fetch({ source: 'stub', id: '42', watch: true })
+  const url = await socketServer(t, hub)
+  const a = await viewer(url(room.id), 'a', 'Alice')
+  await a.next(m => m.t === 'state')
+  await until('episode 1 plays', () => hub.room(room.id).items[0].status === 'ready')
+  for (const index of [0, 1, 2]) await watchThrough(a, index, (ms) => { clock += ms })
+  await until('episodes 1 and 2 are deleted as watched', () => numbersIn(show)[0] === 3)
+  await until('episode 4 plays and the next one is being prepared', () => hub.room(room.id).items[3].status === 'ready' && held.started().includes(5))
+
+  a.send({ t: 'op', op: 'select', index: 0 })
+  await until('episode 1 is on disk again', () => numbersIn(show).includes(1))
+  await until('episode 1 plays again', () => hub.room(room.id).items[0].status === 'ready')
+  assert.equal(hub.mediaFile(room.id, 0).kind, 'hls')
+  await until('what was prepared for where the room was is stopped', () => held.stopped().includes(4) && held.stopped().includes(5))
+  a.ws.close()
+})
+
+test('a jump many episodes ahead fetches and plays the episode at once; the ones left behind stop, the ones after it follow one at a time', { skip: !hasFfmpeg }, async (t) => {
+  const dir = tempDir(t)
+  const held = heldEncoding(t, dir)
+  const stub = stubSource(20, { video: held.video })
+  const hub = makeHub(dir, stub.source, { tools: held.tools })
+  await hub.load()
+  t.after(() => hub.dispose())
+  const { room, path: show } = await hub.fetch({ source: 'stub', id: '42', watch: true })
+  const url = await socketServer(t, hub)
+  const a = await viewer(url(room.id), 'a', 'Alice')
+  await a.next(m => m.t === 'state')
+  await until('episode 1 plays and episode 2 is being prepared', () => hub.room(room.id).items[0].status === 'ready' && held.started().includes(2))
+  assert.equal(held.started().includes(3), false, 'one episode ahead at a time')
+
+  a.send({ t: 'op', op: 'select', index: 15 })
+  await until('the jump target leads a new run', () => stub.calls.some(([from]) => from === 16))
+  await until('episode 16 plays', () => hub.room(room.id).items[15].status === 'ready')
+  await until('episodes 1 and 2 are no longer prepared', () => held.stopped().includes(1) && held.stopped().includes(2))
+  await until('episode 17 is prepared next', () => held.started().includes(17))
+  assert.equal(held.started().includes(18), false, 'one episode ahead at a time')
+  assert.deepEqual(numbersIn(show).filter(n => n > 3), [16, 17, 18])
   a.ws.close()
 })
 
