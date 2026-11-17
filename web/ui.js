@@ -130,11 +130,11 @@ export function bytes(t, value) {
   return new Intl.NumberFormat(t.language, { style: 'unit', unit: BYTE_UNITS[unit], unitDisplay: unit === 0 ? 'narrow' : 'short', maximumFractionDigits: digits }).format(n)
 }
 
-/** A language's name in the viewer's language (Intl.DisplayNames), else the text as it is (a subtitle label that is not a tag). */
+/** A language's name in the viewer's language (Intl.DisplayNames), else the text as it is (a label that names no known language). */
 export function languageName(t, code) {
   if (!code) return ''
   try {
-    return new Intl.DisplayNames([t.language], { type: 'language' }).of(code) ?? code
+    return new Intl.DisplayNames([t.language], { type: 'language', fallback: 'none' }).of(code) ?? code
   } catch {
     return code
   }

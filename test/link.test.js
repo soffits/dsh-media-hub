@@ -48,6 +48,9 @@ test('subtitles: every language of its own, and generated ones only for the view
   assert.deepEqual((await source.info(CAPTIONED, { language: 'zh-CN' })).subtitles, own, 'the viewer\'s and the video\'s own languages have subtitles already')
   assert.deepEqual((await source.info(CAPTIONED, { language: 'de' })).subtitles, [...own, 'de'], 'a generated track in the viewer\'s language')
   assert.equal((await source.info(VIDEO, { language: 'de' })).subtitles, null, 'a document that lists none')
+  const logged = link(t)
+  await logged.source.info(CAPTIONED)
+  assert.ok(logged.calls().at(-1).includes('--write-subs'), 'yt-dlp lists some sites\' subtitles only when asked to write them')
 })
 
 test('a playlist reads as a work whose videos are its episodes, with their total length', async (t) => {
