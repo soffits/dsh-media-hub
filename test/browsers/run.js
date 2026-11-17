@@ -49,7 +49,8 @@ async function bootDsh() {
   symlinkSync(join(repo, 'test/fixtures/fake-yt-dlp.mjs'), join(bin, 'yt-dlp'))
   const sample = join(root, 'sample.mp4')
   makeVideo(sample, 20)
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1' }
+  // A placeholder key keeps DSH's first-run "Get started" screen away; nothing in the test calls a model.
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'sk-placeholder' }
   execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `link:${repo}`], { env, cwd: root, stdio: 'ignore' })
   // Every outbound request and yt-dlp call goes to a proxy that is down: nothing in the test reaches the network.
   writeFileSync(join(env.DSH_HOME, 'profiles/web/cordis.patch.yml'), JSON.stringify([{ id: 'media-hub', config: { proxies: [{ url: DEAD_PROXY, hosts: ['*'] }] } }]))
