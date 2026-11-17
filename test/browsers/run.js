@@ -564,7 +564,7 @@ async function bookFlows({ a, b, origin }) {
   assert.ok(!(await cards.locator('.vsync-rowTitle').allTextContents()).includes('Moby Dick'))
 
   // Download the txt: it lands on the shelf, then Save hands the file over as an attachment.
-  await pride.locator('select.vsync-formatPick').selectOption('txt')
+  await pride.locator('select.vsync-pick').selectOption('txt')
   await pride.getByRole('button', { name: 'Download' }).click()
   const save = pride.getByRole('link', { name: 'Save TXT' })
   await save.waitFor({ timeout: 20_000 })

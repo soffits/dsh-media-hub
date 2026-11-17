@@ -270,13 +270,13 @@
 .vsync-filter .vsync-field{flex:none;height:32px;padding:0 10px;font-size:13px;border-radius:10px}
 .vsync-filter select.vsync-field{min-width:96px}
 .vsync-year{width:92px}
-.vsync-formatPick{flex:none;height:32px;padding:0 8px;font-size:13px;border-radius:10px;max-width:180px}
+.vsync-pick{flex:none;height:32px;padding:0 8px;font-size:13px;border-radius:10px;max-width:180px}
 .vsync-book .vsync-cardFoot{flex-wrap:wrap;gap:8px}
 .vsync-book .vsync-actions{flex-wrap:wrap;justify-content:flex-end}
 .vsync-book a.vsync-btn{text-decoration:none}
 .vsync-shelf{margin-top:24px}
 @media (width<=767px){.vsync-filter{flex:1 1 40%}.vsync-filter .vsync-field,.vsync-year{width:100%}.vsync-book .vsync-actions{justify-content:flex-start}}
-@media (pointer:coarse){.vsync-filter .vsync-field,.vsync-formatPick{font-size:16px}}
+@media (pointer:coarse){.vsync-filter .vsync-field,.vsync-pick{font-size:16px}}
 /* Covers fill the card's height, cropped from the top; on phones they stay small and fixed (below). */
 @media (width>640px){
   .vsync-card{align-items:stretch}
@@ -301,7 +301,7 @@
   .vsync-card .vsync-cardHead{padding-right:40px}
   .vsync-card .vsync-cardFoot .vsync-actions .vsync-ask{position:absolute;top:6px;right:6px;width:40px;padding:0;border:0;box-shadow:none;background:none}
   .vsync-askLabel{display:none}
-  .vsync-card .vsync-cardFoot .vsync-actions .vsync-formatPick{flex:0 1 84px;min-width:64px;max-width:none}
+  .vsync-card .vsync-cardFoot .vsync-actions .vsync-pick{flex:0 1 84px;min-width:64px;max-width:none}
   /* A book has one action (download in a format): it sits beside the cover, under the title and the info line, so the
      small cover leaves no gap. A show's several actions take the full width under the cover. */
   .vsync-book .vsync-cardBody>.vsync-cardFoot{grid-column:2;margin-top:6px}
@@ -317,7 +317,6 @@
   .vsync-btn,.vsync-card .vsync-cardFoot .vsync-actions .vsync-btn{min-height:40px;height:auto}
   .vsync-chip,.vsync-tab,.vsync-seg{min-height:40px;height:40px}
   .vsync-navTab{height:44px}
-  .vsync-filter .vsync-field,.vsync-formatPick{height:40px}
+  .vsync-filter .vsync-field,.vsync-pick{height:40px}
   .vsync-metaButton{min-height:40px}
 }
-.vsync-quality{flex:0 0 auto;width:auto;height:32px;padding:0 8px;border-radius:10px;font-size:13px}

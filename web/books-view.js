@@ -141,7 +141,7 @@ export function BookCard({ t, source, result }) {
           h(ChatButton, { t, onClick: () => startChat(t, { ...result, source: source.id }, source.label) }),
           status,
           entry?.state !== 'ready' && request.step !== 'adding' && !(request.step === 'added' && entry?.state !== 'failed') && h(React.Fragment, null,
-            offered.length > 1 && h('select', { className: 'vsync-field vsync-formatPick', 'aria-label': t('book.format'), value: chosen, onChange: event => setFormat(event.target.value) },
+            offered.length > 1 && h('select', { className: 'vsync-field vsync-pick', 'aria-label': t('book.format'), value: chosen, onChange: event => setFormat(event.target.value) },
               offered.map(one => h('option', { key: one.format, value: one.format }, formatLabel(one)))),
             h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: download }, h(Icon.Download, { size: 14 }), offered.length > 1 ? t('book.download') : fill(t('book.downloadAs'), { format: chosen.toUpperCase() })))))))
 }

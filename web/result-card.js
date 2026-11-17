@@ -18,7 +18,7 @@ const qualityLabel = (t, quality) => (/^\d+$/.test(quality) ? fill(t('quality.he
 
 /** How the episodes are fetched, for a source that offers a choice (Link); its first choice (auto) is the default. */
 function QualityPicker({ t, qualities, value, onChange }) {
-  return h('select', { className: 'vsync-field vsync-quality', value, 'aria-label': t('quality.label'), title: t('quality.label'), onChange: event => onChange(event.target.value) },
+  return h('select', { className: 'vsync-field vsync-pick vsync-quality', value, 'aria-label': t('quality.label'), title: t('quality.label'), onChange: event => onChange(event.target.value) },
     qualities.map(quality => h('option', { key: quality, value: quality }, qualityLabel(t, quality))))
 }
 
