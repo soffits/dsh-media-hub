@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- A Link lookup of a long video with many generated subtitles no longer fails with "the page lists too much to read": the lookup asks yt-dlp for subtitle lists without the generated translations, which grew its answer past 25 MB.
+
 ## 0.4.0
 
 - `cookies`: signed-in accounts for sites, by host, like `proxies` (`{ hosts, hostsFile, accounts }` rules). Each account is a Netscape cookies file with an optional User-Agent, belonging to a person (their sign-in id) or to everyone as the default, and optionally shared. A lookup or download uses the account of the person asking, else the default, else a shared one; a room uses the account of whoever opened it, for everyone in it. The Link card says which account a site is read with, and its qualities are what that account gets. yt-dlp reads a private copy of the cookies for each run, so the hub never changes the session it borrows, and cookie values are never logged or shown.

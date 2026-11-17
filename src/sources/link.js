@@ -169,8 +169,9 @@ export function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logg
      * `language` is the viewer's, for choosing generated subtitles.
      */
     async info(url, { person = '', language = '' } = {}) {
-      // yt-dlp lists a video's subtitles only when asked to write them (-J writes nothing).
-      const result = await ytdlp(String(url), ['-J', '--flat-playlist', '--write-subs', '--write-auto-subs'], { person, timeoutMs: INFO_TIMEOUT_MS })
+      // Some extractors list a video's subtitles only when asked to write them (-J writes nothing). Not
+      // --write-auto-subs: it makes some sites list every translation pair, tens of megabytes of JSON.
+      const result = await ytdlp(String(url), ['-J', '--flat-playlist', '--write-subs'], { person, timeoutMs: INFO_TIMEOUT_MS })
       if (result.oversized) throw linkError('source_failed', 'the page lists too much to read', 'failed')
       if (result.code !== 0) throw await reasonOf(url, result)
       let data
