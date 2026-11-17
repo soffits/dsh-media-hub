@@ -6,7 +6,6 @@
  *   GET    /media-hub/subs/<room>/<i>/<n>.vtt  a subtitle track
  *   GET    /media-hub/covers/<key>             a picture: a work's cover, a show's poster, a room's frame (src/covers.js)
  *   GET    /media-hub/api/rooms                open rooms
- *   POST   /media-hub/api/rooms                create a room
  *   DELETE /media-hub/api/rooms/<id>           close a room
  *   GET    /media-hub/api/rooms/<id>/work      the details of the work a room's show came from
  *   GET    /media-hub/api/library              shows, sizes, free space
@@ -21,13 +20,14 @@
  *   GET    /media-hub/api/locales              { <tag>: { <key>: text } }: the page's words, one table per locale/<tag>.json
  *   GET    /media-hub/api/sources              searchable sources, their kinds (with media) and filters
  *   GET    /media-hub/api/search?source=&q=&kind=[&offset=][&language=&format=&yearFrom=&yearTo=&maxMb=]   { results, next, failed? }; source `all` asks every source with the kind
- *   GET    /media-hub/api/info?source=&id=
- *   POST   /media-hub/api/fetch                { source, id, watch, all, quality, by }: into the library (the rolling cache's window, or the whole show with `all`), or watch now
  *   WS     /media-hub/ws?room=<id>             the room's sync channel (src/hub.js)
  *
  * Every request passes `connection.admit`, the check DSH applies to its own
  * API (Host/Origin fence, then the signed browser cookie), and must come
- * from an owner: every browser DSH's login lets in.
+ * from an owner: every browser DSH's login lets in. What acts for a person
+ * (looking up and fetching a work, opening a room, the shelf) lives under
+ * DSH's own /api instead, where the sign-in plugin says who is asking
+ * (src/person-routes.js, src/shelf-routes.js).
  */
 import { createReadStream, existsSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
@@ -191,8 +191,16 @@ async function readJson(req) {
   }
 }
 
-/** HTTP status for a service error code. */
-const STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 502, unavailable: 503 })
+/**
+ * HTTP status for a service error code. A source that failed is 424 (the
+ * request depended on a site that said no), never a gateway status: proxies
+ * in front of DSH (Cloudflare among them) replace a 502's body with their own
+ * page, and the page would lose the reason.
+ */
+export const STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 })
+
+/** The JSON body of a failed request: its code, the reason a page has words for, and a message for logs and the tool. */
+export const errorBody = error => ({ error: { code: error?.code ?? 'error', ...(error?.reason ? { reason: error.reason } : {}), message: error?.message ?? String(error) } })
 
 /**
  * The HTTP handler for everything under /media-hub.
@@ -240,7 +248,6 @@ export function createHandler({ connection, service, label = () => '', localeDir
         const query = name => url.searchParams.get(name) ?? ''
         if (route === 'GET rooms') return sendJson(res, 200, { rooms: await hub.listRooms() })
         if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, hub.roomWork(parts[2]))
-        if (route === 'POST rooms') return sendJson(res, 200, await hub.createRoom({ ...pick(await readJson(req), ['path', 'title', 'by', 'start']), fromPanel: true }))
         if (req.method === 'DELETE' && parts[1] === 'rooms' && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]))
         if (route === 'GET library') return sendJson(res, 200, await hub.library())
         if (route === 'GET library/episodes') return sendJson(res, 200, { episodes: await hub.episodes(query('path')) })
@@ -261,13 +268,11 @@ export function createHandler({ connection, service, label = () => '', localeDir
         if (route === 'GET locales') return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)))
         if (route === 'GET sources') return sendJson(res, 200, { sources: await hub.sources() })
         if (route === 'GET search') return sendJson(res, 200, await hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query)))
-        if (route === 'GET info') return sendJson(res, 200, await hub.info(query('source'), query('id')))
-        if (route === 'POST fetch') return sendJson(res, 200, await hub.fetch(pick(await readJson(req), ['source', 'id', 'watch', 'all', 'quality', 'by'])))
       }
       return sendText(res, 404, 'Not found.')
     } catch (error) {
       const status = error?.status ?? STATUS[error?.code] ?? 500
-      if (!res.headersSent) sendJson(res, status, { error: { code: error?.code ?? 'error', message: error?.message ?? String(error) } })
+      if (!res.headersSent) sendJson(res, status, errorBody(error))
       else res.destroy()
     }
   }

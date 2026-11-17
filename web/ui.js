@@ -21,33 +21,45 @@ export const base = () => new URL('media-hub/', document.baseURI)
 export const LINK_PARAM = 'media-room'
 export const POLL_MS = 4000
 
-/** One request to the Host half; failures come back as { error }. */
-export async function api(path, init = {}) {
+/** The page's words for failures, set by the page whenever its language changes (`setWords`). */
+let words = null
+export function setWords(t) { words = t }
+
+/**
+ * What a failed request says to the viewer: the page's words for the reason
+ * a site or route failed, else the hub's message, else a sentence with the
+ * status (a proxy in front of DSH may answer with a page of its own).
+ */
+export function failureText(error, status) {
+  if (words !== null && error?.reason) return words(`error.${error.reason}`)
+  if (typeof error?.message === 'string' && error.message !== '') return error.message
+  return words === null ? `HTTP ${status}` : fill(words('error.status'), { status })
+}
+
+/** One JSON request; failures come back as { error, code, reason } with `error` in the viewer's words. */
+async function request(url, init = {}) {
   try {
-    const response = await fetch(new URL(`api/${path}`, base()), { ...init, headers: { 'content-type': 'application/json' } })
+    const response = await fetch(url, init.body === undefined ? init : { ...init, headers: { 'content-type': 'application/json' } })
     const data = await response.json().catch(() => ({}))
-    if (!response.ok) return { error: data.error?.message ?? `HTTP ${response.status}`, code: data.error?.code }
+    if (!response.ok) return { error: failureText(data.error, response.status), code: data.error?.code, reason: data.error?.reason ?? null }
     return data
   } catch (error) {
-    return { error: error.message }
+    return { error: words === null ? error.message : words('error.network') }
   }
 }
+
+/** One request to the Host half. */
+export const api = (path, init = {}) => request(new URL(`api/${path}`, base()), init)
 
 export const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) })
 
-/** The shelf's routes live under DSH's own /api, where the signed-in person is known (src/shelf-routes.js). */
-export const shelfUrl = (path = '') => new URL(`api/media-hub/shelf${path}`, document.baseURI)
+/** What acts for the person asking lives under DSH's own /api, where the signed-in person is known (src/person-routes.js). */
+const personUrl = path => new URL(`api/media-hub/${path}`, document.baseURI)
+export const asPerson = (path, body, init = {}) => request(personUrl(path), body === undefined ? init : { ...init, method: 'POST', body: JSON.stringify(body) })
 
-export async function shelf(path = '', body) {
-  try {
-    const response = await fetch(shelfUrl(path), body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok) return { error: data.error?.message ?? `HTTP ${response.status}` }
-    return data
-  } catch (error) {
-    return { error: error.message }
-  }
-}
+/** The shelf's routes, under the same /api (src/shelf-routes.js). */
+export const shelfUrl = (path = '') => personUrl(`shelf${path}`)
+export const shelf = (path = '', body) => request(shelfUrl(path), body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) })
 
 /** Opens a conversation about an item (set by client.js; `available` is false without @soffits/dsh-ui-actions). */
 let chat = null
@@ -117,6 +129,36 @@ export function bytes(t, value) {
   const digits = n >= 10 || unit === 0 ? 0 : 1
   return new Intl.NumberFormat(t.language, { style: 'unit', unit: BYTE_UNITS[unit], unitDisplay: unit === 0 ? 'narrow' : 'short', maximumFractionDigits: digits }).format(n)
 }
+
+/** A language's name in the viewer's language (Intl.DisplayNames), else the text as it is (a label that names no known language). */
+export function languageName(t, code) {
+  if (!code) return ''
+  try {
+    return new Intl.DisplayNames([t.language], { type: 'language', fallback: 'none' }).of(code) ?? code
+  } catch {
+    return code
+  }
+}
+
+/** How far an episode is on its way, as a fraction, or null when that is not known. */
+export const progressFraction = progress => (Number.isFinite(progress?.fraction) ? progress.fraction : null)
+
+/** How far an episode is on its way, in the viewer's words: downloading (percent, size, speed, time left), then preparing (percent). */
+export function progressText(t, progress) {
+  const fraction = progressFraction(progress)
+  const percent = fraction === null ? null : Math.floor(fraction * 100)
+  if (progress?.step !== 'download') return percent === null ? t('room.preparing') : fill(t('room.preparingProgress'), { n: percent })
+  const parts = [percent === null ? t('progress.downloading') : fill(t('progress.downloadingPercent'), { n: percent })]
+  if (progress.total) parts.push(fill(t('progress.of'), { done: bytes(t, progress.done), total: bytes(t, progress.total) }))
+  else if (progress.done) parts.push(bytes(t, progress.done))
+  if (progress.speed) parts.push(fill(t('progress.speed'), { speed: bytes(t, progress.speed) }))
+  if (Number.isFinite(progress.eta)) parts.push(fill(t('progress.left'), { time: clock(progress.eta) }))
+  // Each part stays on one line ("228 kB/s"); a narrow screen breaks between them.
+  return parts.map(part => part.replace(/ /g, '\u00a0')).join(' · ')
+}
+
+/** A bar for an episode on its way, when how far is known. */
+export const ProgressBar = ({ progress }) => (progressFraction(progress) === null ? null : h('progress', { className: 'vsync-progress', max: 1, value: progressFraction(progress) }))
 
 /** Rough size of one downloaded episode by kind, for "about N GB" before a download (src/sources/index.js keeps the same numbers). */
 export const EPISODE_BYTES = { drama: 15e6, audio: 8e6 }

@@ -1,0 +1,8 @@
+{"event":"progress","format":"","downloaded":1024,"total":null,"speed":null,"eta":null}
+{"event":"progress","format":"","downloaded":74142,"total":74142,"speed":602934.0462533542,"eta":null}
+{"event":"start","number":1,"formats":["160", "140"],"sizes":[1248309, 8901496],"size":10149805}
+{"event":"progress","format":"160","downloaded":1024,"total":1248309,"speed":838369.5678313489,"eta":1}
+{"event":"progress","format":"160","downloaded":1248309,"total":1248309,"speed":6155086.536713361,"eta":null}
+{"event":"progress","format":"140","downloaded":1024,"total":8901496,"speed":null,"eta":null}
+{"event":"progress","format":"140","downloaded":8901496,"total":8901496,"speed":43320678.59164905,"eta":null}
+{"event":"done","number":1}

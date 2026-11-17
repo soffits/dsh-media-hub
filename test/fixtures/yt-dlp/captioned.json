@@ -1,0 +1,363 @@
+{
+ "id": "arj7oStGLkU",
+ "title": "Inside the Mind of a Master Procrastinator | Tim Urban | TED",
+ "uploader": "TED",
+ "webpage_url": "https://www.youtube.com/watch?v=arj7oStGLkU",
+ "webpage_url_domain": "youtube.com",
+ "duration": 844,
+ "view_count": 62248196,
+ "language": "en",
+ "thumbnail": "https://i.ytimg.com/vi_webp/arj7oStGLkU/maxresdefault.webp",
+ "_type": "video",
+ "tags": [],
+ "formats": [
+  {
+   "format_id": "602",
+   "height": 144,
+   "ext": "mp4"
+  },
+  {
+   "format_id": "229",
+   "height": 240,
+   "ext": "mp4"
+  },
+  {
+   "format_id": "230",
+   "height": 360,
+   "ext": "mp4"
+  },
+  {
+   "format_id": "231",
+   "height": 480,
+   "ext": "mp4"
+  },
+  {
+   "format_id": "232",
+   "height": 720,
+   "ext": "mp4"
+  },
+  {
+   "format_id": "248-sr",
+   "height": 1080,
+   "ext": "webm"
+  }
+ ],
+ "subtitles": {
+  "ar": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "zh-CN": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "zh-TW": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "en": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "fr": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ]
+ },
+ "automatic_captions": {
+  "en": [
+   {
+    "ext": "vtt"
+   },
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "fr": [
+   {
+    "ext": "vtt"
+   },
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "de": [
+   {
+    "ext": "vtt"
+   },
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "ja": [
+   {
+    "ext": "vtt"
+   },
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "ko": [
+   {
+    "ext": "vtt"
+   },
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "zh-Hans": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "zh-Hant": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ],
+  "en-orig": [
+   {
+    "ext": "json3"
+   },
+   {
+    "ext": "srv1"
+   },
+   {
+    "ext": "srv2"
+   },
+   {
+    "ext": "srv3"
+   },
+   {
+    "ext": "ttml"
+   },
+   {
+    "ext": "srt"
+   },
+   {
+    "ext": "vtt"
+   }
+  ]
+ }
+}

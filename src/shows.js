@@ -22,7 +22,7 @@
 import { mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { episodeNumber, isSourced, keyOf, noteFor, numbersOf, slotsOf, titleOf } from './episodes.js'
-import { isAudio, isMedia, naturalSort } from './library.js'
+import { isAudio, isMedia, matchSubtitles, naturalSort } from './library.js'
 import { dropPrepared, preparedBytes } from './prepare.js'
 import { isNearEnd } from './watchlog.js'
 
@@ -140,6 +140,14 @@ export function createLibrary(options) {
       if (file?.isFile()) files.push({ name, size: file.size, mtimeMs: file.mtimeMs })
     }
     return files
+  }
+
+  /** An episode file of a show folder, what was prepared from it and the subtitles beside it. */
+  async function deleteEpisode(target, name) {
+    await dropPrepared(cacheDir, join(target, name))
+    await rm(join(target, name), { force: true })
+    for (const sub of matchSubtitles(name, await readdir(target).catch(() => []))) await rm(join(target, sub.name), { force: true })
+    await forgetSum(target, name)
   }
 
   async function folderBytes(path) {
@@ -319,13 +327,19 @@ export function createLibrary(options) {
     },
 
     /**
-     * The episodes of a sourced show for a room: one per number, with the file when it is on disk. Null for a show without a source.
-     * @returns {Promise<{ n: number, title: string | null, path: string | null }[] | null>}
+     * The episodes of a sourced show for a room: one per number, with the file and the subtitles beside it when it is on disk. Null for a show without a source.
+     * @returns {Promise<{ n: number, title: string | null, path: string | null, subtitles: { path: string, label: string }[] }[] | null>}
      */
     async directory(path) {
       const target = showPath(path)
       if (target === null || !isSourced(record(target))) return null
-      return slotsOf(record(target), (await episodeFiles(target)) ?? []).map(slot => ({ n: slot.n, title: slot.title, path: slot.file ? join(target, slot.file.name) : null }))
+      const names = await readdir(target).catch(() => [])
+      return slotsOf(record(target), (await episodeFiles(target)) ?? []).map(slot => ({
+        n: slot.n,
+        title: slot.title,
+        path: slot.file ? join(target, slot.file.name) : null,
+        subtitles: slot.file ? matchSubtitles(slot.file.name, names).map(sub => ({ path: join(target, sub.name), label: sub.label })) : [],
+      }))
     },
 
     /** Paths of the shows that came from a source. */
@@ -384,10 +398,7 @@ export function createLibrary(options) {
       for (const file of (await episodeFiles(target)) ?? []) {
         const n = episodeNumber(file.name)
         if (n === null || !numbers.includes(n)) continue
-        const full = join(target, file.name)
-        await dropPrepared(cacheDir, full)
-        await rm(full, { force: true })
-        await forgetSum(target, file.name)
+        await deleteEpisode(target, file.name)
         gone.push(n)
       }
       if (gone.length > 0) note('library.cacheDropped', target, { episodes: gone, reason })
@@ -454,9 +465,7 @@ export function createLibrary(options) {
       if (inUse(target)) throw libraryError('in_use', 'a room is playing this show; close the room first')
       const file = cleanName(name)
       if (!isMedia(file)) throw libraryError('invalid', 'not an episode')
-      await dropPrepared(cacheDir, join(target, file))
-      await rm(join(target, file), { force: true })
-      await forgetSum(target, file)
+      await deleteEpisode(target, file)
       note('library.episodeDeleted', target, { episode: titleOf(file), by })
       const entry = record(target)
       // Deleted by hand: the rolling cache doesn't fetch it again unless someone goes to it.

@@ -6,7 +6,7 @@
 import { Poster, showMeta } from './library-view.js'
 import { continueWatching } from './continue.js'
 import { RoomsSection } from './rooms-view.js'
-import { displayName, fill, h, plural, post, React } from './ui.js'
+import { React, asPerson, displayName, fill, h, plural, post } from './ui.js'
 
 function ContinueRow({ t, show, onOpen }) {
   const [error, setError] = React.useState(null)
@@ -15,7 +15,7 @@ function ContinueRow({ t, show, onOpen }) {
     setBusy(true)
     setError(null)
     const by = await displayName(t('guest'))
-    const answer = await post('rooms', { source: 'local', path: show.path, by })
+    const answer = await asPerson('rooms', { source: 'local', path: show.path, by })
     setBusy(false)
     if (answer.error) return setError(answer.error)
     return onOpen(answer.room.id)
@@ -51,7 +51,7 @@ function StartButton({ t, show, onOpen, onStarted }) {
   const [busy, setBusy] = React.useState(false)
   const start = async () => {
     setBusy(true)
-    const answer = await post('rooms', { source: 'local', path: show.path, by: await displayName(t('guest')) })
+    const answer = await asPerson('rooms', { source: 'local', path: show.path, by: await displayName(t('guest')) })
     setBusy(false)
     if (answer.error) return
     onStarted()

@@ -15,23 +15,9 @@ import { Readable } from 'node:stream'
 import { attachment } from './books.js'
 import { resolveRange } from './http.js'
 import { personOf } from './people.js'
+import { HEADERS, body, failure, json } from './person-routes.js'
 
 export const SHELF_PATH = '/api/media-hub/shelf'
-
-const HEADERS = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' }
-const STATUS = Object.freeze({ invalid: 400, not_found: 404, unsupported: 422, source_failed: 502, unavailable: 503 })
-
-const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { ...HEADERS, 'content-type': 'application/json; charset=utf-8' } })
-const failure = error => json(error?.status ?? STATUS[error?.code] ?? 500, { error: { code: error?.code ?? 'error', message: error?.message ?? String(error) } })
-
-async function body(request) {
-  try {
-    const value = await request.json()
-    return value !== null && typeof value === 'object' ? value : {}
-  } catch {
-    throw Object.assign(new Error('request body is not JSON'), { status: 400 })
-  }
-}
 
 /** A file as a Fetch response, with Range support. */
 export async function fileResponse(request, { path, name, type }) {

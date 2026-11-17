@@ -31,7 +31,7 @@ const MAX_NAME = 40
 /** A room item for a local episode, waiting to be prepared. */
 const localItem = episode => ({ title: episode.title, kind: 'file', status: 'preparing', sourcePath: episode.path, sourceSubtitles: episode.subtitles })
 /** A room item for one episode of a show from a source: `slot` is its number, `sourcePath` null while it is not on disk (status `remote`, or `preparing` while it is being fetched). */
-const slotItem = (entry, status) => ({ title: entry.title, kind: 'file', slot: entry.n, status: entry.path === null ? status : 'preparing', sourcePath: entry.path, sourceSubtitles: [] })
+const slotItem = (entry, status) => ({ title: entry.title, kind: 'file', slot: entry.n, status: entry.path === null ? status : 'preparing', sourcePath: entry.path, sourceSubtitles: entry.subtitles ?? [] })
 /** What identifies an item across its states: its episode number, or its file. */
 const itemKey = item => item.slot ?? item.sourcePath
 const serviceError = (code, message) => Object.assign(new Error(message), { code })
@@ -127,6 +127,7 @@ export function createRoomService(options) {
       cached: item.slot === undefined || typeof item.sourcePath === 'string',
       progress: item.progress ?? null,
       error: item.error ?? null,
+      reason: item.reason ?? null,
       duration: item.duration ?? null,
       watch: options.watchOf?.(item, room.showPath) ?? null,
       src: ready ? delivery.mediaUrl(roomId, index, item) : null,
@@ -375,15 +376,15 @@ export function createRoomService(options) {
           maxHeight: tools.maxHeight,
           threads: tools.threads,
           onProgress: (fraction) => {
-            if (fraction - last < 0.05) return
+            if (fraction - last < 0.02) return
             last = fraction
-            setItem(roomId, key, { progress: Math.round(fraction * 100) / 100 })
+            setItem(roomId, key, { progress: { step: 'prepare', fraction: Math.round(fraction * 100) / 100 } })
           },
         })
         setItem(roomId, key, { status: 'ready', progress: null, ...prepared })
       } catch (error) {
         logger.warn('could not prepare %s: %s', item.sourcePath, error.message)
-        setItem(roomId, key, { status: 'failed', progress: null, error: error.message })
+        setItem(roomId, key, { status: 'failed', progress: null, error: error.message, reason: null })
       }
     })
   }
@@ -483,7 +484,7 @@ export function createRoomService(options) {
 
     room(id) {
       const room = rooms.get(id)
-      return room === undefined ? undefined : { ...summary(room), items: room.items.map(item => ({ title: item.title, status: item.status, error: item.error ?? null })) }
+      return room === undefined ? undefined : { ...summary(room), items: room.items.map(item => ({ title: item.title, status: item.status, progress: item.progress ?? null, error: item.error ?? null, reason: item.reason ?? null, subtitles: (item.subtitles ?? []).map(sub => sub.label) })) }
     },
 
     listRooms() {
@@ -519,13 +520,28 @@ export function createRoomService(options) {
 
     syncShow,
 
-    /** Episodes someone waits on that could not be fetched: show them as failed, so a click on one tries again. */
-    failWaiting(path, message) {
+    /** Episodes someone waits on that could not be fetched: show them as failed (with the reason, when known), so a click on one tries again. */
+    failWaiting(path, message, reason = null) {
       const target = resolve(path)
       for (const room of [...rooms.values()]) {
         if (room.showPath !== target) continue
-        const items = room.items.map(item => (item.slot !== undefined && item.sourcePath === null && item.status === 'preparing' ? { ...item, status: 'failed', error: message } : item))
+        const items = room.items.map(item => (item.slot !== undefined && item.sourcePath === null && item.status === 'preparing' ? { ...item, status: 'failed', progress: null, error: message, reason } : item))
         if (items.some((item, n) => item !== room.items[n])) commit(updateItems(rooms.get(room.id), items))
+      }
+    },
+
+    /**
+     * How far the download of episode `number` of a show is, told to the viewers of the rooms waiting on it
+     * (a source reports it about once a second).
+     * @param {{ fraction: number | null, done: number, total: number | null, speed: number | null, eta: number | null }} progress
+     */
+    downloadProgress(path, number, progress) {
+      const target = resolve(path)
+      for (const room of [...rooms.values()]) {
+        if (room.showPath !== target) continue
+        const item = room.items.find(entry => entry.slot === number && entry.sourcePath === null && entry.status === 'preparing')
+        if (item === undefined) continue
+        setItem(room.id, number, { progress: { step: 'download', ...progress } })
       }
     },
 

@@ -4,7 +4,7 @@
  * deleting a show or one episode. Deleting asks first, in place.
  */
 import { Picture, WorkDetails } from './details.js'
-import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, api, bytes, clock, day, displayName, fill, h, plural, post, query, React, watchMark } from './ui.js'
+import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, React, api, asPerson, bytes, clock, day, displayName, fill, h, plural, post, query, watchMark } from './ui.js'
 
 const titleOf = name => name.replace(/\.[^.]+$/, '')
 
@@ -61,7 +61,7 @@ export function showMeta(t, show) {
   const download = show.download
   if (download?.status === 'running') rest.push(t('library.downloading'))
   else if (download?.status === 'queued') rest.push(t('library.queued'))
-  else if (download?.status === 'failed') rest.push(fill(t('library.downloadFailed'), { message: download.error ?? '' }))
+  else if (download?.status === 'failed') rest.push(fill(t('library.downloadFailed'), { message: download.reason ? t(`error.${download.reason}`) : download.error ?? '' }))
   if (show.inUse) rest.push(t('library.inRoom'))
   if (!show.watchedAt) for (const stop of show.stops ?? []) rest.push(fill(t('library.viewerStopped'), { name: stop.viewer, n: stop.index + 1, time: clock(stop.position) }))
   if (show.keep) rest.push(t('library.kept'))
@@ -131,7 +131,7 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
   const start = async (startAt) => {
     setError(null)
     const by = await displayName(t('guest'))
-    const answer = await post('rooms', { source: 'local', path: show.path, by, ...(startAt ? { start: startAt } : {}) })
+    const answer = await asPerson('rooms', { source: 'local', path: show.path, by, ...(startAt ? { start: startAt } : {}) })
     if (answer.error) return setError(answer.error)
     return onOpen(answer.room.id)
   }

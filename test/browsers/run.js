@@ -49,7 +49,8 @@ async function bootDsh() {
   symlinkSync(join(repo, 'test/fixtures/fake-yt-dlp.mjs'), join(bin, 'yt-dlp'))
   const sample = join(root, 'sample.mp4')
   makeVideo(sample, 20)
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1' }
+  // A placeholder key keeps DSH's first-run "Get started" screen away; nothing in the test calls a model.
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'sk-placeholder' }
   execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `link:${repo}`], { env, cwd: root, stdio: 'ignore' })
   // Every outbound request and yt-dlp call goes to a proxy that is down: nothing in the test reaches the network.
   writeFileSync(join(env.DSH_HOME, 'profiles/web/cordis.patch.yml'), JSON.stringify([{ id: 'media-hub', config: { proxies: [{ url: DEAD_PROXY, hosts: ['*'] }] } }]))
@@ -689,6 +690,11 @@ async function linkFlows({ a, home }) {
   await a.page.goto(`${new URL(a.page.url()).origin}/?vs-tab=discover&vs-source=link`)
   await a.page.locator('.vsync-segment').waitFor({ timeout: 20_000 })
   await dismissDialogs(a.page)
+  // A lookup that fails (the address fails, and the proxy it goes through is down) says why in words, never a bare status.
+  await a.page.locator('.vsync-searchField').fill('https://video.example/fail')
+  await a.page.locator('.vsync-search button[type=submit]').click()
+  await a.page.locator('.vsync-error').waitFor({ timeout: 20_000 })
+  assert.match(await a.page.locator('.vsync-error').textContent(), /connection this site goes through isn't working/)
   await a.page.locator('.vsync-searchField').fill('https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG')
   await a.page.locator('.vsync-search button[type=submit]').click()
   const card = a.page.locator('.vsync-results .vsync-card')
@@ -715,7 +721,7 @@ async function linkFlows({ a, home }) {
   await until('the show\'s poster is a frame of its episode', async () => ({ ok: await poster.evaluate(img => img.complete && img.naturalWidth > 0).catch(() => false) }), 30_000)
   await shot(a.page, 'link-library')
   await closeRooms(a.page)
-  log('link: lookup, quality, proxy on every call, thumbnail failed closed, frame poster')
+  log('link: failure in words, lookup, quality, proxy on every call, thumbnail failed closed, frame poster')
 }
 
 /** Search → watch together now, the room listing every episode, the watch log, deleting from the library. */
@@ -891,7 +897,7 @@ async function main() {
     await languageFlows({ browser, signIn: dsh.url, origin })
     await shot(a.page, 'home')
     const created = await a.page.evaluate(async (path) => {
-      const response = await fetch('media-hub/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'local', path, by: 'Alice' }) })
+      const response = await fetch('api/media-hub/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'local', path, by: 'Alice' }) })
       return response.json()
     }, show)
     assert.ok(created.room?.id, JSON.stringify(created))

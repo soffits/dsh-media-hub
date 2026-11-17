@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import { createDelivery } from '../src/delivery.js'
 import { createMediaHub } from '../src/media.js'
 import { isNearEnd } from '../src/watchlog.js'
-import { makeVideo, quietLogger, socketServer, tempDir, viewer } from './helpers.js'
+import { hasFfmpeg, makeVideo, quietLogger, socketServer, tempDir, viewer } from './helpers.js'
 
 const tools = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', maxHeight: 1080, threads: 1 }
 const sleep = ms => new Promise(done => setTimeout(done, ms))
@@ -519,4 +519,74 @@ test('saving a work already in the library reuses its show: one folder, no secon
   const shows = (await hub.library()).shows
   assert.equal(shows.length, 1)
   assert.equal(shows[0].pinned, true, 'asking for all of it keeps the one show offline')
+})
+
+test('a room waiting on a download sees its progress, then the episode plays with the subtitles fetched beside it, fetched with the account of whoever opened the room', { skip: !hasFfmpeg }, async (t) => {
+  const dir = tempDir(t)
+  const sample = join(dir, 'sample.mp4')
+  makeVideo(sample, { seconds: 1 })
+  const asked = []
+  let release = null
+  const source = {
+    id: 'stub',
+    label: 'Stub',
+    kinds: [{ id: 'video', label: 'Video' }],
+    available: async () => true,
+    info: async (id, asking) => ({ id, title: 'Talk', kind: 'video', episodes: 1, subtitles: asking?.language ? [asking.language] : null }),
+    async download({ dir: show, from, person, subtitles, language, onStart, onProgress, onEpisode }) {
+      asked.push({ person, subtitles, language })
+      mkdirSync(show, { recursive: true })
+      onStart?.(from)
+      onProgress?.(from, { fraction: 0, done: 0, total: 2000, speed: null, eta: null })
+      onProgress?.(from, { fraction: 0.5, done: 1000, total: 2000, speed: 500, eta: 2 })
+      await new Promise((done) => { release = done })
+      writeFileSync(join(show, '01 Talk.fr.vtt'), 'WEBVTT\n\n00:00.000 --> 00:00.500\nBonjour\n')
+      writeFileSync(join(show, '01 Talk.mp4'), readFileSync(sample))
+      onEpisode()
+      return { failed: [] }
+    },
+  }
+  const hub = makeHub(dir, source, { cache: { ahead: 0, behind: 0, capBytes: 0 } })
+  await hub.load()
+  t.after(async () => { release?.(); await hub.dispose() })
+  const fetched = await hub.fetch({ source: 'stub', id: 'talk', watch: true, by: 'Ann', person: 'sub-ann', language: 'fr' })
+  const room = fetched.room.id
+  await until('the half-way point reaches the room', () => hub.room(room).items[0].progress?.fraction === 0.5)
+  assert.deepEqual(hub.room(room).items[0].progress, { step: 'download', fraction: 0.5, done: 1000, total: 2000, speed: 500, eta: 2 })
+  assert.deepEqual(asked, [{ person: 'sub-ann', subtitles: ['fr'], language: 'fr' }], 'the show keeps whose account and which subtitles')
+  release()
+  await until('the episode is ready', () => hub.room(room).items[0].status === 'ready', 15000)
+  assert.equal(hub.room(room).items[0].progress, null)
+  assert.deepEqual(hub.room(room).items[0].subtitles, ['fr'], 'the subtitle beside the file is the episode\'s')
+
+  hub.closeRoom(room)
+  await hub.removeEpisode(fetched.path, '01 Talk.mp4')
+  assert.deepEqual(readdirSync(fetched.path).filter(name => !name.startsWith('.') && name !== 'SHA256SUMS.txt'), [], 'its subtitles go with the episode')
+  const again = await hub.createRoom({ path: fetched.path, fromPanel: true, by: 'Bo', person: 'sub-bo' })
+  await until('the episode is fetched again for the new room', () => asked.length === 2)
+  assert.equal(asked[1].person, 'sub-bo', 'a room fetches with the account of the person who opened it')
+  release()
+  hub.closeRoom(again.room.id)
+})
+
+test('a download that fails says why to the room waiting on it and to the library', async (t) => {
+  const dir = tempDir(t)
+  const source = {
+    id: 'stub',
+    label: 'Stub',
+    kinds: [{ id: 'video', label: 'Video' }],
+    available: async () => true,
+    info: async id => ({ id, title: 'Locked', kind: 'video', episodes: 1 }),
+    async download() {
+      throw Object.assign(new Error('the site wants a signed-in account'), { code: 'source_failed', reason: 'sign_in' })
+    },
+  }
+  const hub = makeHub(dir, source)
+  await hub.load()
+  t.after(() => hub.dispose())
+  const fetched = await hub.fetch({ source: 'stub', id: 'locked', watch: true, by: 'Ann' })
+  await until('the episode shows as failed', () => hub.room(fetched.room.id).items[0].status === 'failed')
+  assert.equal(hub.room(fetched.room.id).items[0].reason, 'sign_in')
+  const [show] = (await hub.library()).shows
+  assert.equal(show.download.reason, 'sign_in')
 })

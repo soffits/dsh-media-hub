@@ -61,6 +61,7 @@ export function createMediaHub(options) {
       return disk === null || disk.bavail * disk.bsize >= MIN_FREE_BYTES
     },
     onFiles,
+    onProgress: (job, number, progress) => rooms.downloadProgress(job.dir, number, progress),
     logger,
     now,
   })
@@ -96,7 +97,7 @@ export function createMediaHub(options) {
   /** Episodes landed in a downloading show, or its download ended: rooms on it follow the files. */
   async function onFiles(job) {
     await rooms.syncShow(job.dir)
-    if (job.status === 'failed') rooms.failWaiting(job.dir, job.error ?? 'the download failed')
+    if (job.status === 'failed') rooms.failWaiting(job.dir, job.error ?? 'the download failed', job.reason ?? null)
     await cache.enforce()
   }
 
@@ -215,6 +216,10 @@ export function createMediaHub(options) {
         if (show !== null) start = await library.resumeFrom(show)
       }
       if (input.source === 'local' && typeof input.path === 'string') follows.opened(library.showPath(input.path))
+      // A room fetches with the account of the person who opened it, for everyone in it.
+      const show = typeof input.path === 'string' ? library.showPath(input.path) : null
+      const from = show === null ? null : library.workSource(show)
+      if (from && typeof input.person === 'string' && from.person !== input.person) library.mark(show, { source: { ...from, person: input.person } })
       return rooms.createRoom({ ...input, start })
     },
     waitReady: (...args) => rooms.waitReady(...args),
@@ -289,26 +294,29 @@ export function createMediaHub(options) {
       if (candidates.length > 0 && failed.length === candidates.length) throw hubError('source_failed', failed.map(entry => entry.message).join('; '))
       return { results: interleave(answers.map(answer => (answer.status === 'fulfilled' ? answer.value.results : []))), next: null, failed }
     },
-    info: async (sourceId, id) => ({ ...covers.decorate(sourceId, await source(sourceId).info(id)), source: sourceId }),
+    /** A work's details; `person` and `language` say who asks (their account for its site) and in which language (subtitles). */
+    info: async (sourceId, id, asking = {}) => ({ ...covers.decorate(sourceId, await source(sourceId).info(id, asking)), source: sourceId }),
     coverFile: key => covers.file(key),
 
     /**
      * Put a work from a source into the library. `watch` opens a room on it
      * at once (its episode shows as preparing until it is fetched); either
      * way only the rolling cache's window is downloaded, unless `all` keeps
-     * the whole show offline. `quality` is kept with the show for a source that offers a choice (Link).
-     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string }} input
+     * the whole show offline. The show keeps how its episodes are fetched: the `quality` a source offers a choice of (Link),
+     * whose account (`person`, the one asking) and the subtitle languages chosen for the viewer's `language`.
+     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string, person?: string, language?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, all = false, quality = '', by = '' }) {
-      const item = await source(sourceId).info(id)
+    async fetch({ source: sourceId, id, watch = false, all = false, quality = '', by = '', person = '', language = '' }) {
+      const item = await source(sourceId).info(id, { person, language })
       if (!(item.episodes > 0)) throw hubError('empty', `${item.title || id} has no episodes`)
       const disk = await statfs(libraryRoots[0]).catch(() => null)
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError('no_space', 'the library disk is almost full; delete something first')
       const dir = await folderFor(sourceId, item)
-      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...(isQuality(quality) ? { quality } : {}) }, { pinned: all })
+      const how = { ...(isQuality(quality) ? { quality } : {}), person, language, ...(item.subtitles !== undefined ? { subtitles: item.subtitles } : {}) }
+      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all })
       library.setWork(dir, snapshotOf(item, now()))
       let room = null
-      if (watch) room = (await rooms.createRoom({ source: 'local', path: dir, title: item.title, by, start: await library.resumeFrom(dir) })).room
+      if (watch) room = (await rooms.createRoom({ source: 'local', path: dir, title: item.title, by, person, start: await library.resumeFrom(dir) })).room
       else await cache.refresh(dir, { retry: true })
       const count = all ? item.episodes : Math.min(item.episodes, options.cache.ahead + 1)
       return { path: dir, title: item.title, episodes: item.episodes, estimate: count * (EPISODE_BYTES[item.kind] ?? EPISODE_BYTES.drama), room, download: downloads.state(dir) }

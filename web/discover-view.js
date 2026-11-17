@@ -18,7 +18,7 @@ import { browserStorage, isWebAddress, pickKind, pickSource, readMemory, remembe
 import { Result } from './result-card.js'
 import { sortModes, sortResults } from './sort.js'
 import { infoOf } from './details.js'
-import { Icon, Spinner, api, fill, h, nameOf, query, React } from './ui.js'
+import { Icon, Spinner, api, asPerson, fill, h, nameOf, query, React } from './ui.js'
 import { languageChoices } from './i18n.js'
 
 export const kindLabel = (t, kind) => nameOf(t, `kind.${kind.id}`, kind.label) || kind.id
@@ -77,8 +77,9 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
       latest.current.key = null
       return setError(t('link.invalid'))
     }
-    const path = link ? `info?${query({ source: nextSource.id, id: q })}` : `search?${query({ source: nextSource.id, q, kind: nextKind ?? '', ...filtering })}`
-    const answer = await api(path, { signal: request.controller.signal })
+    const answer = link
+      ? await asPerson(`info?${query({ source: nextSource.id, id: q, language: t.language })}`, undefined, { signal: request.controller.signal })
+      : await api(`search?${query({ source: nextSource.id, q, kind: nextKind ?? '', ...filtering })}`, { signal: request.controller.signal })
     if (stale()) return undefined
     setLoading(null)
     if (answer.error) {
@@ -190,7 +191,7 @@ function FocusedWork({ t, source, id, onOpen, onSaved, onFocus, onBack }) {
   const [work, setWork] = React.useState(null)
   React.useEffect(() => {
     let live = true
-    infoOf(source.id, id).then(value => { if (live) setWork(value) })
+    infoOf(source.id, id, t.language).then(value => { if (live) setWork(value) })
     return () => { live = false }
   }, [source.id, id])
   return h('div', { className: 'vsync-focus' },

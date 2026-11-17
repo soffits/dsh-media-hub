@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
+import { createCookies } from '../src/cookies.js'
 import { createProxies } from '../src/proxy.js'
 import { AUDIO, AUTO, createLinkSource, formatArgs, qualityChoices } from '../src/sources/link.js'
 import { quietLogger, tempDir } from './helpers.js'
@@ -11,12 +12,15 @@ const FAKE = fileURLToPath(new URL('./fixtures/fake-yt-dlp.mjs', import.meta.url
 const VIDEO = 'https://www.youtube.com/watch?v=jNQXAC9IVRw'
 const PLAYLIST = 'https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG'
 
-function link(t, { proxies = createProxies([]), maxHeight = 720 } = {}) {
+const CAPTIONED = 'https://www.youtube.com/watch?v=captioned'
+const ERRORS = JSON.parse(readFileSync(new URL('./fixtures/yt-dlp/errors.json', import.meta.url), 'utf8'))
+
+function link(t, { proxies = createProxies([]), cookies = createCookies([]), maxHeight = 720, logger = quietLogger } = {}) {
   const dir = tempDir(t)
   const log = join(dir, 'calls.jsonl')
   process.env.FAKE_YTDLP_LOG = log
-  t.after(() => { delete process.env.FAKE_YTDLP_LOG; delete process.env.FAKE_YTDLP_FAIL })
-  const source = createLinkSource({ ytDlp: FAKE, proxies, maxHeight, cwd: join(dir, 'link'), logger: quietLogger })
+  t.after(() => { for (const name of ['FAKE_YTDLP_LOG', 'FAKE_YTDLP_FAIL', 'FAKE_YTDLP_ERROR', 'FAKE_YTDLP_COOKIES']) delete process.env[name] })
+  const source = createLinkSource({ ytDlp: FAKE, proxies, cookies, maxHeight, cwd: join(dir, 'link'), logger })
   const calls = () => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line))
   return { source, dir, calls }
 }
@@ -35,6 +39,18 @@ test('a video reads as a work of one episode with its thumbnail, length, uploade
   assert.equal(work.popularity.label, 'plays')
   assert.deepEqual(work.meta, [{ key: 'site', label: 'Site', value: 'youtube.com' }])
   assert.deepEqual(work.qualities, [AUTO, '240', '144', AUDIO], 'the heights its recorded formats have')
+  assert.equal(work.account, null, 'no cookies setting, no account')
+})
+
+test('subtitles: every language of its own, and generated ones only for the viewer\'s language and the video\'s', async (t) => {
+  const { source } = link(t)
+  const own = ['ar', 'zh-CN', 'zh-TW', 'en', 'fr']
+  assert.deepEqual((await source.info(CAPTIONED, { language: 'zh-CN' })).subtitles, own, 'the viewer\'s and the video\'s own languages have subtitles already')
+  assert.deepEqual((await source.info(CAPTIONED, { language: 'de' })).subtitles, [...own, 'de'], 'a generated track in the viewer\'s language')
+  assert.equal((await source.info(VIDEO, { language: 'de' })).subtitles, null, 'a document that lists none')
+  const logged = link(t)
+  await logged.source.info(CAPTIONED)
+  assert.ok(logged.calls().at(-1).includes('--write-subs'), 'yt-dlp lists some sites\' subtitles only when asked to write them')
 })
 
 test('a playlist reads as a work whose videos are its episodes, with their total length', async (t) => {
@@ -47,11 +63,30 @@ test('a playlist reads as a work whose videos are its episodes, with their total
   assert.deepEqual(work.qualities, [AUTO, '720', '480', '360', AUDIO], 'heights the hub plays without scaling down')
 })
 
-test('yt-dlp\'s own error is the message, and only web addresses reach it', async (t) => {
-  const { source } = link(t)
-  await assert.rejects(source.info('https://video.example/fail'), { code: 'source_failed', message: '[generic] Unsupported URL: https://video.example/fail' })
+test('a failure says why in a reason the page has words for, and yt-dlp\'s own words go to the log', async (t) => {
+  const logged = []
+  const { source } = link(t, { logger: { ...quietLogger, warn: (...args) => logged.push(args.join(' ')) } })
+  await assert.rejects(source.info('https://video.example/fail'), { code: 'source_failed', reason: 'not_found' })
+  assert.ok(logged.some(line => line.includes('Unsupported URL')), 'the detail is in the log')
+  const reasons = { refused: 'blocked', signIn: 'sign_in', missing: 'not_found', proxyRefused: 'failed' }
+  for (const [recorded, reason] of Object.entries(reasons)) {
+    process.env.FAKE_YTDLP_ERROR = recorded
+    const error = await source.info(VIDEO).catch(caught => caught)
+    assert.equal(error.reason, reason, recorded)
+    assert.ok(!error.message.includes('ERROR'), 'the message is the hub\'s, not yt-dlp\'s')
+  }
+  delete process.env.FAKE_YTDLP_ERROR
   await assert.rejects(source.info('file:///etc/passwd'), { code: 'invalid' })
   await assert.rejects(source.info('-o x'), { code: 'invalid' })
+})
+
+test('a proxy that does not answer is the reason, whatever yt-dlp printed', async (t) => {
+  const proxies = createProxies([{ url: 'socks5h://127.0.0.1:1', hosts: ['*'] }])
+  const { source } = link(t, { proxies })
+  process.env.FAKE_YTDLP_ERROR = 'proxyRefused'
+  await assert.rejects(source.info(VIDEO), { code: 'source_failed', reason: 'proxy_down' })
+  const unreadable = createProxies([{ url: 'socks5h://127.0.0.1:1', hostsFile: join(tempDir(t), 'missing.txt') }])
+  await assert.rejects(link(t, { proxies: unreadable }).source.info(VIDEO), { reason: 'proxy_down' }, 'a hosts file that cannot be read fails closed')
 })
 
 test('every call goes through the proxy the page\'s host is routed to, and direct (explicitly) otherwise', async (t) => {
@@ -82,6 +117,44 @@ test('a range of episodes lands as numbered files, and an episode that fails is 
   const { rmSync } = await import('node:fs')
   rmSync(show, { recursive: true })
   assert.deepEqual(await source.download({ id: PLAYLIST, dir: show, from: 1, to: 3 }), { failed: ['2'] })
+})
+
+test('a site\'s account is read from a private copy of its cookies, with its User-Agent, and the copy is gone afterwards', async (t) => {
+  const dir = tempDir(t)
+  const own = join(dir, 'own.txt')
+  const shared = join(dir, 'shared.txt')
+  writeFileSync(own, '# Netscape HTTP Cookie File\nown\n')
+  writeFileSync(shared, '# Netscape HTTP Cookie File\nshared\n')
+  const cookies = createCookies([{ hosts: ['youtube.com'], accounts: [{ person: 'p1', name: 'One', file: own, userAgent: 'Agent/1' }, { person: 'p2', name: 'Two', file: shared, share: true }] }])
+  const { source, calls } = link(t, { cookies })
+  process.env.FAKE_YTDLP_COOKIES = join(dir, 'seen.txt')
+  const work = await source.info(VIDEO, { person: 'p1' })
+  assert.deepEqual(work.account, { name: 'One' }, 'the page sees the account by name')
+  assert.equal(readFileSync(join(dir, 'seen.txt'), 'utf8'), readFileSync(own, 'utf8'))
+  const [args] = calls()
+  assert.equal(args[args.indexOf('--user-agent') + 1], 'Agent/1')
+  assert.ok(!existsSync(args[args.indexOf('--cookies') + 1]), 'the private copy is deleted after the run')
+  assert.notEqual(args[args.indexOf('--cookies') + 1], own, 'yt-dlp never writes back into the account\'s file')
+  assert.deepEqual((await source.info(VIDEO, { person: 'p3' })).account, { name: 'Two' }, 'someone without an account uses a shared one')
+  assert.equal((await source.info(PLAYLIST.replace('youtube.com', 'video.example'))).account, null, 'a host no rule names gets no cookies')
+  assert.ok(!calls()[2].includes('--cookies'))
+})
+
+test('a download reports the whole episode\'s progress from yt-dlp\'s lines and writes the subtitles asked for', async (t) => {
+  const { source, dir, calls } = link(t)
+  const show = join(dir, 'show')
+  const seen = []
+  await source.download({ id: CAPTIONED, dir: show, subtitles: ['fr', 'de'], onProgress: (n, progress) => seen.push({ n, ...progress }) })
+  const total = 1248309 + 8901496
+  assert.deepEqual(seen[0], { n: 1, fraction: 0, done: 0, total, speed: null, eta: null }, 'the episode starts at 0 of its video and audio together')
+  assert.equal(seen.at(-1).fraction, 1)
+  assert.equal(seen.at(-1).done, total)
+  assert.ok(seen.every((entry, n) => n === 0 || entry.done >= seen[n - 1].done), 'the audio file adds on to the video file')
+  const title = 'Inside the Mind of a Master Procrastinator | Tim Urban | TED'
+  assert.deepEqual(readdirSync(show).filter(name => name.endsWith('.vtt')).sort(), [`001 ${title}.de.vtt`, `001 ${title}.fr.vtt`], 'beside the episode, named by language')
+  const args = calls()[0]
+  assert.equal(args[args.indexOf('--sub-langs') + 1], '^fr$,^de$')
+  assert.ok(args.includes('--convert-subs'))
 })
 
 test('audio only fetches m4a files', async (t) => {

@@ -7,7 +7,7 @@
  */
 import { metaLabel, popularityText } from './format.js'
 import { useKnownWork } from './known.js'
-import { Icon, Spinner, api, base, clock, fill, h, plural, query, React } from './ui.js'
+import { Icon, Spinner, asPerson, base, clock, fill, h, plural, query, React } from './ui.js'
 
 const INFO_CONCURRENCY = 3
 
@@ -20,15 +20,16 @@ function createInfoQueue() {
     while (running < INFO_CONCURRENCY && waiting.length > 0) {
       const { key, path, resolve } = waiting.shift()
       running += 1
-      api(path).then((info) => {
+      asPerson(path).then((info) => {
         if (info.error) cache.delete(key)
         resolve(info)
       }).finally(() => { running -= 1; pump() })
     }
   }
-  return (source, id) => {
-    const key = `${source}/${id}`
-    if (!cache.has(key)) cache.set(key, new Promise(resolve => { waiting.push({ key, path: `info?${query({ source, id })}`, resolve }); pump() }))
+  /** `language` is the viewer's: a work's subtitles are chosen for it. */
+  return (source, id, language = '') => {
+    const key = `${source}/${id}/${language}`
+    if (!cache.has(key)) cache.set(key, new Promise(resolve => { waiting.push({ key, path: `info?${query({ source, id, language })}`, resolve }); pump() }))
     return cache.get(key)
   }
 }

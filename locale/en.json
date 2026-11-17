@@ -229,6 +229,20 @@
     "quality.label": "Quality",
     "quality.auto": "Auto",
     "quality.audio": "Audio only",
-    "quality.height": "{n}p"
+    "quality.height": "{n}p",
+    "error.blocked": "The site turned this request away. It may block the network the hub uses; try again later.",
+    "error.sign_in": "The site wants a signed-in account for this video. Ask whoever runs the hub to add one.",
+    "error.not_found": "There's nothing to play at this address. Check the link.",
+    "error.proxy_down": "The connection this site goes through isn't working right now. Try again in a little while.",
+    "error.failed": "The site didn't give us this video. Try again later.",
+    "error.status": "The server couldn't finish this (HTTP {status}). Try again.",
+    "error.network": "Couldn't reach the server. Check your connection and try again.",
+    "progress.downloading": "Downloading",
+    "progress.downloadingPercent": "Downloading {n}%",
+    "progress.of": "{done} of {total}",
+    "progress.speed": "{speed}/s",
+    "progress.left": "{time} left",
+    "link.account": "Signed in as {name}",
+    "link.accountHint": "The account this site is read with, which decides the qualities offered"
   }
 }

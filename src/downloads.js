@@ -18,6 +18,9 @@ import { nextRun } from './window.js'
 
 const ACTIVE = new Set(['queued', 'running'])
 
+/** How a show's episodes are fetched, from what its notes keep: quality, whose account, the subtitle languages and the viewer's language. */
+export const howOf = (source = {}) => ({ quality: source.quality ?? '', person: source.person ?? '', subtitles: source.subtitles ?? null, language: source.language ?? '' })
+
 const sourceError = (code, message) => Object.assign(new Error(message), { code })
 
 /**
@@ -27,10 +30,11 @@ const sourceError = (code, message) => Object.assign(new Error(message), { code 
  * @param {(dir: string) => Promise<Set<number>>} options.have - the episode numbers on disk in a show folder
  * @param {() => Promise<boolean>} [options.hasSpace] - whether the disk has room for another episode
  * @param {(job: object) => Promise<void>} options.onFiles - episodes may have landed in job.dir, or the job ended
+ * @param {(job: object, number: number, progress: object) => void} [options.onProgress] - how far an episode's download is
  * @param {{ info: Function, warn: Function }} options.logger
  * @param {() => number} [options.now]
  */
-export function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, logger, now = Date.now }) {
+export function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {}, logger, now = Date.now }) {
   const file = join(stateDir, 'downloads.json')
   const jobs = new Map()
   let running = null
@@ -75,6 +79,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
     running = job
     job.status = 'running'
     job.error = null
+    job.reason = null
     job.failed = []
     job.controller = new AbortController()
     const { signal } = job.controller
@@ -87,7 +92,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
         if (!(await hasSpace())) throw sourceError('no_space', 'the library disk is almost full; delete something first')
         job.current = range
         job.at = range[0]
-        const result = await source.download({ id: job.id, dir: job.dir, from: range[0], to: range[1], quality: job.quality ?? '', signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job) })
+        const result = await source.download({ ...howOf(job.how), id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job), onProgress: (n, progress) => onProgress(job, n, progress) })
         await notify(job)
         if (signal.aborted) break
         if (result.failed.length > 0) {
@@ -104,6 +109,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       logger.warn('download of %s failed: %s', job.title, error.message)
       job.status = 'failed'
       job.error = error.message
+      job.reason = error.reason ?? null
     } finally {
       delete job.controller
       delete job.current
@@ -133,7 +139,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
      * Say which episodes of a show to have on disk, in the order to fetch
      * them (replacing any earlier list). A job that failed stays failed
      * unless `retry` is set: someone asked for an episode again.
-     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null, quality?: string }, dir: string }} show
+     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null, how?: object }, dir: string }} show - `how` as `howOf` gives it
      * @param {number[]} want
      * @param {{ priority?: boolean, retry?: boolean }} [options] - priority: a room is open on this show
      */
@@ -141,9 +147,10 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       let job = jobs.get(dir)
       if (job === undefined) {
         if (want.length === 0) return null
-        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, quality: item.quality ?? '', status: 'queued', error: null, failed: [], priority, want, createdAt: now() }
+        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, status: 'queued', error: null, reason: null, failed: [], priority, want, createdAt: now() }
         jobs.set(dir, job)
       }
+      job.how = howOf(item.how)
       job.want = want
       job.priority = priority
       const onDisk = await have(dir)
@@ -158,6 +165,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       if (job.status === 'failed' && retry) {
         job.status = 'queued'
         job.error = null
+        job.reason = null
       }
       if (running === job) {
         const [from, to] = job.current ?? [0, -1]
@@ -172,7 +180,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
     state(dir) {
       const job = jobs.get(dir)
       if (job === undefined) return null
-      return { status: job.status, active: ACTIVE.has(job.status), total: job.episodes, error: job.error, failed: job.failed.length, source: job.source, wanted: job.want.length }
+      return { status: job.status, active: ACTIVE.has(job.status), total: job.episodes, error: job.error, reason: job.reason ?? null, failed: job.failed.length, source: job.source, wanted: job.want.length }
     },
 
     job: dir => jobs.get(dir),
@@ -184,6 +192,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       if (job.status === 'failed') {
         job.status = 'queued'
         job.error = null
+        job.reason = null
       }
       save()
       pump()

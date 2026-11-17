@@ -14,6 +14,7 @@
  */
 import { DRIFT, clockOffset, correction, expectedPosition, preloadDue } from './sync.js'
 import { canStart, offerTap, shouldPrime } from './readiness.js'
+import { bestTag, localeOf } from './i18n.js'
 
 /** Reconcile the player with the room this often. */
 const TICK_MS = 500
@@ -50,7 +51,7 @@ const PRIME_LIMIT_MS = 5000
 const swapKeepsPlayPermission = () => !('webkitSupportsPresentationMode' in HTMLVideoElement.prototype)
 
 /** An HTML <video> as a media hub player, with hls.js where the browser has no native HLS. */
-function createVideoPlayer(stage, events, { base }) {
+function createVideoPlayer(stage, events, { base, language, trackLabel }) {
   let video = null
   let hls = null
   let src = null
@@ -103,14 +104,18 @@ function createVideoPlayer(stage, events, { base }) {
     return el
   }
 
+  /** Every subtitle as a track the native controls offer; the one in the viewer's language is on, else the first. */
   function addTracks(el, item) {
     for (const track of [...el.querySelectorAll('track')]) track.remove()
+    const preferred = bestTag(item.subtitles.map(sub => sub.label), language)
+    const on = preferred === null ? 0 : item.subtitles.findIndex(sub => sub.label === preferred)
     for (const [n, sub] of item.subtitles.entries()) {
       const track = document.createElement('track')
       track.kind = 'subtitles'
-      track.label = sub.label
+      track.label = trackLabel(sub.label) || String(n + 1)
+      if (localeOf(sub.label) !== null) track.srclang = sub.label
       track.src = new URL(sub.src, document.baseURI).href
-      if (n === 0) track.default = true
+      if (n === on) track.default = true
       el.append(track)
     }
   }
@@ -319,7 +324,7 @@ function tabClientId() {
  * @param {(view: object) => void} options.onUpdate - connection, room, members, needsGesture, drift
  * @param {(event: object) => void} options.onEvent - { kind: 'action', last } | { kind: 'joined' | 'left', name }
  */
-export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
+export function joinRoom({ base, roomId, name, language = '', trackLabel = label => label, stage, onUpdate, onEvent }) {
   const clientId = tabClientId()
   const samples = []
   let offset = null
@@ -557,7 +562,7 @@ export function joinRoom({ base, roomId, name, stage, onUpdate, onEvent }) {
 
   function ensurePlayer() {
     if (player !== null) return player
-    player = createVideoPlayer(stage, events, { base })
+    player = createVideoPlayer(stage, events, { base, language, trackLabel })
     loadedIndex = null
     return player
   }
