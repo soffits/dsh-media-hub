@@ -35,9 +35,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/ws/lib/constants.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/ws/lib/constants.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/constants.js"(exports, module) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -58,9 +58,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/ws/lib/buffer-util.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "node_modules/ws/lib/buffer-util.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/buffer-util.js"(exports, module) {
     "use strict";
     var { websocketMask, websocketUnmask } = __require("http");
     var { EMPTY_BUFFER } = require_constants();
@@ -143,9 +143,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// node_modules/ws/lib/limiter.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "node_modules/ws/lib/limiter.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/limiter.js"(exports, module) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -193,9 +193,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// node_modules/ws/lib/permessage-deflate.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "node_modules/ws/lib/permessage-deflate.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/permessage-deflate.js"(exports, module) {
     "use strict";
     var zlib = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -576,9 +576,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// node_modules/ws/lib/validation.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "node_modules/ws/lib/validation.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/validation.js"(exports, module) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants();
@@ -777,9 +777,9 @@ var require_validation = __commonJS({
   }
 });
 
-// node_modules/ws/lib/receiver.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "node_modules/ws/lib/receiver.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/receiver.js"(exports, module) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -1401,9 +1401,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// node_modules/ws/lib/sender.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "node_modules/ws/lib/sender.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/sender.js"(exports, module) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -1897,9 +1897,9 @@ var require_sender = __commonJS({
   }
 });
 
-// node_modules/ws/lib/event-target.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "node_modules/ws/lib/event-target.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/event-target.js"(exports, module) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -2126,9 +2126,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// node_modules/ws/lib/extension.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "node_modules/ws/lib/extension.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/extension.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function push2(dest, name2, elem) {
@@ -2279,9 +2279,9 @@ var require_extension = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "node_modules/ws/lib/websocket.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var https = __require("https");
@@ -3215,9 +3215,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// node_modules/ws/lib/stream.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "node_modules/ws/lib/stream.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/stream.js"(exports, module) {
     "use strict";
     var WebSocket2 = require_websocket();
     var { Duplex } = __require("stream");
@@ -3313,9 +3313,9 @@ var require_stream = __commonJS({
   }
 });
 
-// node_modules/ws/lib/subprotocol.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "node_modules/ws/lib/subprotocol.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -3358,9 +3358,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket-server.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "node_modules/ws/lib/websocket-server.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var http2 = __require("http");
@@ -3762,9 +3762,9 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// node_modules/ms/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ms/index.js
 var require_ms = __commonJS({
-  "node_modules/ms/index.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -3878,9 +3878,9 @@ var require_ms = __commonJS({
   }
 });
 
-// node_modules/debug/src/common.js
+// ../../sakina/projects/dsh-media-hub/node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "node_modules/debug/src/common.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug4.debug = createDebug4;
       createDebug4.default = createDebug4;
@@ -4055,9 +4055,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/debug/src/browser.js
+// ../../sakina/projects/dsh-media-hub/node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "node_modules/debug/src/browser.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs2;
     exports.save = save;
     exports.load = load;
@@ -4225,9 +4225,9 @@ var require_browser = __commonJS({
   }
 });
 
-// node_modules/debug/src/node.js
+// ../../sakina/projects/dsh-media-hub/node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "node_modules/debug/src/node.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -4399,9 +4399,9 @@ var require_node = __commonJS({
   }
 });
 
-// node_modules/debug/src/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "node_modules/debug/src/index.js"(exports, module) {
+  "../../sakina/projects/dsh-media-hub/node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -4410,9 +4410,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/smart-buffer/build/utils.js
+// ../../sakina/projects/dsh-media-hub/node_modules/smart-buffer/build/utils.js
 var require_utils = __commonJS({
-  "node_modules/smart-buffer/build/utils.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/smart-buffer/build/utils.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var buffer_1 = __require("buffer");
@@ -4479,9 +4479,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/smart-buffer/build/smartbuffer.js
+// ../../sakina/projects/dsh-media-hub/node_modules/smart-buffer/build/smartbuffer.js
 var require_smartbuffer = __commonJS({
-  "node_modules/smart-buffer/build/smartbuffer.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/smart-buffer/build/smartbuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var utils_1 = require_utils();
@@ -5637,9 +5637,9 @@ var require_smartbuffer = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/constants.js
+// ../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/constants.js
 var require_constants2 = __commonJS({
-  "node_modules/socks/build/common/constants.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SOCKS5_NO_ACCEPTABLE_AUTH = exports.SOCKS5_CUSTOM_AUTH_END = exports.SOCKS5_CUSTOM_AUTH_START = exports.SOCKS_INCOMING_PACKET_SIZES = exports.SocksClientState = exports.Socks5Response = exports.Socks5HostType = exports.Socks5Auth = exports.Socks4Response = exports.SocksCommand = exports.ERRORS = exports.DEFAULT_TIMEOUT = void 0;
@@ -5754,9 +5754,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/util.js
+// ../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/util.js
 var require_util = __commonJS({
-  "node_modules/socks/build/common/util.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/util.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SocksClientError = void 0;
@@ -5777,9 +5777,9 @@ var require_util = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/address-error.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "node_modules/ip-address/dist/address-error.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -5794,9 +5794,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/common.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "node_modules/ip-address/dist/common.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -5897,9 +5897,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v4/constants.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v4/constants.js
 var require_constants3 = __commonJS({
-  "node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -5938,9 +5938,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv4.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "node_modules/ip-address/dist/ipv4.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6507,9 +6507,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/constants.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v6/constants.js
 var require_constants4 = __commonJS({
-  "node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -6597,9 +6597,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/helpers.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -6636,9 +6636,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/regular-expressions.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6728,9 +6728,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv6.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "node_modules/ip-address/dist/ipv6.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8061,9 +8061,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ip-address.js
+// ../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "node_modules/ip-address/dist/ip-address.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8111,9 +8111,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/helpers.js
+// ../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/helpers.js
 var require_helpers2 = __commonJS({
-  "node_modules/socks/build/common/helpers.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateSocksClientOptions = validateSocksClientOptions;
@@ -8217,9 +8217,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/receivebuffer.js
+// ../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/receivebuffer.js
 var require_receivebuffer = __commonJS({
-  "node_modules/socks/build/common/receivebuffer.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/socks/build/common/receivebuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ReceiveBuffer = void 0;
@@ -8265,9 +8265,9 @@ var require_receivebuffer = __commonJS({
   }
 });
 
-// node_modules/socks/build/client/socksclient.js
+// ../../sakina/projects/dsh-media-hub/node_modules/socks/build/client/socksclient.js
 var require_socksclient = __commonJS({
-  "node_modules/socks/build/client/socksclient.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/socks/build/client/socksclient.js"(exports) {
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
@@ -8944,9 +8944,9 @@ var require_socksclient = __commonJS({
   }
 });
 
-// node_modules/socks/build/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/socks/build/index.js
 var require_build = __commonJS({
-  "node_modules/socks/build/index.js"(exports) {
+  "../../sakina/projects/dsh-media-hub/node_modules/socks/build/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8972,7 +8972,7 @@ var require_build = __commonJS({
 // index.js
 import { join as join17, resolve as resolve6 } from "node:path";
 
-// node_modules/ws/wrapper.mjs
+// ../../sakina/projects/dsh-media-hub/node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
 var import_extension = __toESM(require_extension(), 1);
 var import_permessage_deflate = __toESM(require_permessage_deflate(), 1);
@@ -8987,7 +8987,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join as join9 } from "node:path";
 
-// node_modules/@deepseek-ai/cosmokit/lib/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
   return value === null || value === void 0;
 }
@@ -9212,7 +9212,7 @@ var Time;
   Time2.template = template;
 })(Time || (Time = {}));
 
-// node_modules/@deepseek-ai/schemastery/lib/index.mjs
+// ../../sakina/projects/dsh-media-hub/node_modules/@deepseek-ai/schemastery/lib/index.mjs
 var kSchema = /* @__PURE__ */ Symbol.for("schemastery");
 var kValidationError = /* @__PURE__ */ Symbol.for("ValidationError");
 globalThis.__schemastery_index__ ??= 0;
@@ -9883,13 +9883,13 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { pipeline } from "node:stream/promises";
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/https-proxy-agent/dist/index.js
 var import_debug2 = __toESM(require_src(), 1);
 import * as net2 from "net";
 import * as tls from "tls";
 import assert from "assert";
 
-// node_modules/agent-base/dist/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/agent-base/dist/index.js
 import * as net from "net";
 import * as http from "http";
 import { Agent as HttpsAgent } from "https";
@@ -10006,10 +10006,10 @@ var Agent2 = class extends http.Agent {
   }
 };
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/https-proxy-agent/dist/index.js
 import { URL as URL2 } from "url";
 
-// node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// ../../sakina/projects/dsh-media-hub/node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var import_debug = __toESM(require_src(), 1);
 var debug = (0, import_debug.default)("https-proxy-agent:parse-proxy-response");
 function parseProxyResponse(socket) {
@@ -10094,7 +10094,7 @@ function parseProxyResponse(socket) {
   });
 }
 
-// node_modules/proxy-agent-negotiate/dist/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/proxy-agent-negotiate/dist/index.js
 function createNegotiateAuth() {
   return async ({ response, scheme }) => {
     if (scheme.toLowerCase() !== "negotiate") {
@@ -10124,7 +10124,7 @@ function createNegotiateAuth() {
   };
 }
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/https-proxy-agent/dist/index.js
 var debug2 = (0, import_debug2.default)("https-proxy-agent");
 var setServernameFromNonIpHost = (options) => {
   if (options.servername === void 0 && options.host && !net2.isIP(options.host)) {
@@ -10296,7 +10296,7 @@ function omit(obj, ...keys) {
   return ret;
 }
 
-// node_modules/socks-proxy-agent/dist/index.js
+// ../../sakina/projects/dsh-media-hub/node_modules/socks-proxy-agent/dist/index.js
 var import_socks = __toESM(require_build(), 1);
 var import_debug3 = __toESM(require_src(), 1);
 import * as dns from "dns";
@@ -11330,40 +11330,81 @@ async function streamEpisode({ files, growing, dir, ffmpeg = "ffmpeg", ffprobe =
   if (!told) onReady?.({ playlist, duration });
   return { playlist, duration };
 }
-function createStreams({ cacheDir, tools, wanted, ready, lost, logger, convert }) {
-  const running = /* @__PURE__ */ new Map();
-  return {
-    /** @param {{ files: string[], subtitles: { path: string, label: string }[], growing: Promise<unknown> }} partial */
-    start(show, number, { files, subtitles = [], growing }) {
-      const key = `${show}\0${number}`;
-      if (running.has(key) || !wanted(show, number)) return;
-      const dir = join5(cacheDir, `stream-${createHash2("sha256").update(`${key}\0${Date.now()}`).digest("hex").slice(0, 20)}`);
-      let played = false;
-      const run3 = streamEpisode({
-        files,
-        growing,
-        dir,
-        ...tools,
-        onReady: async ({ playlist, duration }) => {
-          const converted = [];
-          for (const [n, sub] of subtitles.entries()) {
-            try {
-              converted.push({ file: await convert(sub.path, dir, `external-${n}`), label: sub.label });
-            } catch {
-            }
+function createStreams({ cacheDir, tools, need, ready, lost, logger, convert }) {
+  const episodes = /* @__PURE__ */ new Map();
+  const forget = (key, entry) => {
+    if (episodes.get(key) === entry) episodes.delete(key);
+  };
+  function start(key, entry) {
+    const { show, number, partial: { files, subtitles = [], growing } } = entry;
+    const controller = new AbortController();
+    const dir = join5(cacheDir, `stream-${createHash2("sha256").update(`${key}\0${Date.now()}`).digest("hex").slice(0, 20)}`);
+    entry.controller = controller;
+    entry.prepared = null;
+    streamEpisode({
+      files,
+      growing,
+      dir,
+      ...tools,
+      signal: controller.signal,
+      onReady: async ({ playlist, duration }) => {
+        const converted = [];
+        for (const [n, sub] of subtitles.entries()) {
+          try {
+            converted.push({ file: await convert(sub.path, dir, `external-${n}`), label: sub.label });
+          } catch {
           }
-          played = true;
-          ready(show, number, { file: playlist, kind: "hls", duration, subtitles: converted });
         }
-      });
-      running.set(key, run3);
-      run3.catch((error) => {
+        if (controller.signal.aborted) return;
+        entry.prepared = { file: playlist, kind: "hls", duration, subtitles: converted };
+        ready(show, number, entry.prepared);
+      }
+    }).then(() => {
+      forget(key, entry);
+    }, (error) => {
+      if (!controller.signal.aborted) {
         logger.warn("could not play %s episode %d while it downloads: %s", show, number, error.message);
-        if (played) lost(show, number);
-      }).finally(() => running.delete(key));
+        entry.failed = true;
+      }
+      entry.controller = null;
+      entry.prepared = null;
+      if (entry.ended || entry.failed) forget(key, entry);
+      lost(show, number);
+    });
+  }
+  function update() {
+    const wanted = need();
+    for (const [key, entry] of episodes) {
+      const rank = wanted.get(key);
+      if (rank === void 0) entry.controller?.abort("left");
+      else if (rank === 0 && entry.controller === null && !entry.ended) start(key, entry);
+      else if (rank === 0 && entry.prepared !== null) ready(entry.show, entry.number, entry.prepared);
+    }
+  }
+  return {
+    /**
+     * An episode's files while its download goes on (a source's `onPartial`).
+     * @param {{ files: string[], subtitles: { path: string, label: string }[], growing: Promise<unknown> }} partial
+     */
+    offer(show, number, partial) {
+      const key = streamKey(show, number);
+      episodes.get(key)?.controller?.abort("replaced");
+      const entry = { show, number, partial, controller: null, prepared: null, ended: false, failed: false };
+      episodes.set(key, entry);
+      Promise.resolve(partial.growing).catch(() => {
+      }).finally(() => {
+        entry.ended = true;
+        if (entry.controller === null) forget(key, entry);
+      });
+      update();
+    },
+    update,
+    stop() {
+      for (const entry of episodes.values()) entry.controller?.abort("stop");
     }
   };
 }
+var streamKey = (show, number) => `${show}\0${number}`;
 
 // src/subtitles.js
 var LEGACY_ENCODINGS = Object.freeze(["gb18030", "big5", "shift_jis", "euc-kr"]);
@@ -11410,15 +11451,6 @@ async function dropPrepared(cacheDir, path) {
   const key = await cacheKey(path).catch(() => null);
   if (key !== null) await rm4(join6(cacheDir, key), { recursive: true, force: true });
 }
-function createQueue() {
-  let tail = Promise.resolve();
-  return (job) => {
-    const result = tail.then(job, job);
-    tail = result.catch(() => {
-    });
-    return result;
-  };
-}
 function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
   return new Promise((resolve7, reject) => {
     const child = spawn3("nice", ["-n", "10", ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-progress", "pipe:1", ...args], { stdio: ["ignore", "pipe", "pipe"], signal });
@@ -11460,7 +11492,7 @@ async function convertSubtitle(source, dir, name2, { ffmpeg = "ffmpeg" } = {}) {
   return out;
 }
 async function prepareEpisode(episode, options) {
-  const { cacheDir, ffmpeg = "ffmpeg", ffprobe = "ffprobe", maxHeight = 1080, threads = 2, onProgress, onReady } = options;
+  const { cacheDir, ffmpeg = "ffmpeg", ffprobe = "ffprobe", maxHeight = 1080, threads = 2, onProgress, onReady, signal } = options;
   if (extname3(episode.path).toLowerCase() === ".m3u8") {
     return { file: episode.path, kind: "hls", duration: null, plan: "direct", subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) };
   }
@@ -11476,14 +11508,14 @@ async function prepareEpisode(episode, options) {
     const prepared = (file2) => ({ file: file2, kind: "hls", duration: info.duration, plan, subtitles });
     const done = await finishedPlaylist(hls);
     if (done !== null) return prepared(done);
-    const { playlist } = await streamEpisode({ files: [episode.path], dir: hls, ffmpeg, ffprobe, maxHeight, threads, onReady: (ready) => onReady?.(prepared(ready.playlist)) });
+    const { playlist } = await streamEpisode({ files: [episode.path], dir: hls, ffmpeg, ffprobe, maxHeight, threads, signal, onReady: (ready) => onReady?.(prepared(ready.playlist)) });
     return prepared(playlist);
   }
   let file = episode.path;
   if (plan === "remux") {
     file = join6(dir, "video.mp4");
     if (!await exists(file)) {
-      await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress });
+      await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress, signal });
       await rename(`${file}.part`, file);
     }
   }
@@ -12319,6 +12351,11 @@ function nextRun(want, have) {
 // src/downloads.js
 var ACTIVE = /* @__PURE__ */ new Set(["queued", "running"]);
 var howOf = (source = {}) => ({ quality: source.quality ?? "", person: source.person ?? "", language: source.language ?? "" });
+function nextOfRun(job, onDisk) {
+  const [from2, to] = job.current ?? [0, -1];
+  for (let n = job.at ?? from2; n <= to; n++) if (!onDisk.has(n)) return n;
+  return null;
+}
 var sourceError3 = (code, message) => Object.assign(new Error(message), { code });
 function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {
 }, onPartial = () => {
@@ -12447,10 +12484,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
         job.error = null;
         job.reason = null;
       }
-      if (running === job) {
-        const [from2, to] = job.current ?? [0, -1];
-        if (!(first >= (job.at ?? from2) && first <= to)) job.controller.abort("yield");
-      }
+      if (running === job && nextOfRun(job, onDisk) !== first) job.controller.abort("yield");
       save();
       pump();
       return job;
@@ -13003,7 +13037,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
 // src/hub.js
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { mkdir as mkdir8, readFile as readFile8, rename as rename6, writeFile as writeFile5 } from "node:fs/promises";
-import { isAbsolute as isAbsolute3, join as join14, resolve as resolve3 } from "node:path";
+import { dirname as dirname4, isAbsolute as isAbsolute3, join as join14, resolve as resolve3 } from "node:path";
 
 // src/sync.js
 var DRIFT = Object.freeze({
@@ -13192,6 +13226,31 @@ function updateItems(room, items) {
   return { ...room, items, seq: room.seq + 1 };
 }
 
+// src/preparing.js
+function needs(rooms, ahead, keyOf3) {
+  const out = /* @__PURE__ */ new Map();
+  for (const room of rooms) {
+    for (let distance = 0; distance <= ahead; distance++) {
+      const item = room.items[room.index + distance];
+      if (item === void 0) break;
+      const key = keyOf3(room, item);
+      if (key !== null && !(out.get(key) <= distance)) out.set(key, distance);
+    }
+  }
+  return out;
+}
+function planPreparing(need, waiting, running) {
+  const busy = new Set(running);
+  const idle = [...waiting].filter((key) => !busy.has(key) && need.has(key));
+  const stop = [...busy].filter((key) => !need.has(key));
+  const start = idle.filter((key) => need.get(key) === 0);
+  if (![...busy].some((key) => need.get(key) > 0)) {
+    const next = idle.filter((key) => need.get(key) > 0).sort((a, b) => need.get(a) - need.get(b))[0];
+    if (next !== void 0) start.push(next);
+  }
+  return { start, stop };
+}
+
 // src/hub.js
 var PING_MS = 2e4;
 var SAVE_DELAY_MS = 1e3;
@@ -13218,7 +13277,9 @@ function createRoomService(options) {
   const rooms = /* @__PURE__ */ new Map();
   const peers = /* @__PURE__ */ new Map();
   const waiters = /* @__PURE__ */ new Map();
-  const queue = createQueue();
+  const ahead = options.cache?.ahead ?? 5;
+  const preparing = /* @__PURE__ */ new Map();
+  let replanning = false;
   let saveTimer = null;
   let disposed = false;
   const waitingOn = (show, number) => [...rooms.values()].filter((room) => room.showPath === show && room.items.some((item) => item.slot === number && item.sourcePath === null && item.status === "preparing"));
@@ -13227,16 +13288,17 @@ function createRoomService(options) {
     tools,
     logger,
     convert: (source, dir, name2) => convertSubtitle(source, dir, name2, { ffmpeg: tools.ffmpeg }),
-    wanted: (show, number) => waitingOn(show, number).length > 0,
+    need: () => needs([...rooms.values()], ahead, (room, item) => room.showPath !== void 0 && item.slot !== void 0 ? streamKey(room.showPath, item.slot) : null),
     ready: (show, number, prepared) => {
       for (const room of waitingOn(show, number)) setItem(room.id, number, { status: "ready", progress: null, error: null, streamed: true, ...prepared });
     },
+    // The copy stopped before it was complete: the episode waits for its file (and is prepared from it), or for a room to want it again.
     lost: (show, number) => {
       for (const room of [...rooms.values()]) {
-        const index = room.showPath === show ? room.items.findIndex((item) => item.slot === number && item.streamed) : -1;
-        if (index < 0) continue;
-        setItem(room.id, number, { status: "preparing", streamed: false });
-        schedulePrepare(room.id, index);
+        const item = room.showPath === show ? room.items.find((entry) => entry.slot === number && entry.streamed) : void 0;
+        if (item === void 0) continue;
+        const waited = typeof item.sourcePath === "string" || room.items[room.index] === item;
+        setItem(room.id, number, { status: waited ? "preparing" : "remote", streamed: false, progress: null });
       }
     }
   });
@@ -13254,11 +13316,7 @@ function createRoomService(options) {
     }
     for (const { holds, ...room } of data.rooms ?? []) rooms.set(room.id, { ...hold({ gate: null, gates: 0, startedAt: null, ...room }, now()), cooldown: {}, nextReady: null, emptySince: room.emptySince ?? (room.opened ? now() : null) });
     sweep();
-    for (const room of rooms.values()) {
-      room.items.forEach((item, index) => {
-        if (item.status === "preparing") schedulePrepare(room.id, index);
-      });
-    }
+    for (const room of [...rooms.values()]) await reopen(room);
     for (const path of new Set([...rooms.values()].map((room) => room.showPath).filter(Boolean))) await syncShow(path);
   }
   function save() {
@@ -13277,6 +13335,7 @@ function createRoomService(options) {
     rooms.set(room.id, { ...room, touchedAt: now() });
     broadcast(room.id);
     save();
+    replan();
   }
   function publicItem(room, item, index) {
     const roomId = room.id;
@@ -13473,6 +13532,7 @@ function createRoomService(options) {
     for (const peer of peers.get(id) ?? []) peer.ws.close(4410, "room closed");
     peers.delete(id);
     save();
+    replan();
     return true;
   }
   function setItem(roomId, key, patch) {
@@ -13490,32 +13550,62 @@ function createRoomService(options) {
     if (item === void 0 || item.slot === void 0 || typeof item.sourcePath === "string" || item.status === "preparing") return room;
     return { ...room, items: room.items.map((entry, n) => n === room.index ? { ...entry, status: "preparing", error: null } : entry) };
   }
-  function schedulePrepare(roomId, index) {
-    const key = itemKey(rooms.get(roomId)?.items[index] ?? {});
-    if (typeof rooms.get(roomId)?.items[index]?.sourcePath !== "string") return;
-    queue(async () => {
-      const item = rooms.get(roomId)?.items.find((entry) => itemKey(entry) === key);
-      if (item === void 0 || disposed || typeof item.sourcePath !== "string") return;
-      let last = 0;
-      try {
-        const prepared = await prepareEpisode({ title: item.title, path: item.sourcePath, subtitles: item.sourceSubtitles ?? [] }, {
-          cacheDir,
-          ffmpeg: tools.ffmpeg,
-          ffprobe: tools.ffprobe,
-          maxHeight: tools.maxHeight,
-          threads: tools.threads,
-          onReady: (prepared2) => setItem(roomId, key, { status: "ready", progress: null, ...prepared2 }),
-          onProgress: (fraction) => {
-            if (fraction - last < 0.02) return;
-            last = fraction;
-            setItem(roomId, key, { progress: { step: "prepare", fraction: Math.round(fraction * 100) / 100 } });
-          }
-        });
-        setItem(roomId, key, { status: "ready", progress: null, ...prepared });
-      } catch (error) {
-        logger.warn("could not prepare %s: %s", item.sourcePath, error.message);
-        setItem(roomId, key, { status: "failed", progress: null, error: error.message, reason: null });
+  async function reopen(room) {
+    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname4(item.file)) === null;
+    const items = [];
+    for (const item of room.items) {
+      if (!await unfinished(item)) items.push(item);
+      else items.push({ ...item, status: typeof item.sourcePath === "string" ? "preparing" : "remote", streamed: false, progress: null });
+    }
+    if (items.some((item, n) => item !== room.items[n])) commit(wanting(updateItems(room, items)));
+  }
+  function replan() {
+    if (replanning || disposed) return;
+    replanning = true;
+    queueMicrotask(() => {
+      replanning = false;
+      if (disposed) return;
+      const all = [...rooms.values()];
+      const need = needs(all, ahead, (_, item) => typeof item.sourcePath === "string" && !item.streamed ? item.sourcePath : null);
+      const waiting = new Set(all.flatMap((room) => room.items.filter((item) => item.status === "preparing" && typeof item.sourcePath === "string" && !item.streamed).map((item) => item.sourcePath)));
+      const { start, stop } = planPreparing(need, waiting, preparing.keys());
+      for (const path of stop) preparing.get(path).abort("left");
+      for (const path of start) prepare(path);
+      streams.update();
+    });
+  }
+  function setPath(path, patch) {
+    for (const room of [...rooms.values()]) {
+      for (const item of room.items) if (item.sourcePath === path && !item.streamed) setItem(room.id, itemKey(item), patch);
+    }
+  }
+  function prepare(path) {
+    const item = [...rooms.values()].flatMap((room) => room.items).find((entry) => entry.sourcePath === path);
+    const controller = new AbortController();
+    preparing.set(path, controller);
+    let last = 0;
+    prepareEpisode({ title: item.title, path, subtitles: item.sourceSubtitles ?? [] }, {
+      cacheDir,
+      ffmpeg: tools.ffmpeg,
+      ffprobe: tools.ffprobe,
+      maxHeight: tools.maxHeight,
+      threads: tools.threads,
+      signal: controller.signal,
+      onReady: (prepared) => setPath(path, { status: "ready", progress: null, ...prepared }),
+      onProgress: (fraction) => {
+        if (fraction - last < 0.02) return;
+        last = fraction;
+        setPath(path, { progress: { step: "prepare", fraction: Math.round(fraction * 100) / 100 } });
       }
+    }).then((prepared) => {
+      setPath(path, { status: "ready", progress: null, ...prepared });
+    }, (error) => {
+      if (controller.signal.aborted) return setPath(path, { status: "preparing", progress: null });
+      logger.warn("could not prepare %s: %s", path, error.message);
+      return setPath(path, { status: "failed", progress: null, error: error.message, reason: null });
+    }).finally(() => {
+      preparing.delete(path);
+      replan();
     });
   }
   async function localItems(path, fromPanel) {
@@ -13545,7 +13635,6 @@ function createRoomService(options) {
       if (current === void 0) continue;
       const legacy = current.items.some((item) => item.slot === void 0);
       const before = new Map(current.items.map((item) => [legacy ? item.sourcePath : item.slot, item]));
-      const fresh = [];
       const items = entries.map((entry) => {
         const prev = before.get(legacy ? entry.path : entry.n);
         if (prev?.streamed) return { ...prev, title: entry.title, sourcePath: entry.path, sourceSubtitles: entry.subtitles ?? [] };
@@ -13554,15 +13643,11 @@ function createRoomService(options) {
           return waiting ? { ...prev, title: entry.title } : slotItem(entry, "remote");
         }
         if (prev !== void 0 && prev.sourcePath === entry.path) return { ...prev, title: entry.title, slot: entry.n };
-        fresh.push(entry.n);
         return slotItem(entry, "remote");
       });
       const playing = current.items[current.index];
       const index = legacy ? Math.max(0, entries.findIndex((entry) => entry.path !== null && entry.path === playing?.sourcePath)) : Math.min(current.index, items.length - 1);
       commit(wanting({ ...updateItems(current, items), index }));
-      items.forEach((item, at) => {
-        if (fresh.includes(item.slot)) schedulePrepare(room.id, at);
-      });
     }
   }
   return {
@@ -13586,8 +13671,6 @@ function createRoomService(options) {
       };
       commit(wanting(room));
       observe("opened", { room });
-      const order = room.items.map((_, n) => (n + room.index) % room.items.length);
-      for (const index of order) if (room.items[index].status === "preparing") schedulePrepare(id, index);
       if (room.showPath !== void 0) options.focus?.(room.showPath, { retry: true });
       return { room: summary(rooms.get(id)) };
     },
@@ -13667,7 +13750,7 @@ function createRoomService(options) {
      * Episode `number` of a show while a source still fetches it, as files that play while they grow
      * (`growing` settles when they are complete): rooms waiting on it play it once enough is there.
      */
-    streamEpisode: (path, number, partial) => streams.start(resolve3(path), number, partial),
+    streamEpisode: (path, number, partial) => streams.offer(resolve3(path), number, partial),
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {
       const item = rooms.get(roomId)?.items[index];
@@ -13683,6 +13766,8 @@ function createRoomService(options) {
     pruneCache: (days) => pruneCache(cacheDir, [...rooms.values()].flatMap((room) => room.items.map((item) => item.file)), days, now()),
     async dispose() {
       disposed = true;
+      for (const controller of preparing.values()) controller.abort("stop");
+      streams.stop();
       for (const timer of advanceTimers.values()) clearTimeout(timer.id);
       clearInterval(sweepTimer);
       clearInterval(progressTimer);
@@ -13825,7 +13910,7 @@ function createJournal({ log, library, now = Date.now }) {
 
 // src/shows.js
 import { mkdir as mkdir9, readFile as readFile10, readdir as readdir7, rename as rename7, rm as rm8, stat as stat9, statfs, writeFile as writeFile6 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname4, extname as extname7, join as join15, resolve as resolve4 } from "node:path";
+import { basename as basename5, dirname as dirname5, extname as extname7, join as join15, resolve as resolve4 } from "node:path";
 var DAY_MS = 864e5;
 var STOP_DIFF_S = 30;
 var REFINISH_MS = 36e5;
@@ -13891,7 +13976,7 @@ function createLibrary(options) {
   function showPath(path) {
     if (typeof path !== "string") return null;
     const target = resolve4(path);
-    return roots.includes(dirname4(target)) && !basename5(target).startsWith(".") ? target : null;
+    return roots.includes(dirname5(target)) && !basename5(target).startsWith(".") ? target : null;
   }
   function requireShow(path) {
     const target = showPath(path);
@@ -13900,7 +13985,7 @@ function createLibrary(options) {
   }
   function showOf(episodePath) {
     if (typeof episodePath !== "string") return null;
-    return showPath(episodePath) ?? showPath(dirname4(episodePath));
+    return showPath(episodePath) ?? showPath(dirname5(episodePath));
   }
   async function episodeFiles(path) {
     const info = await stat9(path).catch(() => null);
@@ -14210,7 +14295,7 @@ function createLibrary(options) {
       if (download(target)?.active) throw libraryError("in_use", "this show is still downloading");
       const isFile = (await stat9(target)).isFile();
       const clean = cleanName(name2);
-      const next = join15(dirname4(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
+      const next = join15(dirname5(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
       if (next === target) return { path: target };
       if (await stat9(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
       await rename7(target, next);

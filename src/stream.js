@@ -184,46 +184,96 @@ export async function streamEpisode({ files, growing, dir, ffmpeg = 'ffmpeg', ff
 }
 
 /**
- * Episodes a source is still fetching, played while they grow: one HLS copy per episode someone waits on, made in
- * `cacheDir`, with its subtitles turned into WebVTT beside it.
+ * Episodes a source is still fetching, played while they grow: one HLS copy, made in `cacheDir` with its subtitles
+ * turned into WebVTT beside it, for each such episode a room is on. A source hands over an episode's growing files
+ * when its download starts (`offer`); they are kept until it ends, so a room arriving later still plays it at once.
+ * `update` follows the rooms (src/preparing.js): a copy starts when a room is on its episode and stops when no room
+ * is on it or just before it.
  * @param {object} options
  * @param {string} options.cacheDir
  * @param {{ ffmpeg: string, ffprobe: string, maxHeight: number, threads: number }} options.tools
- * @param {(show: string, number: number) => boolean} options.wanted - whether a room waits on the episode
+ * @param {() => Map<string, number>} options.need - how much the rooms need each episode, by `streamKey`
  * @param {(show: string, number: number, prepared: { file: string, kind: 'hls', duration: number | null, subtitles: { file: string, label: string }[] }) => void} options.ready - it can be played
- * @param {(show: string, number: number) => void} options.lost - its copy broke off after it could be played
+ * @param {(show: string, number: number) => void} options.lost - its copy stopped before it was complete
  * @param {(source: string, dir: string, name: string) => Promise<string>} options.convert - a subtitle file to WebVTT in `dir`
  * @param {{ warn: Function }} options.logger
  */
-export function createStreams({ cacheDir, tools, wanted, ready, lost, logger, convert }) {
-  const running = new Map()
-  return {
-    /** @param {{ files: string[], subtitles: { path: string, label: string }[], growing: Promise<unknown> }} partial */
-    start(show, number, { files, subtitles = [], growing }) {
-      const key = `${show}\0${number}`
-      if (running.has(key) || !wanted(show, number)) return
-      const dir = join(cacheDir, `stream-${createHash('sha256').update(`${key}\0${Date.now()}`).digest('hex').slice(0, 20)}`)
-      let played = false
-      const run = streamEpisode({
-        files, growing, dir, ...tools,
-        onReady: async ({ playlist, duration }) => {
-          const converted = []
-          for (const [n, sub] of subtitles.entries()) {
-            try {
-              converted.push({ file: await convert(sub.path, dir, `external-${n}`), label: sub.label })
-            } catch {
-              // An unreadable subtitle file must not stop the episode.
-            }
+export function createStreams({ cacheDir, tools, need, ready, lost, logger, convert }) {
+  /** By `streamKey`: the episode's growing files, and its copy while one is made. */
+  const episodes = new Map()
+  const forget = (key, entry) => { if (episodes.get(key) === entry) episodes.delete(key) }
+
+  function start(key, entry) {
+    const { show, number, partial: { files, subtitles = [], growing } } = entry
+    const controller = new AbortController()
+    const dir = join(cacheDir, `stream-${createHash('sha256').update(`${key}\0${Date.now()}`).digest('hex').slice(0, 20)}`)
+    entry.controller = controller
+    entry.prepared = null
+    streamEpisode({
+      files, growing, dir, ...tools, signal: controller.signal,
+      onReady: async ({ playlist, duration }) => {
+        const converted = []
+        for (const [n, sub] of subtitles.entries()) {
+          try {
+            converted.push({ file: await convert(sub.path, dir, `external-${n}`), label: sub.label })
+          } catch {
+            // An unreadable subtitle file must not stop the episode.
           }
-          played = true
-          ready(show, number, { file: playlist, kind: 'hls', duration, subtitles: converted })
-        },
-      })
-      running.set(key, run)
-      run.catch((error) => {
+        }
+        if (controller.signal.aborted) return
+        entry.prepared = { file: playlist, kind: 'hls', duration, subtitles: converted }
+        ready(show, number, entry.prepared)
+      },
+    }).then(() => {
+      // Complete: the rooms keep playing it; nothing is left to follow.
+      forget(key, entry)
+    }, (error) => {
+      // A copy that cannot be made is not tried again: the rooms play the file once it lands.
+      if (!controller.signal.aborted) {
         logger.warn('could not play %s episode %d while it downloads: %s', show, number, error.message)
-        if (played) lost(show, number)
-      }).finally(() => running.delete(key))
+        entry.failed = true
+      }
+      entry.controller = null
+      entry.prepared = null
+      if (entry.ended || entry.failed) forget(key, entry)
+      lost(show, number)
+    })
+  }
+
+  function update() {
+    const wanted = need()
+    for (const [key, entry] of episodes) {
+      const rank = wanted.get(key)
+      if (rank === undefined) entry.controller?.abort('left')
+      else if (rank === 0 && entry.controller === null && !entry.ended) start(key, entry)
+      else if (rank === 0 && entry.prepared !== null) ready(entry.show, entry.number, entry.prepared)
+    }
+  }
+
+  return {
+    /**
+     * An episode's files while its download goes on (a source's `onPartial`).
+     * @param {{ files: string[], subtitles: { path: string, label: string }[], growing: Promise<unknown> }} partial
+     */
+    offer(show, number, partial) {
+      const key = streamKey(show, number)
+      episodes.get(key)?.controller?.abort('replaced')
+      const entry = { show, number, partial, controller: null, prepared: null, ended: false, failed: false }
+      episodes.set(key, entry)
+      Promise.resolve(partial.growing).catch(() => {}).finally(() => {
+        entry.ended = true
+        if (entry.controller === null) forget(key, entry)
+      })
+      update()
+    },
+
+    update,
+
+    stop() {
+      for (const entry of episodes.values()) entry.controller?.abort('stop')
     },
   }
 }
+
+/** What identifies an episode of a show for `createStreams`. */
+export const streamKey = (show, number) => `${show}\0${number}`

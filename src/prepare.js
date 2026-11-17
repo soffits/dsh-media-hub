@@ -3,8 +3,9 @@
  * needed), or HLS when it has to be transcoded, and WebVTT subtitles, cached
  * by the source file's path, size and modification time so a second room reuses the work.
  *
- * ffmpeg runs one job at a time, at low CPU priority with few threads, so
- * preparing a series never starves the machine DSH runs on.
+ * ffmpeg runs at low CPU priority with few threads, so preparing never
+ * starves the machine DSH runs on; which episodes are prepared when is
+ * src/preparing.js.
  */
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -43,16 +44,6 @@ export async function preparedBytes(cacheDir, path) {
 export async function dropPrepared(cacheDir, path) {
   const key = await cacheKey(path).catch(() => null)
   if (key !== null) await rm(join(cacheDir, key), { recursive: true, force: true })
-}
-
-/** A promise queue: jobs run one after another. */
-export function createQueue() {
-  let tail = Promise.resolve()
-  return job => {
-    const result = tail.then(job, job)
-    tail = result.catch(() => {})
-    return result
-  }
 }
 
 /**
@@ -114,11 +105,11 @@ export async function convertSubtitle(source, dir, name, { ffmpeg = 'ffmpeg' } =
  * Prepare one episode. A video that needs transcoding becomes HLS, playable (`onReady`) after its first segments
  * while the rest is still being made; the promise settles when it is complete.
  * @param {{ title: string, path: string, subtitles: { path: string, label: string }[] }} episode
- * @param {PrepareOptions & { onProgress?: (fraction: number) => void, onReady?: (prepared: object) => void }} options
+ * @param {PrepareOptions & { onProgress?: (fraction: number) => void, onReady?: (prepared: object) => void, signal?: AbortSignal }} options
  * @returns {Promise<{ file: string, kind: 'file' | 'hls', duration: number | null, plan: string, subtitles: { file: string, label: string }[] }>}
  */
 export async function prepareEpisode(episode, options) {
-  const { cacheDir, ffmpeg = 'ffmpeg', ffprobe = 'ffprobe', maxHeight = 1080, threads = 2, onProgress, onReady } = options
+  const { cacheDir, ffmpeg = 'ffmpeg', ffprobe = 'ffprobe', maxHeight = 1080, threads = 2, onProgress, onReady, signal } = options
   if (extname(episode.path).toLowerCase() === '.m3u8') {
     return { file: episode.path, kind: 'hls', duration: null, plan: 'direct', subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) }
   }
@@ -134,14 +125,14 @@ export async function prepareEpisode(episode, options) {
     const prepared = file => ({ file, kind: 'hls', duration: info.duration, plan, subtitles })
     const done = await finishedPlaylist(hls)
     if (done !== null) return prepared(done)
-    const { playlist } = await streamEpisode({ files: [episode.path], dir: hls, ffmpeg, ffprobe, maxHeight, threads, onReady: ready => onReady?.(prepared(ready.playlist)) })
+    const { playlist } = await streamEpisode({ files: [episode.path], dir: hls, ffmpeg, ffprobe, maxHeight, threads, signal, onReady: ready => onReady?.(prepared(ready.playlist)) })
     return prepared(playlist)
   }
   let file = episode.path
   if (plan === 'remux') {
     file = join(dir, 'video.mp4')
     if (!(await exists(file))) {
-      await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress })
+      await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress, signal })
       await rename(`${file}.part`, file)
     }
   }

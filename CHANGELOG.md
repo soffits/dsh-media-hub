@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+- Going back to an episode the cache already deleted, or jumping far ahead, no longer stays on loading. The episode you're on is now prepared at once, beside anything else; before, every episode that landed waited its turn in one line, so with sources that need a transcode (HEVC short dramas) the one you picked sat behind a dozen others. The next few episodes after yours are prepared one at a time, nearest first, and nothing outside that window is touched.
+- Leaving an episode stops work on it unless it's one of the next few: its download, its transcode and its play-while-downloading copy. A copy cut off by a restart is made again instead of being offered half done.
+- An episode whose download is already under way plays while it downloads as soon as a room comes to it, not only when someone was on it when the download started.
+
 ## 0.5.0
 
 - Captions in the right language, for every source. The player starts the track in your language, else one in the video's own language that no machine translated, else none, and never a machine translation into a third language. The captions menu names each track in its own language (日本語, English) and marks machine-made ones *auto*. Link fetches every track a person made, plus machine-made ones only in your language and the video's own; a site's own codes that name no language (`ai-zh`) are left out. Local files follow the same rule by their file names (`ep1.zh.srt`), and text tracks inside a file go by their language.
