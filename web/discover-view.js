@@ -3,7 +3,8 @@
  * pasting the address of a video or playlist on any site yt-dlp reads), under
  * it that source's own categories, then search; Link looks the address up
  * and shows it as one result. Book categories add a filter row (language, format, years, size).
- * Results are cards: a show or audiobook (web/result-card.js) is watched
+ * Before any search the area below shows what the sources put forward and the
+ * recommender's picks for the category (web/feed-view.js). Results are cards: a show or audiobook (web/result-card.js) is watched
  * together right away, saved to the library (the episodes being watched and
  * the next few are kept on disk), or downloaded whole to keep offline; a
  * book (web/books-view.js) is downloaded in a format onto the person's shelf.
@@ -15,6 +16,7 @@
  */
 import { BookCard, BookFilters } from './books-view.js'
 import { browserStorage, isWebAddress, pickKind, pickSource, readMemory, remember, takesUrl, withAll } from './nav.js'
+import { DiscoverFeed } from './feed-view.js'
 import { Result } from './result-card.js'
 import { sortModes, sortResults } from './sort.js'
 import { infoOf } from './details.js'
@@ -171,6 +173,7 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
     !isLink && isBook(kind) && h(BookFilters, { t, filters, languages: languageChoices(t.language, shown ? results.items : [], filters.language), onChange: filter }),
     error && h('p', { className: 'vsync-error', role: 'alert' }, error),
     !searching && shown && results.failed.length > 0 && h('p', { className: 'vsync-note', role: 'status' }, results.failed.map(one => fill(t('search.sourceFailed'), { source: sourceOf(one.source)?.label ?? one.source, message: one.message })).join(' ')),
+    !isLink && source !== null && results === null && loading === null && h(DiscoverFeed, { t, sourceId: source.id, kind, sourceOf, isBook, onOpen, onSaved, onFocus }),
     searching && h('div', { className: 'vsync-skeleton', role: 'status', 'aria-busy': 'true', 'aria-label': t('search.loading') },
       [0, 1, 2].map(n => h('span', { key: n, className: 'vsync-skeletonRow' }))),
     !searching && shown && results.items.length > 1 && modes.length > 1 && h('div', { className: 'vsync-tabs vsync-sort', role: 'group', 'aria-label': t('sort.label') },

@@ -10704,6 +10704,7 @@ var lastLine = (text3) => text3.trim().split("\n").filter(Boolean).pop() ?? "";
 
 // src/sources/command.js
 var SEARCH_LIMIT = 12;
+var TRENDING_LIMIT = 20;
 var QUERY_TIMEOUT_MS = 6e4;
 var COVER_TIMEOUT_MS = 3e4;
 var ID = /^[^\s\0]{1,200}$/;
@@ -10770,6 +10771,28 @@ function parseSearch(document2, kinds) {
   if (!Array.isArray(document2?.results)) throw sourceError2("source_failed", "the search answer has no results list");
   const kindIds = new Set(kinds.map((kind) => kind.id));
   return document2.results.map((raw) => resultOf(raw, kindIds)).filter((result) => result !== null);
+}
+var MAX_LISTS = 6;
+function labelOf(value) {
+  if (typeof value === "string" && value.trim() !== "") return value.trim();
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value).filter(([tag, words]) => typeof tag === "string" && typeof words === "string" && words.trim() !== "");
+    if (entries.length > 0) return Object.fromEntries(entries.map(([tag, words]) => [tag, words.trim()]));
+  }
+  return null;
+}
+function parseTrending(document2, kinds, kind) {
+  const kindIds = new Set(kinds.map((entry) => entry.id));
+  const raw = Array.isArray(document2?.lists) ? document2.lists : Array.isArray(document2?.results) ? [{ id: "trending", results: document2.results }] : null;
+  if (raw === null) throw sourceError2("source_failed", "the trending answer has no lists");
+  const seen = /* @__PURE__ */ new Set();
+  return raw.slice(0, MAX_LISTS).flatMap((list, index) => {
+    const results = Array.isArray(list?.results) ? list.results.map((item) => resultOf(item, kindIds)).filter((result) => result !== null && result.kind === kind) : [];
+    const id = text(list?.id) || `list-${index + 1}`;
+    if (results.length === 0 || seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, label: labelOf(list?.label), results }];
+  });
 }
 function nextOffset(document2, offset = 0) {
   return Number.isInteger(document2?.next) && document2.next > offset ? document2.next : null;
@@ -10849,6 +10872,11 @@ function createCommandSource(definition, { logger, cwd }) {
       const paging = offset > 0 ? ["--offset", String(offset)] : [];
       const document2 = await query(["search", "--kind", kind, "--limit", String(limit), ...paging, ...filterArgs(filters, understood), "--json", "--", q]);
       return { results: parseSearch(document2, kinds).filter((result) => result.kind === kind), next: nextOffset(document2, offset) };
+    },
+    /** What the site itself puts forward for a kind that declares `trending`: lists of works, in the site's order. */
+    async trending(kind, { limit = TRENDING_LIMIT } = {}) {
+      if (!kinds.some((entry) => entry.id === kind && entry.trending === true)) throw sourceError2("invalid", `${name2()} has no trending list for ${kind}`);
+      return parseTrending(await query(["trending", "--kind", kind, "--limit", String(limit), "--json"]), kinds, kind);
     },
     async info(id) {
       if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
@@ -11938,7 +11966,8 @@ var SourceConfig = Schema.object({
   kinds: Schema.array(Schema.object({
     id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("What the command's search --kind takes."),
     label: Label.default("").description("Name of the category chip: a string, or { <tag>: text } per language. Empty uses the page's own words for this kind id (kind.<id> in locale/), else the id."),
-    media: Schema.union(MEDIA.map((media) => Schema.const(media))).default("video").description("What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format).")
+    media: Schema.union(MEDIA.map((media) => Schema.const(media))).default("video").description("What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format)."),
+    trending: Schema.boolean().default(false).description("Whether the command's trending verb answers for this kind (docs/source-protocol.md): its rank lists and new arrivals, shown on Discover before a search.")
   })).description("What the source can search for; at least one."),
   filters: Schema.array(Schema.union(FILTERS.map((filter) => Schema.const(filter)))).default([]).description("Search filters the command understands (docs/source-protocol.md). The hub filters the answers by language, format, year and size itself as well."),
   command: Schema.array(Schema.string()).min(1).description("The command and its fixed arguments, one entry per word; the plugin adds the protocol verbs after them."),
@@ -11966,14 +11995,14 @@ var CookieRule = Schema.object({
 var DEFAULT_SOURCES = Object.freeze([
   {
     id: "fanqie",
-    kinds: [{ id: "drama", media: "video" }, { id: "audio", media: "audio" }, { id: "novel", media: "book" }],
+    kinds: [{ id: "drama", media: "video", trending: true }, { id: "audio", media: "audio", trending: true }, { id: "novel", media: "book", trending: true }],
     filters: [],
     command: ["fanqie"],
     env: {}
   },
   {
     id: "bookfetch",
-    kinds: [{ id: "ebook", media: "book" }, { id: "paper", media: "book" }],
+    kinds: [{ id: "ebook", media: "book", trending: true }, { id: "paper", media: "book" }],
     filters: ["language", "format", "year"],
     command: ["bookfetch", "source"],
     env: {}
@@ -12297,6 +12326,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         if (route === "GET settings") return sendJson(res, 200, settings());
         if (route === "GET locales") return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)));
         if (route === "GET sources") return sendJson(res, 200, { sources: await hub.sources() });
+        if (route === "GET trending") return sendJson(res, 200, await hub.trending(query("source"), query("kind")));
         if (route === "GET search") return sendJson(res, 200, await hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query)));
       }
       return sendText(res, 404, "Not found.");
@@ -14008,53 +14038,34 @@ function parsePicks(document2, hasSource, limit = PICKS_LIMIT) {
   const out = [];
   const seen = /* @__PURE__ */ new Set();
   for (const pick5 of document2.picks) {
-    const work = pick5?.work;
+    const raw = pick5?.work;
     const why = typeof pick5?.why === "string" ? pick5.why.trim().slice(0, MAX_WHY_CHARS) : "";
-    if (typeof work?.source !== "string" || !hasSource(work.source) || typeof work.id !== "string" || work.id === "" || typeof work.title !== "string" || why === "") continue;
-    const key = `${work.source}\0${work.id}`;
+    if (typeof raw?.source !== "string" || !hasSource(raw.source) || why === "") continue;
+    const work = resultOf(raw, null);
+    if (work === null || work.title === "") continue;
+    const key = `${raw.source}\0${work.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({
-      work: {
-        source: work.source,
-        id: work.id,
-        title: work.title.slice(0, 200),
-        kind: typeof work.kind === "string" ? work.kind : null,
-        year: Number.isInteger(work.year) ? work.year : null,
-        score: Number.isFinite(work.score) ? work.score : null,
-        scoreLabel: typeof work.scoreLabel === "string" ? work.scoreLabel.slice(0, 40) : "",
-        cover: typeof work.cover === "string" ? work.cover : null,
-        url: typeof work.url === "string" ? work.url : null
-      },
-      why
-    });
+    out.push({ work: { ...work, source: raw.source, scoreLabel: typeof raw.scoreLabel === "string" ? raw.scoreLabel.slice(0, 40) : "" }, why });
     if (out.length >= limit) break;
   }
   return out;
 }
-function createPicks({ command, env = {}, cwd, hasSource, decorate, logger, now = Date.now, refreshMs = 6 * 36e5 }) {
-  const cached = /* @__PURE__ */ new Map();
-  async function ask(person) {
-    const argv = [...command, "recommend", "--json", "--limit", String(PICKS_LIMIT), ...person.id ? ["--person", person.id] : []];
-    const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env });
-    if (result.code !== 0) throw new Error(`exit ${result.code}: ${result.stderr.trim().split("\n").pop() ?? ""}`);
-    return parsePicks(JSON.parse(result.stdout), hasSource).map(decorate);
-  }
-  return {
-    enabled: command.length > 0,
-    /** @param {{ key: string, id: string }} person */
-    async list(person) {
-      if (command.length === 0) return [];
-      const entry = cached.get(person.key);
-      if (entry && now() - entry.at < refreshMs) return entry.picks;
-      const picks = await ask(person).catch((error) => {
-        logger.warn("the recommender gave no picks: %s", error.message);
-        return [];
-      });
-      cached.set(person.key, { at: now(), picks });
-      return picks;
-    }
-  };
+async function recommend({ command, env = {}, cwd, hasSource }, { person, source, kind, language, limit = PICKS_LIMIT }) {
+  const argv = [
+    ...command,
+    "recommend",
+    "--json",
+    "--limit",
+    String(limit),
+    ...person.id ? ["--person", person.id] : [],
+    ...source ? ["--source", source] : [],
+    ...kind ? ["--kind", kind] : [],
+    ...language ? ["--language", language] : []
+  ];
+  const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env });
+  if (result.code !== 0) throw new Error(`exit ${result.code}: ${result.stderr.trim().split("\n").pop() ?? ""}`);
+  return parsePicks(JSON.parse(result.stdout), hasSource, limit);
 }
 
 // src/shows.js
@@ -14763,10 +14774,132 @@ function createChanges({ intervalMs = 300 } = {}) {
   };
 }
 
-// src/work-refresh.js
+// src/copies.js
+import { mkdir as mkdir10, readFile as readFile11, rename as rename8, writeFile as writeFile7 } from "node:fs/promises";
+import { dirname as dirname6 } from "node:path";
 var DAY_MS3 = 864e5;
 var HOUR_MS = 36e5;
-function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS3, retryMs = HOUR_MS, parallel = 2, now = Date.now, logger }) {
+function createCopies({ file, changed, logger, maxAgeMs = DAY_MS3, retryMs = HOUR_MS, parallel = 2, now = Date.now }) {
+  const copies = /* @__PURE__ */ new Map();
+  const flying = /* @__PURE__ */ new Set();
+  const failedAt = /* @__PURE__ */ new Map();
+  const waiting = [];
+  let running = 0;
+  let saving = Promise.resolve();
+  const loaded = readFile11(file, "utf8").then((text3) => {
+    for (const [key, copy] of Object.entries(JSON.parse(text3))) copies.set(key, copy);
+  }).catch((error) => {
+    if (error.code !== "ENOENT") logger.warn("the saved copies of Discover could not be read: %s", error.message);
+  });
+  function save() {
+    saving = saving.then(async () => {
+      await mkdir10(dirname6(file), { recursive: true });
+      await writeFile7(`${file}.part`, JSON.stringify(Object.fromEntries(copies)));
+      await rename8(`${file}.part`, file);
+    }).catch((error) => logger.warn("the copies of Discover could not be saved: %s", error.message));
+    return saving;
+  }
+  function pump() {
+    while (running < parallel && waiting.length > 0) {
+      running += 1;
+      waiting.shift()().finally(() => {
+        running -= 1;
+        pump();
+      });
+    }
+  }
+  function ask(key, produce) {
+    flying.add(key);
+    waiting.push(async () => {
+      try {
+        copies.set(key, { at: now(), value: await produce() });
+        failedAt.delete(key);
+        await save();
+        changed();
+      } catch (error) {
+        failedAt.set(key, now());
+        logger.warn("no new copy of %s: %s", key, error.message);
+        changed();
+      } finally {
+        flying.delete(key);
+      }
+    });
+    pump();
+  }
+  return {
+    /**
+     * @param {string} key
+     * @param {() => Promise<unknown>} produce - the outside answer, asked only when the copy is missing or old
+     * @returns {Promise<{ at: number | null, value: unknown, loading: boolean }>} `loading`: no copy yet and one is on its way; `failed`: no copy and the last ask failed
+     */
+    async get(key, produce) {
+      await loaded;
+      const copy = copies.get(key);
+      const old = copy === void 0 || now() - copy.at >= maxAgeMs;
+      if (old && !flying.has(key) && now() - (failedAt.get(key) ?? -Infinity) >= retryMs) ask(key, produce);
+      return { at: copy?.at ?? null, value: copy?.value ?? null, loading: copy === void 0 && flying.has(key), failed: copy === void 0 && failedAt.has(key) };
+    }
+  };
+}
+
+// src/discover.js
+var DISCOVER_PICKS = 12;
+var notFound = (message) => Object.assign(new Error(message), { code: "not_found" });
+function createDiscover({ copies, sources, covers, recommender }) {
+  async function sourcesFor(sourceId, kind, ability) {
+    if (sourceId !== ALL_SOURCES) {
+      const one = sources.get(sourceId);
+      if (one === void 0) throw notFound(`no source ${String(sourceId)}`);
+      return [one];
+    }
+    const found = [];
+    for (const one of sources.values()) {
+      if (one.kinds.some((entry) => entry.id === kind && ability(entry)) && await one.available()) found.push(one);
+    }
+    return found;
+  }
+  const withCovers = (one, work) => ({ ...covers.decorate(one.id, work), source: one.id });
+  return {
+    /**
+     * @returns {Promise<{ trending: { source: string, at: number, lists: object[] }[], loading: boolean }>} `loading`: some source has no copy yet
+     */
+    async trending(sourceId, kind) {
+      const wanted = (await sourcesFor(sourceId, kind, (entry) => entry.trending === true)).filter((one) => typeof one.trending === "function" && one.kinds.some((entry) => entry.id === kind && entry.trending === true));
+      const copy = await Promise.all(wanted.map((one) => copies.get(`trending|${one.id}|${kind}`, () => one.trending(kind))));
+      return {
+        trending: wanted.flatMap((one, index) => copy[index].value === null ? [] : [{
+          source: one.id,
+          at: copy[index].at,
+          lists: copy[index].value.map((list) => ({ ...list, results: list.results.map((work) => withCovers(one, work)) }))
+        }]),
+        loading: copy.some((entry) => entry.loading)
+      };
+    },
+    /**
+     * A person's picks for a source and category (merged under All sources), or without either (the Watching tab).
+     * @returns {Promise<{ picks: object[], loading: boolean }>}
+     */
+    async picks(person, { source: sourceId = "", kind = "", language = "" } = {}) {
+      if (recommender.command.length === 0) return { picks: [], loading: false };
+      const narrowed = sourceId !== "";
+      const targets = narrowed ? await sourcesFor(sourceId, kind, () => true) : [null];
+      const copy = await Promise.all(targets.map((one) => copies.get(
+        `picks|${person.key}|${one?.id ?? "*"}|${narrowed ? kind : "*"}|${language}`,
+        () => recommend(recommender, { person, source: one?.id, kind: narrowed ? kind : void 0, language, limit: narrowed ? DISCOVER_PICKS : PICKS_LIMIT })
+      )));
+      const lists = copy.map((entry, index) => (entry.value ?? []).filter((pick5) => targets[index] === null || pick5.work.source === targets[index].id && (kind === "" || pick5.work.kind === kind)));
+      return {
+        picks: interleave(lists).map((pick5) => ({ ...pick5, work: withCovers(sources.get(pick5.work.source), pick5.work) })).slice(0, narrowed ? DISCOVER_PICKS : PICKS_LIMIT),
+        loading: copy.some((entry) => entry.loading)
+      };
+    }
+  };
+}
+
+// src/work-refresh.js
+var DAY_MS4 = 864e5;
+var HOUR_MS2 = 36e5;
+function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS4, retryMs = HOUR_MS2, parallel = 2, now = Date.now, logger }) {
   const flying = /* @__PURE__ */ new Set();
   const failedAt = /* @__PURE__ */ new Map();
   const waiting = [];
@@ -14804,7 +14937,7 @@ ${entry.source.id}`;
 }
 
 // src/media.js
-var HOUR_MS2 = 36e5;
+var HOUR_MS3 = 36e5;
 var MIN_FREE_BYTES = 1e9;
 var NO_CONVERTER = Object.freeze({ command: "", available: async () => false });
 var hubError = (code, message) => Object.assign(new Error(message), { code });
@@ -14869,21 +15002,19 @@ function createMediaHub(options) {
     cache.refresh(show).catch(() => {
     });
   });
-  const picks = createPicks({
-    command: options.recommender?.command ?? [],
-    env: options.recommender?.env ?? {},
-    cwd: stateDir,
-    hasSource: (id) => sources.has(id),
-    decorate: (pick5) => ({ ...pick5, work: covers.decorate(pick5.work.source, pick5.work) }),
-    logger,
-    now
+  const copies = createCopies({ file: join16(stateDir, "discover.json"), changed: () => changes.notify("discover"), maxAgeMs: options.discoverMaxAgeMs, logger, now });
+  const discover = createDiscover({
+    copies,
+    sources,
+    covers,
+    recommender: { command: options.recommender?.command ?? [], env: options.recommender?.env ?? {}, cwd: stateDir, hasSource: (id) => sources.has(id) }
   });
   const sweepTimer = setInterval(() => {
     library.sweep().catch(() => {
     });
     cache.enforce().catch(() => {
     });
-  }, HOUR_MS2);
+  }, HOUR_MS3);
   async function onFiles(job) {
     changes.notify("library");
     await rooms.syncShow(job.dir);
@@ -15024,7 +15155,8 @@ ${work.id}`).digest("hex").slice(0, 8);
       changes.notify("library");
       return { ok: true };
     },
-    picks: (person) => picks.list(person),
+    trending: (sourceId, kind) => discover.trending(sourceId, kind),
+    picks: (person, narrow) => discover.picks(person, narrow),
     /** Keep a recap or suggested steps with a show (the tool's annotate). */
     annotate(path, input) {
       const show = library.annotate(path, parseAnnotation(input));
@@ -15250,7 +15382,7 @@ function createPersonRoutes({ hub, identity }) {
       path: `${PERSON_PATH}/picks`,
       methods: ["GET"],
       requestBody: "buffered",
-      fetch: handle(async (request, current, person) => ({ picks: await current.picks(person) }))
+      fetch: handle((request, current, person) => current.picks(person, { source: param(request, "source"), kind: param(request, "kind"), language: param(request, "language") }))
     },
     {
       path: `${PERSON_PATH}/steps`,
@@ -15371,7 +15503,7 @@ function createShelfRoutes({ books, identity }) {
 var name = "dsh-media-hub";
 var inject = ["webServer", "connection"];
 var ROOM_ID = /^[A-Za-z0-9_-]{6,32}$/;
-var DAY_MS4 = 864e5;
+var DAY_MS5 = 864e5;
 function apply(ctx, config) {
   const logger = ctx.logger("media-hub");
   let current;
@@ -15407,7 +15539,7 @@ function apply(ctx, config) {
     const prune = setInterval(() => {
       service.pruneCache(config.cacheDays).catch(() => {
       });
-    }, DAY_MS4);
+    }, DAY_MS5);
     const identity = () => ctx.get("requestIdentity");
     const fetchRoutes = [
       ...createShelfRoutes({ books: () => current?.books, identity }),

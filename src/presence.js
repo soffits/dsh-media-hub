@@ -3,12 +3,13 @@
  * switched in the `presence` setting:
  *
  *   ratings  "How was it?" for a show finished or removed lately, one tap into the watch log
- *   picks    works a recommender extension suggests, each with its reason (docs/recommender-protocol.md)
+ *   picks    works a recommender extension suggests, each with its reason (docs/recommender-protocol.md); Discover shows them per source and category too
  *   recap    a summary without spoilers kept with a show, written from outside (the tool's `annotate`)
  *
  * and the suggested next steps kept with a show (also written through `annotate`), drawn by
- * @soffits/dsh-ui-actions. The parsing and choosing here is pure; createPicks runs the extension.
+ * @soffits/dsh-ui-actions. The parsing and choosing here is pure; `recommend` runs the extension.
  */
+import { resultOf } from './sources/command.js'
 import { run } from './sources/process.js'
 
 /** The answers to "How was it?", in the order the page offers them. */
@@ -108,8 +109,8 @@ export const safeRecap = (recap, through) => (recap && recap.upTo <= through ? r
 
 /**
  * The picks a recommender answered, checked: only works of a configured source (so they can be watched and
- * followed), each with its reason.
- * @param {object} document - `{ picks: [{ work: { source, id, title, kind?, year?, score?, scoreLabel?, cover?, url? }, why }] }`
+ * followed), each with its reason. A work carries what a search result does (`resultOf`), plus `source` and `scoreLabel`.
+ * @param {object} document - `{ picks: [{ work: { source, id, title, kind?, year?, score?, scoreLabel?, cover?, url?, … }, why }] }`
  * @param {(id: string) => boolean} hasSource
  */
 export function parsePicks(document, hasSource, limit = PICKS_LIMIT) {
@@ -117,57 +118,29 @@ export function parsePicks(document, hasSource, limit = PICKS_LIMIT) {
   const out = []
   const seen = new Set()
   for (const pick of document.picks) {
-    const work = pick?.work
+    const raw = pick?.work
     const why = typeof pick?.why === 'string' ? pick.why.trim().slice(0, MAX_WHY_CHARS) : ''
-    if (typeof work?.source !== 'string' || !hasSource(work.source) || typeof work.id !== 'string' || work.id === '' || typeof work.title !== 'string' || why === '') continue
-    const key = `${work.source}\0${work.id}`
+    if (typeof raw?.source !== 'string' || !hasSource(raw.source) || why === '') continue
+    const work = resultOf(raw, null)
+    if (work === null || work.title === '') continue
+    const key = `${raw.source}\0${work.id}`
     if (seen.has(key)) continue
     seen.add(key)
-    out.push({
-      work: {
-        source: work.source,
-        id: work.id,
-        title: work.title.slice(0, 200),
-        kind: typeof work.kind === 'string' ? work.kind : null,
-        year: Number.isInteger(work.year) ? work.year : null,
-        score: Number.isFinite(work.score) ? work.score : null,
-        scoreLabel: typeof work.scoreLabel === 'string' ? work.scoreLabel.slice(0, 40) : '',
-        cover: typeof work.cover === 'string' ? work.cover : null,
-        url: typeof work.url === 'string' ? work.url : null,
-      },
-      why,
-    })
+    out.push({ work: { ...work, source: raw.source, scoreLabel: typeof raw.scoreLabel === 'string' ? raw.scoreLabel.slice(0, 40) : '' }, why })
     if (out.length >= limit) break
   }
   return out
 }
 
 /**
- * Picks from the configured recommender command, asked at most once per `refreshMs` per person; a failure
- * is logged and shows no picks until the next try.
- * @param {{ command: string[], env?: object, cwd?: string, hasSource: (id: string) => boolean, decorate: (pick: object) => object, logger: object, now?: () => number, refreshMs?: number }} options
+ * Ask the configured recommender command for one person's picks, narrowed to a source and kind and written in a language when given.
+ * @param {{ command: string[], env?: object, cwd?: string, hasSource: (id: string) => boolean }} options
+ * @param {{ person: { id?: string }, source?: string, kind?: string, language?: string, limit?: number }} request
  */
-export function createPicks({ command, env = {}, cwd, hasSource, decorate, logger, now = Date.now, refreshMs = 6 * 3_600_000 }) {
-  const cached = new Map()
-  async function ask(person) {
-    const argv = [...command, 'recommend', '--json', '--limit', String(PICKS_LIMIT), ...(person.id ? ['--person', person.id] : [])]
-    const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env })
-    if (result.code !== 0) throw new Error(`exit ${result.code}: ${result.stderr.trim().split('\n').pop() ?? ''}`)
-    return parsePicks(JSON.parse(result.stdout), hasSource).map(decorate)
-  }
-  return {
-    enabled: command.length > 0,
-    /** @param {{ key: string, id: string }} person */
-    async list(person) {
-      if (command.length === 0) return []
-      const entry = cached.get(person.key)
-      if (entry && now() - entry.at < refreshMs) return entry.picks
-      const picks = await ask(person).catch((error) => {
-        logger.warn('the recommender gave no picks: %s', error.message)
-        return []
-      })
-      cached.set(person.key, { at: now(), picks })
-      return picks
-    },
-  }
+export async function recommend({ command, env = {}, cwd, hasSource }, { person, source, kind, language, limit = PICKS_LIMIT }) {
+  const argv = [...command, 'recommend', '--json', '--limit', String(limit),
+    ...(person.id ? ['--person', person.id] : []), ...(source ? ['--source', source] : []), ...(kind ? ['--kind', kind] : []), ...(language ? ['--language', language] : [])]
+  const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env })
+  if (result.code !== 0) throw new Error(`exit ${result.code}: ${result.stderr.trim().split('\n').pop() ?? ''}`)
+  return parsePicks(JSON.parse(result.stdout), hasSource, limit)
 }

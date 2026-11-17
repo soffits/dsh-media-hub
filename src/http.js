@@ -19,6 +19,7 @@
  *   GET    /media-hub/api/settings             { label, presence }: the sidebar entry's configured name, which parts of Watching show
  *   GET    /media-hub/api/locales              { <tag>: { <key>: text } }: the page's words, one table per locale/<tag>.json
  *   GET    /media-hub/api/sources              searchable sources, their kinds (with media) and filters
+ *   GET    /media-hub/api/trending?source=&kind=   { trending: [{ source, at, lists }], loading }: what the sources put forward, from the saved copy (asked again in the background when old); source `all` merges every source with the kind
  *   GET    /media-hub/api/search?source=&q=&kind=[&offset=][&language=&format=&yearFrom=&yearTo=&maxMb=]   { results, next, failed? }; source `all` asks every source with the kind
  *   WS     /media-hub/ws?room=<id>             the room's sync channel (src/hub.js)
  *
@@ -268,6 +269,7 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         if (route === 'GET settings') return sendJson(res, 200, settings())
         if (route === 'GET locales') return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)))
         if (route === 'GET sources') return sendJson(res, 200, { sources: await hub.sources() })
+        if (route === 'GET trending') return sendJson(res, 200, await hub.trending(query('source'), query('kind')))
         if (route === 'GET search') return sendJson(res, 200, await hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query)))
       }
       return sendText(res, 404, 'Not found.')

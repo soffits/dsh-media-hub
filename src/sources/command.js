@@ -24,6 +24,7 @@ import { BASE, pick } from '../i18n.js'
 import { commandExists, lastLine, parseLine, run } from './process.js'
 
 const SEARCH_LIMIT = 12
+const TRENDING_LIMIT = 20
 const QUERY_TIMEOUT_MS = 60_000
 const COVER_TIMEOUT_MS = 30_000
 const ID = /^[^\s\0]{1,200}$/
@@ -98,7 +99,7 @@ function factsOf(raw) {
 }
 
 /** One search hit as the panel shows it, or null when it is not a usable work. */
-function resultOf(raw, kindIds) {
+export function resultOf(raw, kindIds) {
   if (raw === null || typeof raw !== 'object') return null
   const id = text(raw.id)
   const kind = text(raw.kind)
@@ -111,6 +112,36 @@ export function parseSearch(document, kinds) {
   if (!Array.isArray(document?.results)) throw sourceError('source_failed', 'the search answer has no results list')
   const kindIds = new Set(kinds.map(kind => kind.id))
   return document.results.map(raw => resultOf(raw, kindIds)).filter(result => result !== null)
+}
+
+const MAX_LISTS = 6
+
+/** A label the source gives: a string, or { <language tag>: text }; null when there is none. */
+function labelOf(value) {
+  if (typeof value === 'string' && value.trim() !== '') return value.trim()
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    const entries = Object.entries(value).filter(([tag, words]) => typeof tag === 'string' && typeof words === 'string' && words.trim() !== '')
+    if (entries.length > 0) return Object.fromEntries(entries.map(([tag, words]) => [tag, words.trim()]))
+  }
+  return null
+}
+
+/**
+ * The `trending` document into lists `{ id, label, results }` of one kind: `lists`, or a single list as `results`
+ * (label null: the page says "Trending"). A list without usable works is left out.
+ */
+export function parseTrending(document, kinds, kind) {
+  const kindIds = new Set(kinds.map(entry => entry.id))
+  const raw = Array.isArray(document?.lists) ? document.lists : (Array.isArray(document?.results) ? [{ id: 'trending', results: document.results }] : null)
+  if (raw === null) throw sourceError('source_failed', 'the trending answer has no lists')
+  const seen = new Set()
+  return raw.slice(0, MAX_LISTS).flatMap((list, index) => {
+    const results = Array.isArray(list?.results) ? list.results.map(item => resultOf(item, kindIds)).filter(result => result !== null && result.kind === kind) : []
+    const id = text(list?.id) || `list-${index + 1}`
+    if (results.length === 0 || seen.has(id)) return []
+    seen.add(id)
+    return [{ id, label: labelOf(list?.label), results }]
+  })
 }
 
 /** Where the next page of results starts, when the source says: a whole number past this page's start. */
@@ -217,6 +248,12 @@ export function createCommandSource(definition, { logger, cwd }) {
       const document = await query(['search', '--kind', kind, '--limit', String(limit), ...paging, ...filterArgs(filters, understood), '--json', '--', q])
       // A search is for one kind; a hit of another kind belongs to that kind's own search.
       return { results: parseSearch(document, kinds).filter(result => result.kind === kind), next: nextOffset(document, offset) }
+    },
+
+    /** What the site itself puts forward for a kind that declares `trending`: lists of works, in the site's order. */
+    async trending(kind, { limit = TRENDING_LIMIT } = {}) {
+      if (!kinds.some(entry => entry.id === kind && entry.trending === true)) throw sourceError('invalid', `${name()} has no trending list for ${kind}`)
+      return parseTrending(await query(['trending', '--kind', kind, '--limit', String(limit), '--json']), kinds, kind)
     },
 
     async info(id) {

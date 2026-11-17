@@ -20,10 +20,12 @@ import { ALL_SOURCES, EPISODE_BYTES, describeSources } from './sources/index.js'
 import { isQuality } from './sources/link.js'
 import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
-import { createPicks, parseAnnotation, pendingRatings, ratingLine } from './presence.js'
+import { parseAnnotation, pendingRatings, ratingLine } from './presence.js'
 import { createPoints } from './points.js'
 import { snapshotOf } from './work.js'
 import { createChanges } from './changes.js'
+import { createCopies } from './copies.js'
+import { createDiscover } from './discover.js'
 import { createWorkRefresh } from './work-refresh.js'
 
 const HOUR_MS = 3_600_000
@@ -43,6 +45,7 @@ const hubError = (code, message) => Object.assign(new Error(message), { code })
  * @param {{ pauseMs?: number, random?: () => number }} [options.follow] - pacing of the checks of followed works (tests)
  * @param {number} [options.changeIntervalMs] - the most often open pages are told of changes
  * @param {number} [options.workMaxAgeMs] - how old the saved copy of a source's work may get before it is asked for again in the background
+ * @param {number} [options.discoverMaxAgeMs] - the same for what Discover shows: a source's trending lists and the recommender's picks
  * @param {number} options.coverCacheBytes - the most disk cover pictures may use
  * @param {{ command: string[], env?: object }} [options.recommender] - where picks come from (src/presence.js)
  * @param {{ command: string[], env?: object, night: { from: string, to: string } }} [options.points] - the points extension that prices extras (src/points.js)
@@ -102,14 +105,12 @@ export function createMediaHub(options) {
     rooms.refreshShow(show)
     cache.refresh(show).catch(() => {})
   })
-  const picks = createPicks({
-    command: options.recommender?.command ?? [],
-    env: options.recommender?.env ?? {},
-    cwd: stateDir,
-    hasSource: id => sources.has(id),
-    decorate: pick => ({ ...pick, work: covers.decorate(pick.work.source, pick.work) }),
-    logger,
-    now,
+  const copies = createCopies({ file: join(stateDir, 'discover.json'), changed: () => changes.notify('discover'), maxAgeMs: options.discoverMaxAgeMs, logger, now })
+  const discover = createDiscover({
+    copies,
+    sources,
+    covers,
+    recommender: { command: options.recommender?.command ?? [], env: options.recommender?.env ?? {}, cwd: stateDir, hasSource: id => sources.has(id) },
   })
   const sweepTimer = setInterval(() => {
     library.sweep().catch(() => {})
@@ -281,7 +282,8 @@ export function createMediaHub(options) {
       changes.notify('library')
       return { ok: true }
     },
-    picks: person => picks.list(person),
+    trending: (sourceId, kind) => discover.trending(sourceId, kind),
+    picks: (person, narrow) => discover.picks(person, narrow),
     /** Keep a recap or suggested steps with a show (the tool's annotate). */
     annotate(path, input) {
       const show = library.annotate(path, parseAnnotation(input))

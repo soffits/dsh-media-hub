@@ -24,7 +24,7 @@ export function init(react, { primitives, kit }) {
   h = react.createElement
   P = primitives
   K = kit
-  Changes = react.createContext({ shelf: 0 })
+  Changes = react.createContext({ shelf: 0, discover: 0 })
   Known = react.createContext({ library: null, rooms: undefined, reload: () => {} })
 }
 

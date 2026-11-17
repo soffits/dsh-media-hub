@@ -35,6 +35,8 @@ const SourceConfig = z.object({
     label: Label.default('').description('Name of the category chip: a string, or { <tag>: text } per language. Empty uses the page\'s own words for this kind id (kind.<id> in locale/), else the id.'),
     media: z.union(MEDIA.map(media => z.const(media))).default('video')
       .description('What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format).'),
+    trending: z.boolean().default(false)
+      .description('Whether the command\'s trending verb answers for this kind (docs/source-protocol.md): its rank lists and new arrivals, shown on Discover before a search.'),
   })).description('What the source can search for; at least one.'),
   filters: z.array(z.union(FILTERS.map(filter => z.const(filter)))).default([])
     .description('Search filters the command understands (docs/source-protocol.md). The hub filters the answers by language, format, year and size itself as well.'),
@@ -81,14 +83,14 @@ const CookieRule = z.object({
 const DEFAULT_SOURCES = Object.freeze([
   {
     id: 'fanqie',
-    kinds: [{ id: 'drama', media: 'video' }, { id: 'audio', media: 'audio' }, { id: 'novel', media: 'book' }],
+    kinds: [{ id: 'drama', media: 'video', trending: true }, { id: 'audio', media: 'audio', trending: true }, { id: 'novel', media: 'book', trending: true }],
     filters: [],
     command: ['fanqie'],
     env: {},
   },
   {
     id: 'bookfetch',
-    kinds: [{ id: 'ebook', media: 'book' }, { id: 'paper', media: 'book' }],
+    kinds: [{ id: 'ebook', media: 'book', trending: true }, { id: 'paper', media: 'book' }],
     filters: ['language', 'format', 'year'],
     command: ['bookfetch', 'source'],
     env: {},
