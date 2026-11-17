@@ -14,6 +14,7 @@
  */
 import { DRIFT, clockOffset, correction, expectedPosition, preloadDue } from './sync.js'
 import { canStart, offerTap, shouldPrime } from './readiness.js'
+import { playsHlsNatively } from './hls-engine.js'
 import { defaultCaption, parseCaption } from './captions.js'
 
 /** Reconcile the player with the room this often. */
@@ -50,7 +51,7 @@ const PRIME_LIMIT_MS = 5000
  */
 const swapKeepsPlayPermission = () => !('webkitSupportsPresentationMode' in HTMLVideoElement.prototype)
 
-/** An HTML <video> as a media hub player, with hls.js where the browser has no native HLS. */
+/** An HTML <video> as a media hub player, with hls.js where the browser's own HLS is not the one to use (web/hls-engine.js). */
 function createVideoPlayer(stage, events, { base, language, trackLabel }) {
   let video = null
   let hls = null
@@ -215,7 +216,7 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
     preload(item) {
       const url = absolute(item)
       if (next?.url === url || url === src || !swapKeepsPlayPermission()) return
-      if (item.kind === 'hls' && video.canPlayType('application/vnd.apple.mpegurl') === '') return
+      if (item.kind === 'hls' && !playsHlsNatively(video)) return
       dropNext()
       const el = makeVideo()
       el.className = 'vsync-preload'
@@ -238,7 +239,7 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
       if (usable) return swapIn(startAt)
       dropNext()
       addTracks(video, item)
-      if (item.kind === 'hls' && video.canPlayType('application/vnd.apple.mpegurl') === '') {
+      if (item.kind === 'hls' && !playsHlsNatively(video)) {
         attachHls(url, startAt).catch(error => events.onError?.(error.message))
       } else {
         video.src = url

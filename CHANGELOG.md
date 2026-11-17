@@ -1,10 +1,16 @@
 # Changelog
 
+## 0.10.1
+
+- Replaying an episode that has to be transcoded now plays in Chrome, Brave and Edge. Their own HLS player can't take an episode that's still being made and stopped with "could not parse"; the page now uses hls.js there. Safari and iPhone keep their own player.
+
 ## 0.10.0
 
 - Discover shows something before you search. Under the picked source and category it lists what the source itself puts forward (a source's rank lists and new arrivals, from the new optional `trending` verb of [docs/source-protocol.md](docs/source-protocol.md), asked for the kinds configured with `"trending": true`) and, when a `recommender` is set, *For you*: picks with the reason for each, narrowed to the source and category (the recommender now also gets `--source`, `--kind` and `--language`). Under *All sources* the picks are interleaved and each source's lists stay under its name. Link has neither.
 - Both are dated local copies, rendered at once and asked again in the background when someone looks and the copy is about a day old (a failing source is left alone for an hour, the old copy stays), so the page never waits on a site. The Watching tab's picks use the same copies instead of waiting for the recommender.
 - The default sources declare trending for Fanqie's dramas, audiobooks and novels and for bookfetch's ebooks. A source whose command lacks the verb just shows no lists.
+
+
 ## 0.9.0
 
 - Points extras (`points` setting, [docs/points-protocol.md](docs/points-protocol.md)): with a points extension, the people it plays with pay points for starting a series that is new to the hub and for a binge night (starting to watch late at night, one ticket for the whole night). The page shows the price and their balance at that moment and buys on *Buy*; going on with a series, later seasons, films, single videos and rooms already playing stay free. Without an extension, or for anyone it doesn't play with, nothing changes.
