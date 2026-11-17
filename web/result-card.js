@@ -13,10 +13,21 @@ import { Confirm, EPISODE_BYTES, Icon, Spinner, bytes, chatAbout, displayName, f
 /** Episodes fetched ahead of the one being watched; the Host's `cacheAhead` default, for the size hint. */
 const WINDOW_EPISODES = 6
 
+/** The words for a quality a source offers: auto, audio, or a height. */
+const qualityLabel = (t, quality) => (/^\d+$/.test(quality) ? fill(t('quality.height'), { n: quality }) : t(`quality.${quality}`))
+
+/** How the episodes are fetched, for a source that offers a choice (Link); its first choice (auto) is the default. */
+function QualityPicker({ t, qualities, value, onChange }) {
+  return h('select', { className: 'vsync-field vsync-quality', value, 'aria-label': t('quality.label'), title: t('quality.label'), onChange: event => onChange(event.target.value) },
+    qualities.map(quality => h('option', { key: quality, value: quality }, qualityLabel(t, quality))))
+}
+
 export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpen = false }) {
   const [info, setInfo] = React.useState(null)
   const [open, setOpen] = React.useState(defaultOpen)
   const [state, setState] = React.useState({ step: 'idle' })
+  const qualities = result.qualities ?? []
+  const [quality, setQuality] = React.useState(qualities[0] ?? '')
   const submitting = React.useRef(false)
   const known = useKnownWork(source.id, result.id)
   // The episode count normally comes with the result; ask for the details only when it did not.
@@ -37,7 +48,7 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
     submitting.current = true
     setState({ step: watch ? 'opening' : 'saving' })
     const by = await displayName(t('guest'))
-    const answer = await post('fetch', { source: source.id, id: result.id, watch, all, by })
+    const answer = await post('fetch', { source: source.id, id: result.id, watch, all, quality, by })
     submitting.current = false
     if (answer.error) return setState({ step: 'error', message: answer.error })
     if (watch && answer.room) return onOpen(answer.room.id)
@@ -74,6 +85,7 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
         : h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => fetchIt({ watch: true }) }, resume ? fill(t('search.continueEp'), { n: resume.index + 1 }) : t('search.open')))
   } else {
     actions = h(React.Fragment, null,
+      qualities.length > 1 && h(QualityPicker, { t, qualities, value: quality, onChange: setQuality }),
       h(FollowButton, { t, source: source.id, work: result }),
       h('button', { type: 'button', className: 'vsync-btn', disabled: episodes === null, title: t('search.saveAllHint'), onClick: () => setState({ step: 'confirm' }) }, t('search.saveAll')),
       h('button', { type: 'button', className: 'vsync-btn', title: fill(t('search.saveHint'), { n: WINDOW_EPISODES }), onClick: () => fetchIt({ watch: false }) }, t('search.save')),

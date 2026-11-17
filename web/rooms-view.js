@@ -3,7 +3,8 @@
  * link or closing it from the list.
  */
 import { AvatarStack } from './avatars.js'
-import { Confirm, Icon, api, base, copyText, fill, h, React, roomLink, time } from './ui.js'
+import { Picture } from './details.js'
+import { Confirm, Icon, api, copyText, fill, h, React, roomLink, time } from './ui.js'
 
 function meta(t, room) {
   const parts = []
@@ -27,12 +28,9 @@ function RoomRow({ t, room, onOpen, onChanged }) {
       setTimeout(() => setCopied(false), 2000)
     }
   }
-  const picture = room.frame ? new URL(`thumbs/${room.frame}`, base()).href : room.cover ? new URL(room.cover, base()).href : null
   const share = room.duration > 0 ? Math.min(1, Math.max(0, room.position / room.duration)) : null
   return h('li', { className: 'vsync-row vsync-roomRow' },
-    picture
-      ? h('img', { className: 'vsync-preview', src: picture, alt: '', loading: 'lazy' })
-      : h('span', { className: 'vsync-glyph' }, room.source === 'youtube' ? h(Icon.Screen) : h(Icon.Film)),
+    h(Picture, { pictures: [room.frame, room.cover], className: 'vsync-preview', emptyClassName: 'vsync-glyph', icon: h(Icon.Film) }),
     h('span', { className: 'vsync-rowText' },
       h('span', { className: 'vsync-rowTitle' }, room.title),
       h('span', { className: 'vsync-rowMeta' },

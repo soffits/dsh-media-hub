@@ -7,7 +7,7 @@
  */
 import { metaLabel, popularityText } from './format.js'
 import { useKnownWork } from './known.js'
-import { Icon, Spinner, api, base, fill, h, plural, query, React } from './ui.js'
+import { Icon, Spinner, api, base, clock, fill, h, plural, query, React } from './ui.js'
 
 const INFO_CONCURRENCY = 3
 
@@ -34,11 +34,26 @@ function createInfoQueue() {
 }
 export const infoOf = createInfoQueue()
 
-/** The cover picture, or a quiet placeholder when there is none or it fails to load. */
+/**
+ * A picture from the host (`covers/<key>` routes), trying each in order: one
+ * that fails to load (it could not be made) gives way to the next, and a
+ * placeholder icon shows only when none loads.
+ */
+export function Picture({ pictures, className, emptyClassName, icon }) {
+  const candidates = pictures.filter(Boolean)
+  const [failed, setFailed] = React.useState(0)
+  const key = candidates.join('|')
+  React.useEffect(() => setFailed(0), [key])
+  const src = candidates[failed]
+  if (src !== undefined) return h('img', { key: src, className, src: new URL(src, base()).href, alt: '', loading: 'lazy', onError: () => setFailed(failed + 1) })
+  return h('span', { className: emptyClassName }, icon)
+}
+
+/** A work's cover, or a quiet placeholder. */
 export function Cover({ result, small = false }) {
-  const [failed, setFailed] = React.useState(false)
-  if (result.cover && !failed) return h('img', { className: `vsync-cover${small ? ' vsync-coverSmall' : ''}`, src: new URL(result.cover, base()).href, alt: '', loading: 'lazy', onError: () => setFailed(true) })
-  return h('span', { className: `vsync-cover vsync-coverEmpty${small ? ' vsync-coverSmall' : ''}` }, result.media === 'book' ? h(Icon.Book, { size: 22 }) : result.kind === 'audio' ? h(Icon.Audio, { size: 22 }) : h(Icon.Film, { size: 22 }))
+  const size = small ? ' vsync-coverSmall' : ''
+  const icon = result.media === 'book' ? Icon.Book : result.kind === 'audio' ? Icon.Audio : Icon.Film
+  return h(Picture, { pictures: [result.cover], className: `vsync-cover${size}`, emptyClassName: `vsync-cover vsync-coverEmpty${size}`, icon: h(icon, { size: 22 }) })
 }
 
 /** What to show about a work at a glance: the fields in a row, skipping what is missing. */
@@ -47,6 +62,7 @@ export function glance(t, result) {
   return [
     popularityText(t, result.popularity),
     result.episodes > 0 && plural(t, result.kind === 'audio' ? 'search.chapters' : 'search.episodes', result.episodes),
+    result.duration > 0 && clock(result.duration),
     status && t(status),
     result.author,
   ].filter(Boolean)

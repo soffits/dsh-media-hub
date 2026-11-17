@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { createCommandSource, parseInfo, parseSearch } from '../src/sources/command.js'
 import { commandExists } from '../src/sources/process.js'
+import { createProxies } from '../src/proxy.js'
 import { createSources, describeSources } from '../src/sources/index.js'
 import { quietLogger, tempDir } from './helpers.js'
 
@@ -162,14 +163,15 @@ test('ids and kinds are checked before the command runs', async (t) => {
   await assert.rejects(source.download({ id: '', dir: tempDir(t) }), { code: 'invalid' })
 })
 
-test('sources are listed in order; ids may not repeat or take a room kind\'s name; one without its command is hidden', async (t) => {
+test('sources are listed in order, then Link; ids may not repeat or take an id of the hub\'s own; one without its program is hidden', async (t) => {
   const definition = id => ({ id, label: id, kinds: KINDS, command: [FAKE], env: {} })
-  const sources = createSources([definition('one'), definition('two')], { stateDir: tempDir(t), logger: quietLogger })
-  assert.deepEqual(sources.map(s => s.id), ['one', 'two'])
-  assert.throws(() => createSources([definition('one'), definition('one')], { stateDir: tempDir(t), logger: quietLogger }), /twice/)
-  assert.throws(() => createSources([{ ...definition('empty'), kinds: [] }], { stateDir: tempDir(t), logger: quietLogger }), /no kinds/)
-  assert.throws(() => createSources([definition('youtube')], { stateDir: tempDir(t), logger: quietLogger }), /reserved/)
-  const missing = createSources([definition('one'), { ...definition('gone'), command: ['surely-not-a-command-here'] }], { stateDir: tempDir(t), logger: quietLogger })
+  const link = { ytDlp: 'surely-not-yt-dlp-here', proxies: createProxies([]), maxHeight: 1080 }
+  const sources = createSources([definition('one'), definition('two')], { stateDir: tempDir(t), logger: quietLogger, link })
+  assert.deepEqual(sources.map(s => s.id), ['one', 'two', 'link'], 'Link comes last')
+  assert.throws(() => createSources([definition('one'), definition('one')], { stateDir: tempDir(t), logger: quietLogger, link }), /twice/)
+  assert.throws(() => createSources([{ ...definition('empty'), kinds: [] }], { stateDir: tempDir(t), logger: quietLogger, link }), /no kinds/)
+  assert.throws(() => createSources([definition('link')], { stateDir: tempDir(t), logger: quietLogger, link }), /reserved/)
+  const missing = createSources([definition('one'), { ...definition('gone'), command: ['surely-not-a-command-here'] }], { stateDir: tempDir(t), logger: quietLogger, link })
   assert.deepEqual((await describeSources(missing)).map(s => s.id), ['one'])
   assert.equal(await commandExists('surely-not-a-command-here'), false)
   assert.equal(await commandExists('node'), true)

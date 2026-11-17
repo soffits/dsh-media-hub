@@ -57,8 +57,7 @@
     "search.continueEp": "继续看 第{n}集",
     "search.continue": "继续看",
     "search.open": "打开",
-    "source.link": "链接",
-    "link.invalid": "这不是 YouTube 视频或播放列表链接。",
+    "link.invalid": "请粘贴视频或播放列表页面的链接。",
     "watching.continue": "继续看",
     "watching.emptyTitle": "现在没有人在看。",
     "watching.emptyHint": "从片库接着看，或者去发现新的。",
@@ -139,11 +138,8 @@
     "rooms.openedBy": "{name} 开的",
     "rooms.closeQuestion": "关闭这个房间？",
     "rooms.closeQuestionBusy": "{names} 还在里面，关闭？",
-    "start.youtubePlaceholder": "粘贴 YouTube 视频或播放列表链接",
-    "start.go": "开始",
     "start.library": "片库",
     "start.libraryEmpty": "片库还是空的。可以去「发现」找一部存进来，或者让智能体准备。",
-    "start.failed": "没能开房间：{message}",
     "library.episodes.one": "{n} 集",
     "library.episodes.other": "{n} 集",
     "library.cachedOf": "已缓存 {n}/{total} 集",
@@ -225,6 +221,14 @@
     "guest": "访客",
     "agent": "智能体",
     "source.name.fanqie": "番茄",
-    "source.name.bookfetch": "图书"
+    "source.name.bookfetch": "图书",
+    "link.placeholder": "粘贴视频或播放列表链接",
+    "link.go": "打开",
+    "source.name.link": "链接",
+    "meta.site": "网站",
+    "quality.label": "画质",
+    "quality.auto": "自动",
+    "quality.audio": "仅音频",
+    "quality.height": "{n}p"
   }
 }

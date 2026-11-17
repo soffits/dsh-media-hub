@@ -3,15 +3,19 @@
  * watch state; starting or continuing a room; renaming, keeping and
  * deleting a show or one episode. Deleting asks first, in place.
  */
-import { WorkDetails } from './details.js'
-import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, api, base, bytes, clock, day, displayName, fill, h, plural, post, query, React, watchMark } from './ui.js'
+import { Picture, WorkDetails } from './details.js'
+import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, api, bytes, clock, day, displayName, fill, h, plural, post, query, React, watchMark } from './ui.js'
 
 const titleOf = name => name.replace(/\.[^.]+$/, '')
 
+/** A show's poster: its work's cover, else a frame of its first episode. */
 export function Poster({ show }) {
-  if (show.work?.cover) return h('img', { className: 'vsync-poster vsync-posterCover', src: new URL(show.work.cover, base()).href, alt: '', loading: 'lazy' })
-  if (show.thumb) return h('img', { className: 'vsync-poster', src: new URL(`thumbs/${show.thumb}`, base()).href, alt: '', loading: 'lazy' })
-  return h('span', { className: 'vsync-poster vsync-posterEmpty' }, show.media === 'audio' ? h(Icon.Audio, { size: 18 }) : h(Icon.Film, { size: 18 }))
+  return h(Picture, {
+    pictures: [show.work?.cover, show.frame],
+    className: `vsync-poster${show.work?.cover ? ' vsync-posterCover' : ''}`,
+    emptyClassName: 'vsync-poster vsync-posterEmpty',
+    icon: show.media === 'audio' ? h(Icon.Audio, { size: 18 }) : h(Icon.Film, { size: 18 }),
+  })
 }
 
 /** Library actions say who did them, for the watch log. */

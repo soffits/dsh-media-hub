@@ -7,7 +7,7 @@ import { createDelivery } from '../src/delivery.js'
 import { createRoomService } from '../src/hub.js'
 import { hasFfmpeg, makeVideo, quietLogger, socketServer, tempDir, viewer } from './helpers.js'
 
-const tools = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', ytDlp: 'yt-dlp', maxHeight: 1080, threads: 1 }
+const tools = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', maxHeight: 1080, threads: 1 }
 
 function makeService(dir, overrides = {}) {
   return createRoomService({
@@ -18,20 +18,28 @@ function makeService(dir, overrides = {}) {
     webUrl: () => 'https://dsh.example.com/',
     lifetime: { emptyMinutes: 30, unopenedHours: 24 },
     logger: quietLogger,
-    fetchTitle: async id => `Title of ${id}`,
     ...overrides,
   })
 }
 
+/** A show of `episodes` short videos in the library, ready to play as they are. */
+function show(dir, name = 'Show', episodes = 1) {
+  const path = join(dir, 'library', name)
+  mkdirSync(path, { recursive: true })
+  for (let n = 1; n <= episodes; n++) makeVideo(join(path, `0${n}.mp4`), { seconds: 1 })
+  return path
+}
 
-test('two viewers see each other and follow each other\'s operations', async (t) => {
+
+test('two viewers see each other and follow each other\'s operations', { skip: !hasFfmpeg }, async (t) => {
   const dir = tempDir(t)
   const service = makeService(dir)
   await service.load()
   t.after(() => service.dispose())
-  const { room } = await service.createRoom({ source: 'youtube', urls: ['https://youtu.be/dQw4w9WgXcQ', 'https://youtu.be/9bZkp7q19f0'], by: 'Agent' })
-  assert.equal(room.title, 'Title of dQw4w9WgXcQ')
+  const { room } = await service.createRoom({ path: show(dir, 'Show', 2), by: 'Agent' })
+  assert.equal(room.title, 'Show')
   assert.equal(room.episodes, 2)
+  await service.waitReady(room.id, 0, 30_000)
   const url = await socketServer(t, service)
 
   const a = await viewer(url(room.id), 'a', 'Alice')
@@ -39,7 +47,7 @@ test('two viewers see each other and follow each other\'s operations', async (t)
   const b = await viewer(url(room.id), 'b', 'Bob')
   const both = await a.next(m => m.t === 'state' && m.members.length === 2)
   assert.deepEqual(both.members.map(m => m.name).sort(), ['Alice', 'Bob'])
-  assert.equal(both.room.items[0].videoId, 'dQw4w9WgXcQ')
+  assert.equal(both.room.items[0].title, '01')
 
   // The room waits for both before it plays, and starts both at one time a little ahead.
   a.send({ t: 'op', op: 'play' })
@@ -70,12 +78,13 @@ test('two viewers see each other and follow each other\'s operations', async (t)
   a.ws.close()
 })
 
-test('a viewer that disconnects while the room waits for it is no longer waited for', async (t) => {
+test('a viewer that disconnects while the room waits for it is no longer waited for', { skip: !hasFfmpeg }, async (t) => {
   const dir = tempDir(t)
   const service = makeService(dir)
   await service.load()
   t.after(() => service.dispose())
-  const { room } = await service.createRoom({ source: 'youtube', urls: ['dQw4w9WgXcQ'] })
+  const { room } = await service.createRoom({ path: show(dir) })
+  await service.waitReady(room.id, 0, 30_000)
   const url = await socketServer(t, service)
   const a = await viewer(url(room.id), 'a', 'Alice')
   const b = await viewer(url(room.id), 'b', 'Bob')
@@ -91,11 +100,12 @@ test('a viewer that disconnects while the room waits for it is no longer waited 
   a.ws.close()
 })
 
-test('rooms survive a restart of the service; closed rooms end their sockets', async (t) => {
+test('rooms survive a restart of the service; closed rooms end their sockets', { skip: !hasFfmpeg }, async (t) => {
   const dir = tempDir(t)
   const first = makeService(dir)
   await first.load()
-  const { room } = await first.createRoom({ source: 'youtube', urls: ['dQw4w9WgXcQ'], title: 'Movie night' })
+  const { room } = await first.createRoom({ path: show(dir), title: 'Movie night' })
+  await first.waitReady(room.id, 0, 30_000)
   await first.dispose()
 
   const second = makeService(dir)
@@ -151,14 +161,15 @@ test('a local room prepares its episodes and serves them when ready', { skip: !h
   assert.notEqual(service.mediaFile(room.id, 1).file, join(show, '02.mp4'))
 })
 
-test('rooms close by themselves: 30 minutes after the last viewer left, or a day after creation when never opened', async (t) => {
+test('rooms close by themselves: 30 minutes after the last viewer left, or a day after creation when never opened', { skip: !hasFfmpeg }, async (t) => {
   const dir = tempDir(t)
   let clock = 1_000_000
   const service = makeService(dir, { now: () => clock })
   await service.load()
   t.after(() => service.dispose())
-  const { room: unopened } = await service.createRoom({ source: 'youtube', urls: ['dQw4w9WgXcQ'], title: 'Later' })
-  const { room: used } = await service.createRoom({ source: 'youtube', urls: ['dQw4w9WgXcQ'], title: 'Tonight' })
+  const path = show(dir)
+  const { room: unopened } = await service.createRoom({ path, title: 'Later' })
+  const { room: used } = await service.createRoom({ path, title: 'Tonight' })
   const url = await socketServer(t, service)
 
   const a = await viewer(url(used.id), 'a', 'Alice')

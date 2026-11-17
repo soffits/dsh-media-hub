@@ -10,9 +10,6 @@ export const DEFAULT_TAB = 'watching'
 export const PARAM_PREFIX = 'vs-'
 export const PARAMS = Object.freeze({ tab: `${PARAM_PREFIX}tab`, source: `${PARAM_PREFIX}source`, kind: `${PARAM_PREFIX}kind`, work: `${PARAM_PREFIX}work` })
 
-/** The built-in source for pasting a link; the id is one no configured source may take (src/sources/index.js). */
-export const LINK_SOURCE = 'youtube'
-
 const MEMORY_KEY = 'dsh-media-hub:discover'
 
 /** Whether a query string carries any of the page's own parameters. */
@@ -50,21 +47,31 @@ export function writeNav(search, nav) {
 /** The query string without the page's parameters, for when the page is left. */
 export const clearNav = search => writeNav(search, { tab: DEFAULT_TAB })
 
-/** The picker's entries: every configured source, then the built-in link source. */
 /** The source id that searches every source with the chosen category at once (src/sources/index.js ALL_SOURCES). */
 export const ALL_SOURCE = 'all'
 
-/** With more than one source, All sources first: every category any of them has, each once, in the order they come. */
+/** Whether typed text is a web address, what Link takes. */
+export function isWebAddress(text) {
+  try {
+    return ['http:', 'https:'].includes(new URL(String(text).trim()).protocol)
+  } catch {
+    return false
+  }
+}
+
+/** Whether a source takes a web address (Link) rather than a search. */
+export const takesUrl = source => source?.input === 'url'
+
+/** With more than one searchable source, All sources first: every category any of them has, each once, in the order they come. */
 export function withAll(sources, allLabel) {
-  if (sources.length < 2) return sources
+  const searchable = sources.filter(source => !takesUrl(source))
+  if (searchable.length < 2) return sources
   const kinds = []
-  for (const source of sources) {
+  for (const source of searchable) {
     for (const kind of source.kinds) if (!kinds.some(known => known.id === kind.id)) kinds.push(kind)
   }
   return [{ id: ALL_SOURCE, label: allLabel, kinds }, ...sources]
 }
-
-export const withLink = (sources, linkLabel) => [...sources, { id: LINK_SOURCE, label: linkLabel, kinds: [] }]
 
 /** The source to show: what the URL asks for, else the one used last, else the first. */
 export function pickSource(sources, wanted, remembered) {
@@ -73,7 +80,7 @@ export function pickSource(sources, wanted, remembered) {
 
 /** The category to show for a source: what the URL asks for, else the one used last for it, else its first. */
 export function pickKind(source, wanted, remembered) {
-  if (source === null || source.kinds.length === 0) return null
+  if (source === null || source.kinds.length === 0 || takesUrl(source)) return null
   return (source.kinds.find(k => k.id === wanted) ?? source.kinds.find(k => k.id === remembered) ?? source.kinds[0]).id
 }
 

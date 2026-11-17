@@ -1,7 +1,8 @@
 /**
  * Discover: pick a source (All sources, every configured one, then Link for
- * pasting a YouTube address), under it that source's own categories, then
- * search. Book categories add a filter row (language, format, years, size).
+ * pasting the address of a video or playlist on any site yt-dlp reads), under
+ * it that source's own categories, then search; Link looks the address up
+ * and shows it as one result. Book categories add a filter row (language, format, years, size).
  * Results are cards: a show or audiobook (web/result-card.js) is watched
  * together right away, saved to the library (the episodes being watched and
  * the next few are kept on disk), or downloaded whole to keep offline; a
@@ -13,12 +14,11 @@
  * area shows a loading state until the newest one answers.
  */
 import { BookCard, BookFilters } from './books-view.js'
-import { LINK_SOURCE, browserStorage, pickKind, pickSource, readMemory, remember, withAll, withLink } from './nav.js'
+import { browserStorage, isWebAddress, pickKind, pickSource, readMemory, remember, takesUrl, withAll } from './nav.js'
 import { Result } from './result-card.js'
 import { sortModes, sortResults } from './sort.js'
 import { infoOf } from './details.js'
-import { Icon, Spinner, api, displayName, fill, h, nameOf, post, query, React } from './ui.js'
-import { parseYouTube } from './youtube-url.js'
+import { Icon, Spinner, api, fill, h, nameOf, query, React } from './ui.js'
 import { languageChoices } from './i18n.js'
 
 export const kindLabel = (t, kind) => nameOf(t, `kind.${kind.id}`, kind.label) || kind.id
@@ -40,13 +40,13 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
     return () => latest.current.controller?.abort()
   }, [])
 
-  const sources = React.useMemo(() => withLink(withAll((configured ?? []).map(one => ({ ...one, label: nameOf(t, `source.name.${one.id}`, one.label) || one.id })), t('source.all')), t('source.link')), [configured, t])
+  const sources = React.useMemo(() => withAll((configured ?? []).map(one => ({ ...one, label: nameOf(t, `source.name.${one.id}`, one.label) || one.id })), t('source.all')), [configured, t])
   const sourceOf = id => sources.find(one => one.id === id)
   const storage = browserStorage()
   const memory = readMemory(storage)
   const source = configured === null ? null : pickSource(sources, nav.source, memory.source)
   const kind = source === null ? null : pickKind(source, nav.kind, memory.kinds[source.id])
-  const isLink = source?.id === LINK_SOURCE
+  const isLink = takesUrl(source)
   const isBook = (kindId, from = source) => from?.kinds.find(k => k.id === kindId)?.media === 'book'
   /** A request for the source on screen is on its way. */
   const searching = loading !== null && loading.source === source?.id
@@ -71,26 +71,22 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
     const stale = () => latest.current.id !== request.id
     setLoading({ from, source: nextSource.id, kind: nextKind })
     setError(null)
-    if (nextSource.id === LINK_SOURCE) {
-      if (parseYouTube(q) === null) {
-        setLoading(null)
-        return setError(t('link.invalid'))
-      }
-      const by = await displayName(t('guest'))
-      const answer = await post('rooms', { source: 'youtube', urls: [q], by })
-      if (stale()) return undefined
+    const link = takesUrl(nextSource)
+    if (link && !isWebAddress(q)) {
       setLoading(null)
-      if (answer.error) return setError(fill(t('start.failed'), { message: answer.error }))
-      return onOpen(answer.room.id)
+      latest.current.key = null
+      return setError(t('link.invalid'))
     }
-    const answer = await api(`search?${query({ source: nextSource.id, q, kind: nextKind ?? '', ...filtering })}`, { signal: request.controller.signal })
+    const path = link ? `info?${query({ source: nextSource.id, id: q })}` : `search?${query({ source: nextSource.id, q, kind: nextKind ?? '', ...filtering })}`
+    const answer = await api(path, { signal: request.controller.signal })
     if (stale()) return undefined
     setLoading(null)
     if (answer.error) {
       latest.current.key = null
       return setError(answer.error)
     }
-    setResults({ source: nextSource, kind: nextKind, items: answer.results, next: answer.next ?? null, query: q, failed: answer.failed ?? [], filtering })
+    // Link's answer is the one work at that address.
+    setResults({ source: nextSource, kind: nextKind, items: link ? [answer] : answer.results, next: link ? null : (answer.next ?? null), query: q, failed: answer.failed ?? [], filtering })
     return undefined
   }
 
@@ -115,7 +111,7 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
     const nextKind = pickKind(next, null, memory.kinds[next.id])
     onNav({ source: next.id, kind: nextKind, work: null })
     setError(null)
-    if (again && next.id !== LINK_SOURCE) run({ nextSource: next, nextKind, from: 'pick' })
+    if (again && !takesUrl(next)) run({ nextSource: next, nextKind, from: 'pick' })
   }
   const pickKindId = (id) => {
     onNav({ source: source.id, kind: id, work: null })
@@ -128,8 +124,11 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
   const type = (value) => {
     setText(value)
     if (value === '') setResults(null)
-    // A YouTube address pasted into a source's search box belongs to Link.
-    else if (!isLink && parseYouTube(value.trim()) !== null) onNav({ source: LINK_SOURCE, kind: null, work: null })
+    // A web address pasted into a source's search box belongs to Link.
+    else if (!isLink && isWebAddress(value)) {
+      const link = sources.find(takesUrl)
+      if (link !== undefined) onNav({ source: link.id, kind: null, work: null })
+    }
   }
 
   const onFocus = work => onNav({ work: work.id })
@@ -144,8 +143,8 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
     h('div', { hidden: focused },
     source !== null && h('div', { className: 'vsync-picker' },
       h('div', { className: 'vsync-segment', role: 'tablist', 'aria-label': t('discover.source') },
-        sources.map(s => h('button', { key: s.id, type: 'button', role: 'tab', className: 'vsync-seg', 'aria-selected': String(s.id === source.id), onClick: () => pickSourceId(s) }, s.id === LINK_SOURCE ? h('span', { className: 'vsync-segIcon' }, h(Icon.Link, { size: 14 })) : null, s.label))),
-      source.kinds.length > 0 && h('div', { className: 'vsync-tabs', role: 'tablist', 'aria-label': t('discover.kind') },
+        sources.map(s => h('button', { key: s.id, type: 'button', role: 'tab', className: 'vsync-seg', 'aria-selected': String(s.id === source.id), onClick: () => pickSourceId(s) }, takesUrl(s) ? h('span', { className: 'vsync-segIcon' }, h(Icon.Link, { size: 14 })) : null, s.label))),
+      source.kinds.length > 0 && !isLink && h('div', { className: 'vsync-tabs', role: 'tablist', 'aria-label': t('discover.kind') },
         source.kinds.map(k => h('button', {
           key: k.id,
           type: 'button',
@@ -163,15 +162,15 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
         type: isLink ? 'text' : 'search',
         inputMode: isLink ? 'url' : undefined,
         value: text,
-        placeholder: isLink ? t('start.youtubePlaceholder') : fill(t('search.placeholder'), { source: source?.label ?? '' }),
+        placeholder: isLink ? t('link.placeholder') : fill(t('search.placeholder'), { source: source?.label ?? '' }),
         'aria-label': t('search.label'),
         onChange: event => type(event.target.value),
       }),
-      h('button', { type: 'submit', className: 'vsync-btn vsync-btnLarge', disabled: (searching && loading.from === 'search') || text.trim() === '' || source === null }, searching && loading.from === 'search' ? h(Spinner) : null, isLink ? t('start.go') : t('search.go'))),
+      h('button', { type: 'submit', className: 'vsync-btn vsync-btnLarge', disabled: (searching && loading.from === 'search') || text.trim() === '' || source === null }, searching && loading.from === 'search' ? h(Spinner) : null, isLink ? t('link.go') : t('search.go'))),
     !isLink && isBook(kind) && h(BookFilters, { t, filters, languages: languageChoices(t.language, shown ? results.items : [], filters.language), onChange: filter }),
     error && h('p', { className: 'vsync-error', role: 'alert' }, error),
     !searching && shown && results.failed.length > 0 && h('p', { className: 'vsync-note', role: 'status' }, results.failed.map(one => fill(t('search.sourceFailed'), { source: sourceOf(one.source)?.label ?? one.source, message: one.message })).join(' ')),
-    searching && !isLink && h('div', { className: 'vsync-skeleton', role: 'status', 'aria-busy': 'true', 'aria-label': t('search.loading') },
+    searching && h('div', { className: 'vsync-skeleton', role: 'status', 'aria-busy': 'true', 'aria-label': t('search.loading') },
       [0, 1, 2].map(n => h('span', { key: n, className: 'vsync-skeletonRow' }))),
     !searching && shown && results.items.length > 1 && modes.length > 1 && h('div', { className: 'vsync-tabs vsync-sort', role: 'group', 'aria-label': t('sort.label') },
       modes.map(mode => h('button', { key: mode, type: 'button', className: 'vsync-chip', 'aria-pressed': String(mode === activeSort), onClick: () => setSort(mode) }, t(`sort.${mode}`)))),

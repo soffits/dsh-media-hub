@@ -143,10 +143,6 @@ export async function copyText(text, label) {
 const svg = (size, ...children) => h('svg', { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true, focusable: 'false' }, ...children)
 const stroke = { stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }
 export const Icon = {
-  Screen: ({ size = 16 }) => svg(size,
-    h('rect', { x: 1.75, y: 2.75, width: 12.5, height: 8.5, rx: 1.5, ...stroke }),
-    h('path', { d: 'M6.9 5.3v3.4L9.7 7 6.9 5.3Z', fill: 'currentColor' }),
-    h('path', { d: 'M4.5 13.6c1 .5 2.2.8 3.5.8s2.5-.3 3.5-.8', ...stroke })),
   Film: ({ size = 16 }) => svg(size, h('rect', { x: 2, y: 3, width: 12, height: 10, rx: 1.5, ...stroke }), h('path', { d: 'M5 3v10M11 3v10M2 6h3M2 10h3M11 6h3M11 10h3', ...stroke })),
   Audio: ({ size = 16 }) => svg(size, h('path', { d: 'M3 9.5V8a5 5 0 0 1 10 0v1.5', ...stroke }), h('rect', { x: 2.5, y: 9, width: 2.5, height: 4, rx: 1, ...stroke }), h('rect', { x: 11, y: 9, width: 2.5, height: 4, rx: 1, ...stroke })),
   Back: ({ size = 16 }) => svg(size, h('path', { d: 'M10 3.5 5.5 8l4.5 4.5', ...stroke })),

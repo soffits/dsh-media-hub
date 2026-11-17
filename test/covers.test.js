@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, readdirSync, utimesSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { coverKey, createCovers, imageType } from '../src/covers.js'
 import { createCommandSource } from '../src/sources/command.js'
-import { quietLogger, tempDir } from './helpers.js'
+import { hasFfmpeg, makeVideo, quietLogger, tempDir } from './helpers.js'
 
 const FAKE = fileURLToPath(new URL('./fixtures/fake-source.mjs', import.meta.url))
 const KINDS = [{ id: 'drama', label: 'Short dramas' }]
@@ -22,21 +22,21 @@ function setup(t, { env = {}, ...options } = {}) {
 
 test('a registered cover is a route; the browser never gets the URL, and the key is stable per source and URL', (t) => {
   const { covers } = setup(t)
-  const route = covers.register('stub', url(1))
+  const route = covers.ofSource('stub', url(1))
   assert.match(route, /^covers\/[0-9a-f]{32}$/)
-  assert.equal(route, covers.register('stub', url(1)))
-  assert.notEqual(route, covers.register('stub', url(2)))
-  assert.notEqual(route, covers.register('other', url(1)))
+  assert.equal(route, covers.ofSource('stub', url(1)))
+  assert.notEqual(route, covers.ofSource('stub', url(2)))
+  assert.notEqual(route, covers.ofSource('other', url(1)))
   assert.equal(route.includes('cdn.invalid'), false)
-  assert.equal(covers.register('stub', ''), null)
-  assert.equal(covers.register('stub', undefined), null)
+  assert.equal(covers.ofSource('stub', ''), null)
+  assert.equal(covers.ofSource('stub', undefined), null)
   const work = covers.decorate('stub', { id: '1', cover: url(1), related: [{ id: '2', cover: url(2) }, { id: '3', cover: null }] })
   assert.deepEqual([work.cover, work.related[0].cover, work.related[1].cover].map(c => c?.slice(0, 7) ?? null), ['covers/', 'covers/', null])
 })
 
 test('the picture is fetched through the source once, kept on disk and served from there', async (t) => {
   const { covers, calls, files } = setup(t)
-  const key = covers.register('stub', url(1)).slice('covers/'.length)
+  const key = covers.ofSource('stub', url(1)).slice('covers/'.length)
   const first = await covers.file(key)
   assert.equal(first.type, 'image/png')
   assert.deepEqual(calls(), [url(1)])
@@ -48,7 +48,7 @@ test('the picture is fetched through the source once, kept on disk and served fr
 
 test('parallel requests for one cover fetch it once', async (t) => {
   const { covers, calls } = setup(t)
-  const key = covers.register('stub', url(1)).slice('covers/'.length)
+  const key = covers.ofSource('stub', url(1)).slice('covers/'.length)
   const answers = await Promise.all([covers.file(key), covers.file(key), covers.file(key)])
   assert.ok(answers.every(a => a !== null))
   assert.equal(calls().length, 1)
@@ -62,10 +62,10 @@ test('unknown keys, malformed keys and sources without a cover verb give nothing
   assert.equal(await covers.file(coverKey('stub', url(9))), null, 'a key nobody registered')
   assert.equal(await covers.file('../../etc/passwd'), null)
   assert.equal(await covers.file('ZZ'), null)
-  const key = covers.register('gone', url(1)).slice('covers/'.length)
+  const key = covers.ofSource('gone', url(1)).slice('covers/'.length)
   assert.equal(await covers.file(key), null, 'the source is not there')
   const bare = createCovers({ dir: join(tempDir(t), 'covers'), logger: quietLogger }, () => ({ search: async () => ({ results: [], next: null }) }))
-  const bareKey = bare.register('x', url(1)).slice('covers/'.length)
+  const bareKey = bare.ofSource('x', url(1)).slice('covers/'.length)
   assert.equal(await bare.file(bareKey), null, 'the source has no cover verb')
   assert.deepEqual(calls(), [])
 })
@@ -73,7 +73,7 @@ test('unknown keys, malformed keys and sources without a cover verb give nothing
 test('a failing source gives no picture, and is not asked again for a while', async (t) => {
   let now = 1_000_000
   const { covers, calls, files } = setup(t, { env: { FAKE_SOURCE_COVER_FAIL: '1' }, now: () => now })
-  const key = covers.register('stub', url(1)).slice('covers/'.length)
+  const key = covers.ofSource('stub', url(1)).slice('covers/'.length)
   assert.equal(await covers.file(key), null)
   assert.equal(await covers.file(key), null)
   assert.equal(calls().length, 1)
@@ -86,7 +86,7 @@ test('a failing source gives no picture, and is not asked again for a while', as
 test('files that are too big or not pictures are dropped', async (t) => {
   for (const bytes of ['3000000', '40']) {
     const { covers, files } = setup(t, { env: { FAKE_SOURCE_COVER_BYTES: bytes } })
-    const key = covers.register('stub', url(1)).slice('covers/'.length)
+    const key = covers.ofSource('stub', url(1)).slice('covers/'.length)
     assert.equal(await covers.file(key), null, `${bytes} bytes of junk`)
     assert.deepEqual(files(), [])
   }
@@ -94,7 +94,7 @@ test('files that are too big or not pictures are dropped', async (t) => {
 
 test('past the cap the least recently shown pictures go first', async (t) => {
   const { dir, covers, files } = setup(t, { capBytes: 1500 })
-  const keys = [1, 2, 3].map(n => covers.register('stub', url(n)).slice('covers/'.length))
+  const keys = [1, 2, 3].map(n => covers.ofSource('stub', url(n)).slice('covers/'.length))
   await covers.file(keys[0])
   await covers.file(keys[1])
   const old = new Date(Date.now() - 3_600_000)
@@ -105,7 +105,7 @@ test('past the cap the least recently shown pictures go first', async (t) => {
 
 test('a cached picture survives a restart and is served without knowing its URL', async (t) => {
   const { dir, covers } = setup(t)
-  const key = covers.register('stub', url(1)).slice('covers/'.length)
+  const key = covers.ofSource('stub', url(1)).slice('covers/'.length)
   await covers.file(key)
   const restarted = createCovers({ dir: join(dir, 'covers'), logger: quietLogger }, () => undefined)
   assert.equal((await restarted.file(key)).type, 'image/png')
@@ -117,4 +117,35 @@ test('picture types are told by their first bytes', () => {
   assert.equal(imageType(Buffer.from('GIF89a')), 'image/gif')
   assert.equal(imageType(Buffer.from('<svg xmlns=')), null)
   assert.equal(imageType(Buffer.from('ftypheic....')), null)
+})
+
+test('a still of a local video is a route made on first request; a changed file gets a new one, a missing file none', { skip: !hasFfmpeg }, async (t) => {
+  const { covers, dir } = setup(t)
+  const video = join(dir, '01 Episode.mp4')
+  makeVideo(video, { seconds: 2 })
+  const route = await covers.ofFrame(video, 1)
+  assert.match(route, /^covers\/[0-9a-f]{32}$/)
+  assert.equal((await covers.file(route.slice('covers/'.length)))?.type, 'image/jpeg')
+  assert.equal(await covers.ofFrame(video, 1), route, 'the same file and time, the same picture')
+  makeVideo(video, { seconds: 3 })
+  assert.notEqual(await covers.ofFrame(video, 1), route)
+  assert.equal(await covers.ofFrame(join(dir, 'gone.mp4')), null)
+})
+
+test('a still past the end of a short video is its first frame, and a file with no picture gives none', { skip: !hasFfmpeg }, async (t) => {
+  const { covers, dir } = setup(t)
+  const video = join(dir, 'short.mp4')
+  makeVideo(video, { seconds: 1 })
+  assert.equal((await covers.file((await covers.ofFrame(video, 30)).slice('covers/'.length)))?.type, 'image/jpeg')
+  const text = join(dir, 'notes.mp4')
+  writeFileSync(text, 'not a video')
+  assert.equal(await covers.file((await covers.ofFrame(text)).slice('covers/'.length)), null)
+})
+
+test('a picture a source names is fetched with its work\'s page, for the route the fetch takes', async (t) => {
+  const asked = []
+  const covers = createCovers({ dir: join(tempDir(t), 'covers'), logger: quietLogger }, () => ({ cover: async (url, file, context) => { asked.push([url, context.page]); throw new Error('offline') } }))
+  const work = covers.decorate('link', { id: 'x', cover: 'https://pictures.example/1.jpg', url: 'https://video.example/watch/1' })
+  assert.equal(await covers.file(work.cover.slice('covers/'.length)), null)
+  assert.deepEqual(asked, [['https://pictures.example/1.jpg', 'https://video.example/watch/1']])
 })

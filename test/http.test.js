@@ -79,7 +79,7 @@ test('the room API maps service errors to statuses', async (t) => {
   const service = {
     listRooms: () => [{ id: 'a' }],
     createRoom: async (input) => {
-      if (input.source === 'bad') throw Object.assign(new Error('nope'), { code: 'invalid' })
+      if (input.path === '/bad') throw Object.assign(new Error('nope'), { code: 'invalid' })
       return { room: { id: 'new', fromPanel: input.fromPanel } }
     },
     closeRoom: (id) => {
@@ -89,9 +89,9 @@ test('the room API maps service errors to statuses', async (t) => {
   }
   const get = await serve(t, service)
   assert.deepEqual(await (await get('api/rooms')).json(), { rooms: [{ id: 'a' }] })
-  const created = await get('api/rooms', { method: 'POST', body: JSON.stringify({ source: 'youtube', fromPanel: false }) })
+  const created = await get('api/rooms', { method: 'POST', body: JSON.stringify({ path: '/videos/Show', fromPanel: false }) })
   assert.deepEqual(await created.json(), { room: { id: 'new', fromPanel: true } })
-  const bad = await get('api/rooms', { method: 'POST', body: JSON.stringify({ source: 'bad' }) })
+  const bad = await get('api/rooms', { method: 'POST', body: JSON.stringify({ path: '/bad' }) })
   assert.equal(bad.status, 400)
   assert.equal((await get('api/rooms/zz', { method: 'DELETE' })).status, 404)
   assert.equal((await get('api/rooms', { method: 'POST', body: '{' })).status, 400)

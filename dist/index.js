@@ -2285,13 +2285,13 @@ var require_websocket = __commonJS({
     "use strict";
     var EventEmitter = __require("events");
     var https = __require("https");
-    var http = __require("http");
-    var net = __require("net");
+    var http2 = __require("http");
+    var net4 = __require("net");
     var querystring = __require("querystring");
-    var tls = __require("tls");
-    var { randomBytes: randomBytes2, createHash: createHash7 } = __require("crypto");
+    var tls3 = __require("tls");
+    var { randomBytes: randomBytes2, createHash: createHash6 } = __require("crypto");
     var { Duplex, Readable: Readable2 } = __require("stream");
-    var { URL: URL2 } = __require("url");
+    var { URL: URL4 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
     var Receiver2 = require_receiver();
     var Sender2 = require_sender();
@@ -2809,17 +2809,17 @@ var require_websocket = __commonJS({
         );
       }
       let parsedUrl;
-      if (address instanceof URL2) {
+      if (address instanceof URL4) {
         parsedUrl = address;
       } else {
         try {
-          parsedUrl = new URL2(address);
+          parsedUrl = new URL4(address);
         } catch {
           throw new SyntaxError(`Invalid URL: ${address}`);
         }
       }
       if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
-        parsedUrl = new URL2(parsedUrl);
+        parsedUrl = new URL4(parsedUrl);
         parsedUrl.protocol = parsedUrl.protocol === "http:" ? "ws:" : "wss:";
       }
       websocket._url = parsedUrl.href;
@@ -2844,7 +2844,7 @@ var require_websocket = __commonJS({
       }
       const defaultPort = isSecure ? 443 : 80;
       const key = randomBytes2(16).toString("base64");
-      const request = isSecure ? https.request : http.request;
+      const request = isSecure ? https.request : http2.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
       opts.createConnection = opts.createConnection || (isSecure ? tlsConnect : netConnect);
@@ -2956,7 +2956,7 @@ var require_websocket = __commonJS({
           req.abort();
           let addr;
           try {
-            addr = new URL2(location, address);
+            addr = new URL4(location, address);
           } catch (e) {
             const err = new SyntaxError(`Invalid URL: ${location}`);
             emitErrorAndClose(websocket, err);
@@ -2980,7 +2980,7 @@ var require_websocket = __commonJS({
           abortHandshake(websocket, socket, "Invalid Upgrade header");
           return;
         }
-        const digest = createHash7("sha1").update(key + GUID).digest("base64");
+        const digest = createHash6("sha1").update(key + GUID).digest("base64");
         if (res.headers["sec-websocket-accept"] !== digest) {
           abortHandshake(websocket, socket, "Invalid Sec-WebSocket-Accept header");
           return;
@@ -3055,14 +3055,14 @@ var require_websocket = __commonJS({
     }
     function netConnect(options) {
       options.path = options.socketPath;
-      return net.connect(options);
+      return net4.connect(options);
     }
     function tlsConnect(options) {
       options.path = void 0;
       if (!options.servername && options.servername !== "") {
-        options.servername = net.isIP(options.host) ? "" : options.host;
+        options.servername = net4.isIP(options.host) ? "" : options.host;
       }
-      return tls.connect(options);
+      return tls3.connect(options);
     }
     function abortHandshake(websocket, stream, message) {
       websocket._readyState = WebSocket2.CLOSING;
@@ -3106,7 +3106,7 @@ var require_websocket = __commonJS({
       }
       if (websocket._socket[kWebSocket] === void 0) return;
       websocket._socket.removeListener("data", socketOnData);
-      process.nextTick(resume, websocket._socket);
+      process.nextTick(resume2, websocket._socket);
       if (code === 1005) websocket.close();
       else websocket.close(code, reason);
     }
@@ -3118,7 +3118,7 @@ var require_websocket = __commonJS({
       const websocket = this[kWebSocket];
       if (websocket._socket[kWebSocket] !== void 0) {
         websocket._socket.removeListener("data", socketOnData);
-        process.nextTick(resume, websocket._socket);
+        process.nextTick(resume2, websocket._socket);
         websocket.close(err[kStatusCode]);
       }
       if (!websocket._errorEmitted) {
@@ -3150,7 +3150,7 @@ var require_websocket = __commonJS({
     function receiverOnPong(data) {
       this[kWebSocket].emit("pong", data);
     }
-    function resume(stream) {
+    function resume2(stream) {
       stream.resume();
     }
     function senderOnError(err) {
@@ -3363,9 +3363,9 @@ var require_websocket_server = __commonJS({
   "node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
-    var http = __require("http");
+    var http2 = __require("http");
     var { Duplex } = __require("stream");
-    var { createHash: createHash7 } = __require("crypto");
+    var { createHash: createHash6 } = __require("crypto");
     var extension2 = require_extension();
     var PerMessageDeflate2 = require_permessage_deflate();
     var subprotocol2 = require_subprotocol();
@@ -3447,8 +3447,8 @@ var require_websocket_server = __commonJS({
           );
         }
         if (options.port != null) {
-          this._server = http.createServer((req, res) => {
-            const body2 = http.STATUS_CODES[426];
+          this._server = http2.createServer((req, res) => {
+            const body2 = http2.STATUS_CODES[426];
             res.writeHead(426, {
               "Content-Length": body2.length,
               "Content-Type": "text/plain"
@@ -3675,7 +3675,7 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest = createHash7("sha1").update(key + GUID).digest("base64");
+        const digest = createHash6("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
@@ -3737,7 +3737,7 @@ var require_websocket_server = __commonJS({
       this.destroy();
     }
     function abortHandshake(socket, code, message, headers) {
-      message = message || http.STATUS_CODES[code];
+      message = message || http2.STATUS_CODES[code];
       headers = {
         Connection: "close",
         "Content-Type": "text/html",
@@ -3746,7 +3746,7 @@ var require_websocket_server = __commonJS({
       };
       socket.once("finish", socket.destroy);
       socket.end(
-        `HTTP/1.1 ${code} ${http.STATUS_CODES[code]}\r
+        `HTTP/1.1 ${code} ${http2.STATUS_CODES[code]}\r
 ` + Object.keys(headers).map((h) => `${h}: ${headers[h]}`).join("\r\n") + "\r\n\r\n" + message
       );
     }
@@ -3762,8 +3762,5215 @@ var require_websocket_server = __commonJS({
   }
 });
 
+// node_modules/ms/index.js
+var require_ms = __commonJS({
+  "node_modules/ms/index.js"(exports, module) {
+    var s = 1e3;
+    var m = s * 60;
+    var h = m * 60;
+    var d = h * 24;
+    var w = d * 7;
+    var y = d * 365.25;
+    module.exports = function(val, options) {
+      options = options || {};
+      var type = typeof val;
+      if (type === "string" && val.length > 0) {
+        return parse(val);
+      } else if (type === "number" && isFinite(val)) {
+        return options.long ? fmtLong(val) : fmtShort(val);
+      }
+      throw new Error(
+        "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
+      );
+    };
+    function parse(str) {
+      str = String(str);
+      if (str.length > 100) {
+        return;
+      }
+      var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
+        str
+      );
+      if (!match) {
+        return;
+      }
+      var n = parseFloat(match[1]);
+      var type = (match[2] || "ms").toLowerCase();
+      switch (type) {
+        case "years":
+        case "year":
+        case "yrs":
+        case "yr":
+        case "y":
+          return n * y;
+        case "weeks":
+        case "week":
+        case "w":
+          return n * w;
+        case "days":
+        case "day":
+        case "d":
+          return n * d;
+        case "hours":
+        case "hour":
+        case "hrs":
+        case "hr":
+        case "h":
+          return n * h;
+        case "minutes":
+        case "minute":
+        case "mins":
+        case "min":
+        case "m":
+          return n * m;
+        case "seconds":
+        case "second":
+        case "secs":
+        case "sec":
+        case "s":
+          return n * s;
+        case "milliseconds":
+        case "millisecond":
+        case "msecs":
+        case "msec":
+        case "ms":
+          return n;
+        default:
+          return void 0;
+      }
+    }
+    function fmtShort(ms) {
+      var msAbs = Math.abs(ms);
+      if (msAbs >= d) {
+        return Math.round(ms / d) + "d";
+      }
+      if (msAbs >= h) {
+        return Math.round(ms / h) + "h";
+      }
+      if (msAbs >= m) {
+        return Math.round(ms / m) + "m";
+      }
+      if (msAbs >= s) {
+        return Math.round(ms / s) + "s";
+      }
+      return ms + "ms";
+    }
+    function fmtLong(ms) {
+      var msAbs = Math.abs(ms);
+      if (msAbs >= d) {
+        return plural(ms, msAbs, d, "day");
+      }
+      if (msAbs >= h) {
+        return plural(ms, msAbs, h, "hour");
+      }
+      if (msAbs >= m) {
+        return plural(ms, msAbs, m, "minute");
+      }
+      if (msAbs >= s) {
+        return plural(ms, msAbs, s, "second");
+      }
+      return ms + " ms";
+    }
+    function plural(ms, msAbs, n, name2) {
+      var isPlural = msAbs >= n * 1.5;
+      return Math.round(ms / n) + " " + name2 + (isPlural ? "s" : "");
+    }
+  }
+});
+
+// node_modules/debug/src/common.js
+var require_common = __commonJS({
+  "node_modules/debug/src/common.js"(exports, module) {
+    function setup(env) {
+      createDebug4.debug = createDebug4;
+      createDebug4.default = createDebug4;
+      createDebug4.coerce = coerce;
+      createDebug4.disable = disable;
+      createDebug4.enable = enable;
+      createDebug4.enabled = enabled;
+      createDebug4.humanize = require_ms();
+      createDebug4.destroy = destroy;
+      Object.keys(env).forEach((key) => {
+        createDebug4[key] = env[key];
+      });
+      createDebug4.names = [];
+      createDebug4.skips = [];
+      createDebug4.formatters = {};
+      function selectColor(namespace) {
+        let hash = 0;
+        for (let i = 0; i < namespace.length; i++) {
+          hash = (hash << 5) - hash + namespace.charCodeAt(i);
+          hash |= 0;
+        }
+        return createDebug4.colors[Math.abs(hash) % createDebug4.colors.length];
+      }
+      createDebug4.selectColor = selectColor;
+      function createDebug4(namespace) {
+        let prevTime;
+        let enableOverride = null;
+        let namespacesCache;
+        let enabledCache;
+        function debug4(...args) {
+          if (!debug4.enabled) {
+            return;
+          }
+          const self = debug4;
+          const curr = Number(/* @__PURE__ */ new Date());
+          const ms = curr - (prevTime || curr);
+          self.diff = ms;
+          self.prev = prevTime;
+          self.curr = curr;
+          prevTime = curr;
+          args[0] = createDebug4.coerce(args[0]);
+          if (typeof args[0] !== "string") {
+            args.unshift("%O");
+          }
+          let index = 0;
+          args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
+            if (match === "%%") {
+              return "%";
+            }
+            index++;
+            const formatter = createDebug4.formatters[format];
+            if (typeof formatter === "function") {
+              const val = args[index];
+              match = formatter.call(self, val);
+              args.splice(index, 1);
+              index--;
+            }
+            return match;
+          });
+          createDebug4.formatArgs.call(self, args);
+          const logFn = self.log || createDebug4.log;
+          logFn.apply(self, args);
+        }
+        debug4.namespace = namespace;
+        debug4.useColors = createDebug4.useColors();
+        debug4.color = createDebug4.selectColor(namespace);
+        debug4.extend = extend2;
+        debug4.destroy = createDebug4.destroy;
+        Object.defineProperty(debug4, "enabled", {
+          enumerable: true,
+          configurable: false,
+          get: () => {
+            if (enableOverride !== null) {
+              return enableOverride;
+            }
+            if (namespacesCache !== createDebug4.namespaces) {
+              namespacesCache = createDebug4.namespaces;
+              enabledCache = createDebug4.enabled(namespace);
+            }
+            return enabledCache;
+          },
+          set: (v) => {
+            enableOverride = v;
+          }
+        });
+        if (typeof createDebug4.init === "function") {
+          createDebug4.init(debug4);
+        }
+        return debug4;
+      }
+      function extend2(namespace, delimiter2) {
+        const newDebug = createDebug4(this.namespace + (typeof delimiter2 === "undefined" ? ":" : delimiter2) + namespace);
+        newDebug.log = this.log;
+        return newDebug;
+      }
+      function enable(namespaces) {
+        createDebug4.save(namespaces);
+        createDebug4.namespaces = namespaces;
+        createDebug4.names = [];
+        createDebug4.skips = [];
+        const split = (typeof namespaces === "string" ? namespaces : "").trim().replace(/\s+/g, ",").split(",").filter(Boolean);
+        for (const ns of split) {
+          if (ns[0] === "-") {
+            createDebug4.skips.push(ns.slice(1));
+          } else {
+            createDebug4.names.push(ns);
+          }
+        }
+      }
+      function matchesTemplate(search, template) {
+        let searchIndex = 0;
+        let templateIndex = 0;
+        let starIndex = -1;
+        let matchIndex = 0;
+        while (searchIndex < search.length) {
+          if (templateIndex < template.length && (template[templateIndex] === search[searchIndex] || template[templateIndex] === "*")) {
+            if (template[templateIndex] === "*") {
+              starIndex = templateIndex;
+              matchIndex = searchIndex;
+              templateIndex++;
+            } else {
+              searchIndex++;
+              templateIndex++;
+            }
+          } else if (starIndex !== -1) {
+            templateIndex = starIndex + 1;
+            matchIndex++;
+            searchIndex = matchIndex;
+          } else {
+            return false;
+          }
+        }
+        while (templateIndex < template.length && template[templateIndex] === "*") {
+          templateIndex++;
+        }
+        return templateIndex === template.length;
+      }
+      function disable() {
+        const namespaces = [
+          ...createDebug4.names,
+          ...createDebug4.skips.map((namespace) => "-" + namespace)
+        ].join(",");
+        createDebug4.enable("");
+        return namespaces;
+      }
+      function enabled(name2) {
+        for (const skip of createDebug4.skips) {
+          if (matchesTemplate(name2, skip)) {
+            return false;
+          }
+        }
+        for (const ns of createDebug4.names) {
+          if (matchesTemplate(name2, ns)) {
+            return true;
+          }
+        }
+        return false;
+      }
+      function coerce(val) {
+        if (val instanceof Error) {
+          return val.stack || val.message;
+        }
+        return val;
+      }
+      function destroy() {
+        console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
+      }
+      createDebug4.enable(createDebug4.load());
+      return createDebug4;
+    }
+    module.exports = setup;
+  }
+});
+
+// node_modules/debug/src/browser.js
+var require_browser = __commonJS({
+  "node_modules/debug/src/browser.js"(exports, module) {
+    exports.formatArgs = formatArgs2;
+    exports.save = save;
+    exports.load = load;
+    exports.useColors = useColors;
+    exports.storage = localstorage();
+    exports.destroy = /* @__PURE__ */ (() => {
+      let warned = false;
+      return () => {
+        if (!warned) {
+          warned = true;
+          console.warn("Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`.");
+        }
+      };
+    })();
+    exports.colors = [
+      "#0000CC",
+      "#0000FF",
+      "#0033CC",
+      "#0033FF",
+      "#0066CC",
+      "#0066FF",
+      "#0099CC",
+      "#0099FF",
+      "#00CC00",
+      "#00CC33",
+      "#00CC66",
+      "#00CC99",
+      "#00CCCC",
+      "#00CCFF",
+      "#3300CC",
+      "#3300FF",
+      "#3333CC",
+      "#3333FF",
+      "#3366CC",
+      "#3366FF",
+      "#3399CC",
+      "#3399FF",
+      "#33CC00",
+      "#33CC33",
+      "#33CC66",
+      "#33CC99",
+      "#33CCCC",
+      "#33CCFF",
+      "#6600CC",
+      "#6600FF",
+      "#6633CC",
+      "#6633FF",
+      "#66CC00",
+      "#66CC33",
+      "#9900CC",
+      "#9900FF",
+      "#9933CC",
+      "#9933FF",
+      "#99CC00",
+      "#99CC33",
+      "#CC0000",
+      "#CC0033",
+      "#CC0066",
+      "#CC0099",
+      "#CC00CC",
+      "#CC00FF",
+      "#CC3300",
+      "#CC3333",
+      "#CC3366",
+      "#CC3399",
+      "#CC33CC",
+      "#CC33FF",
+      "#CC6600",
+      "#CC6633",
+      "#CC9900",
+      "#CC9933",
+      "#CCCC00",
+      "#CCCC33",
+      "#FF0000",
+      "#FF0033",
+      "#FF0066",
+      "#FF0099",
+      "#FF00CC",
+      "#FF00FF",
+      "#FF3300",
+      "#FF3333",
+      "#FF3366",
+      "#FF3399",
+      "#FF33CC",
+      "#FF33FF",
+      "#FF6600",
+      "#FF6633",
+      "#FF9900",
+      "#FF9933",
+      "#FFCC00",
+      "#FFCC33"
+    ];
+    function useColors() {
+      if (typeof window !== "undefined" && window.process && (window.process.type === "renderer" || window.process.__nwjs)) {
+        return true;
+      }
+      if (typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
+        return false;
+      }
+      let m;
+      return typeof document !== "undefined" && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || // Is firebug? http://stackoverflow.com/a/398120/376773
+      typeof window !== "undefined" && window.console && (window.console.firebug || window.console.exception && window.console.table) || // Is firefox >= v31?
+      // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+      typeof navigator !== "undefined" && navigator.userAgent && (m = navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/)) && parseInt(m[1], 10) >= 31 || // Double check webkit in userAgent just in case we are in a worker
+      typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
+    }
+    function formatArgs2(args) {
+      args[0] = (this.useColors ? "%c" : "") + this.namespace + (this.useColors ? " %c" : " ") + args[0] + (this.useColors ? "%c " : " ") + "+" + module.exports.humanize(this.diff);
+      if (!this.useColors) {
+        return;
+      }
+      const c = "color: " + this.color;
+      args.splice(1, 0, c, "color: inherit");
+      let index = 0;
+      let lastC = 0;
+      args[0].replace(/%[a-zA-Z%]/g, (match) => {
+        if (match === "%%") {
+          return;
+        }
+        index++;
+        if (match === "%c") {
+          lastC = index;
+        }
+      });
+      args.splice(lastC, 0, c);
+    }
+    exports.log = console.debug || console.log || (() => {
+    });
+    function save(namespaces) {
+      try {
+        if (namespaces) {
+          exports.storage.setItem("debug", namespaces);
+        } else {
+          exports.storage.removeItem("debug");
+        }
+      } catch (error) {
+      }
+    }
+    function load() {
+      let r;
+      try {
+        r = exports.storage.getItem("debug") || exports.storage.getItem("DEBUG");
+      } catch (error) {
+      }
+      if (!r && typeof process !== "undefined" && "env" in process) {
+        r = process.env.DEBUG;
+      }
+      return r;
+    }
+    function localstorage() {
+      try {
+        return localStorage;
+      } catch (error) {
+      }
+    }
+    module.exports = require_common()(exports);
+    var { formatters: formatters2 } = module.exports;
+    formatters2.j = function(v) {
+      try {
+        return JSON.stringify(v);
+      } catch (error) {
+        return "[UnexpectedJSONParseError]: " + error.message;
+      }
+    };
+  }
+});
+
+// node_modules/debug/src/node.js
+var require_node = __commonJS({
+  "node_modules/debug/src/node.js"(exports, module) {
+    var tty = __require("tty");
+    var util = __require("util");
+    exports.init = init;
+    exports.log = log;
+    exports.formatArgs = formatArgs2;
+    exports.save = save;
+    exports.load = load;
+    exports.useColors = useColors;
+    exports.destroy = util.deprecate(
+      () => {
+      },
+      "Instance method `debug.destroy()` is deprecated and no longer does anything. It will be removed in the next major version of `debug`."
+    );
+    exports.colors = [6, 2, 3, 4, 5, 1];
+    try {
+      const supportsColor = __require("supports-color");
+      if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
+        exports.colors = [
+          20,
+          21,
+          26,
+          27,
+          32,
+          33,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          56,
+          57,
+          62,
+          63,
+          68,
+          69,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80,
+          81,
+          92,
+          93,
+          98,
+          99,
+          112,
+          113,
+          128,
+          129,
+          134,
+          135,
+          148,
+          149,
+          160,
+          161,
+          162,
+          163,
+          164,
+          165,
+          166,
+          167,
+          168,
+          169,
+          170,
+          171,
+          172,
+          173,
+          178,
+          179,
+          184,
+          185,
+          196,
+          197,
+          198,
+          199,
+          200,
+          201,
+          202,
+          203,
+          204,
+          205,
+          206,
+          207,
+          208,
+          209,
+          214,
+          215,
+          220,
+          221
+        ];
+      }
+    } catch (error) {
+    }
+    exports.inspectOpts = Object.keys(process.env).filter((key) => {
+      return /^debug_/i.test(key);
+    }).reduce((obj, key) => {
+      const prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, (_, k) => {
+        return k.toUpperCase();
+      });
+      let val = process.env[key];
+      if (/^(yes|on|true|enabled)$/i.test(val)) {
+        val = true;
+      } else if (/^(no|off|false|disabled)$/i.test(val)) {
+        val = false;
+      } else if (val === "null") {
+        val = null;
+      } else {
+        val = Number(val);
+      }
+      obj[prop] = val;
+      return obj;
+    }, {});
+    function useColors() {
+      return "colors" in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(process.stderr.fd);
+    }
+    function formatArgs2(args) {
+      const { namespace: name2, useColors: useColors2 } = this;
+      if (useColors2) {
+        const c = this.color;
+        const colorCode = "\x1B[3" + (c < 8 ? c : "8;5;" + c);
+        const prefix = `  ${colorCode};1m${name2} \x1B[0m`;
+        args[0] = prefix + args[0].split("\n").join("\n" + prefix);
+        args.push(colorCode + "m+" + module.exports.humanize(this.diff) + "\x1B[0m");
+      } else {
+        args[0] = getDate() + name2 + " " + args[0];
+      }
+    }
+    function getDate() {
+      if (exports.inspectOpts.hideDate) {
+        return "";
+      }
+      return (/* @__PURE__ */ new Date()).toISOString() + " ";
+    }
+    function log(...args) {
+      return process.stderr.write(util.formatWithOptions(exports.inspectOpts, ...args) + "\n");
+    }
+    function save(namespaces) {
+      if (namespaces) {
+        process.env.DEBUG = namespaces;
+      } else {
+        delete process.env.DEBUG;
+      }
+    }
+    function load() {
+      return process.env.DEBUG;
+    }
+    function init(debug4) {
+      debug4.inspectOpts = {};
+      const keys = Object.keys(exports.inspectOpts);
+      for (let i = 0; i < keys.length; i++) {
+        debug4.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+      }
+    }
+    module.exports = require_common()(exports);
+    var { formatters: formatters2 } = module.exports;
+    formatters2.o = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts).split("\n").map((str) => str.trim()).join(" ");
+    };
+    formatters2.O = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts);
+    };
+  }
+});
+
+// node_modules/debug/src/index.js
+var require_src = __commonJS({
+  "node_modules/debug/src/index.js"(exports, module) {
+    if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
+      module.exports = require_browser();
+    } else {
+      module.exports = require_node();
+    }
+  }
+});
+
+// node_modules/smart-buffer/build/utils.js
+var require_utils = __commonJS({
+  "node_modules/smart-buffer/build/utils.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var buffer_1 = __require("buffer");
+    var ERRORS = {
+      INVALID_ENCODING: "Invalid encoding provided. Please specify a valid encoding the internal Node.js Buffer supports.",
+      INVALID_SMARTBUFFER_SIZE: "Invalid size provided. Size must be a valid integer greater than zero.",
+      INVALID_SMARTBUFFER_BUFFER: "Invalid Buffer provided in SmartBufferOptions.",
+      INVALID_SMARTBUFFER_OBJECT: "Invalid SmartBufferOptions object supplied to SmartBuffer constructor or factory methods.",
+      INVALID_OFFSET: "An invalid offset value was provided.",
+      INVALID_OFFSET_NON_NUMBER: "An invalid offset value was provided. A numeric value is required.",
+      INVALID_LENGTH: "An invalid length value was provided.",
+      INVALID_LENGTH_NON_NUMBER: "An invalid length value was provived. A numeric value is required.",
+      INVALID_TARGET_OFFSET: "Target offset is beyond the bounds of the internal SmartBuffer data.",
+      INVALID_TARGET_LENGTH: "Specified length value moves cursor beyong the bounds of the internal SmartBuffer data.",
+      INVALID_READ_BEYOND_BOUNDS: "Attempted to read beyond the bounds of the managed data.",
+      INVALID_WRITE_BEYOND_BOUNDS: "Attempted to write beyond the bounds of the managed data."
+    };
+    exports.ERRORS = ERRORS;
+    function checkEncoding(encoding) {
+      if (!buffer_1.Buffer.isEncoding(encoding)) {
+        throw new Error(ERRORS.INVALID_ENCODING);
+      }
+    }
+    exports.checkEncoding = checkEncoding;
+    function isFiniteInteger(value) {
+      return typeof value === "number" && isFinite(value) && isInteger(value);
+    }
+    exports.isFiniteInteger = isFiniteInteger;
+    function checkOffsetOrLengthValue(value, offset) {
+      if (typeof value === "number") {
+        if (!isFiniteInteger(value) || value < 0) {
+          throw new Error(offset ? ERRORS.INVALID_OFFSET : ERRORS.INVALID_LENGTH);
+        }
+      } else {
+        throw new Error(offset ? ERRORS.INVALID_OFFSET_NON_NUMBER : ERRORS.INVALID_LENGTH_NON_NUMBER);
+      }
+    }
+    function checkLengthValue(length) {
+      checkOffsetOrLengthValue(length, false);
+    }
+    exports.checkLengthValue = checkLengthValue;
+    function checkOffsetValue(offset) {
+      checkOffsetOrLengthValue(offset, true);
+    }
+    exports.checkOffsetValue = checkOffsetValue;
+    function checkTargetOffset(offset, buff) {
+      if (offset < 0 || offset > buff.length) {
+        throw new Error(ERRORS.INVALID_TARGET_OFFSET);
+      }
+    }
+    exports.checkTargetOffset = checkTargetOffset;
+    function isInteger(value) {
+      return typeof value === "number" && isFinite(value) && Math.floor(value) === value;
+    }
+    function bigIntAndBufferInt64Check(bufferMethod) {
+      if (typeof BigInt === "undefined") {
+        throw new Error("Platform does not support JS BigInt type.");
+      }
+      if (typeof buffer_1.Buffer.prototype[bufferMethod] === "undefined") {
+        throw new Error(`Platform does not support Buffer.prototype.${bufferMethod}.`);
+      }
+    }
+    exports.bigIntAndBufferInt64Check = bigIntAndBufferInt64Check;
+  }
+});
+
+// node_modules/smart-buffer/build/smartbuffer.js
+var require_smartbuffer = __commonJS({
+  "node_modules/smart-buffer/build/smartbuffer.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var utils_1 = require_utils();
+    var DEFAULT_SMARTBUFFER_SIZE = 4096;
+    var DEFAULT_SMARTBUFFER_ENCODING = "utf8";
+    var SmartBuffer = class _SmartBuffer {
+      /**
+       * Creates a new SmartBuffer instance.
+       *
+       * @param options { SmartBufferOptions } The SmartBufferOptions to apply to this instance.
+       */
+      constructor(options) {
+        this.length = 0;
+        this._encoding = DEFAULT_SMARTBUFFER_ENCODING;
+        this._writeOffset = 0;
+        this._readOffset = 0;
+        if (_SmartBuffer.isSmartBufferOptions(options)) {
+          if (options.encoding) {
+            utils_1.checkEncoding(options.encoding);
+            this._encoding = options.encoding;
+          }
+          if (options.size) {
+            if (utils_1.isFiniteInteger(options.size) && options.size > 0) {
+              this._buff = Buffer.allocUnsafe(options.size);
+            } else {
+              throw new Error(utils_1.ERRORS.INVALID_SMARTBUFFER_SIZE);
+            }
+          } else if (options.buff) {
+            if (Buffer.isBuffer(options.buff)) {
+              this._buff = options.buff;
+              this.length = options.buff.length;
+            } else {
+              throw new Error(utils_1.ERRORS.INVALID_SMARTBUFFER_BUFFER);
+            }
+          } else {
+            this._buff = Buffer.allocUnsafe(DEFAULT_SMARTBUFFER_SIZE);
+          }
+        } else {
+          if (typeof options !== "undefined") {
+            throw new Error(utils_1.ERRORS.INVALID_SMARTBUFFER_OBJECT);
+          }
+          this._buff = Buffer.allocUnsafe(DEFAULT_SMARTBUFFER_SIZE);
+        }
+      }
+      /**
+       * Creates a new SmartBuffer instance with the provided internal Buffer size and optional encoding.
+       *
+       * @param size { Number } The size of the internal Buffer.
+       * @param encoding { String } The BufferEncoding to use for strings.
+       *
+       * @return { SmartBuffer }
+       */
+      static fromSize(size, encoding) {
+        return new this({
+          size,
+          encoding
+        });
+      }
+      /**
+       * Creates a new SmartBuffer instance with the provided Buffer and optional encoding.
+       *
+       * @param buffer { Buffer } The Buffer to use as the internal Buffer value.
+       * @param encoding { String } The BufferEncoding to use for strings.
+       *
+       * @return { SmartBuffer }
+       */
+      static fromBuffer(buff, encoding) {
+        return new this({
+          buff,
+          encoding
+        });
+      }
+      /**
+       * Creates a new SmartBuffer instance with the provided SmartBufferOptions options.
+       *
+       * @param options { SmartBufferOptions } The options to use when creating the SmartBuffer instance.
+       */
+      static fromOptions(options) {
+        return new this(options);
+      }
+      /**
+       * Type checking function that determines if an object is a SmartBufferOptions object.
+       */
+      static isSmartBufferOptions(options) {
+        const castOptions = options;
+        return castOptions && (castOptions.encoding !== void 0 || castOptions.size !== void 0 || castOptions.buff !== void 0);
+      }
+      // Signed integers
+      /**
+       * Reads an Int8 value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readInt8(offset) {
+        return this._readNumberValue(Buffer.prototype.readInt8, 1, offset);
+      }
+      /**
+       * Reads an Int16BE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readInt16BE(offset) {
+        return this._readNumberValue(Buffer.prototype.readInt16BE, 2, offset);
+      }
+      /**
+       * Reads an Int16LE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readInt16LE(offset) {
+        return this._readNumberValue(Buffer.prototype.readInt16LE, 2, offset);
+      }
+      /**
+       * Reads an Int32BE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readInt32BE(offset) {
+        return this._readNumberValue(Buffer.prototype.readInt32BE, 4, offset);
+      }
+      /**
+       * Reads an Int32LE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readInt32LE(offset) {
+        return this._readNumberValue(Buffer.prototype.readInt32LE, 4, offset);
+      }
+      /**
+       * Reads a BigInt64BE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { BigInt }
+       */
+      readBigInt64BE(offset) {
+        utils_1.bigIntAndBufferInt64Check("readBigInt64BE");
+        return this._readNumberValue(Buffer.prototype.readBigInt64BE, 8, offset);
+      }
+      /**
+       * Reads a BigInt64LE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { BigInt }
+       */
+      readBigInt64LE(offset) {
+        utils_1.bigIntAndBufferInt64Check("readBigInt64LE");
+        return this._readNumberValue(Buffer.prototype.readBigInt64LE, 8, offset);
+      }
+      /**
+       * Writes an Int8 value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeInt8(value, offset) {
+        this._writeNumberValue(Buffer.prototype.writeInt8, 1, value, offset);
+        return this;
+      }
+      /**
+       * Inserts an Int8 value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertInt8(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeInt8, 1, value, offset);
+      }
+      /**
+       * Writes an Int16BE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeInt16BE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeInt16BE, 2, value, offset);
+      }
+      /**
+       * Inserts an Int16BE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertInt16BE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeInt16BE, 2, value, offset);
+      }
+      /**
+       * Writes an Int16LE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeInt16LE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeInt16LE, 2, value, offset);
+      }
+      /**
+       * Inserts an Int16LE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertInt16LE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeInt16LE, 2, value, offset);
+      }
+      /**
+       * Writes an Int32BE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeInt32BE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeInt32BE, 4, value, offset);
+      }
+      /**
+       * Inserts an Int32BE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertInt32BE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeInt32BE, 4, value, offset);
+      }
+      /**
+       * Writes an Int32LE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeInt32LE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeInt32LE, 4, value, offset);
+      }
+      /**
+       * Inserts an Int32LE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertInt32LE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeInt32LE, 4, value, offset);
+      }
+      /**
+       * Writes a BigInt64BE value to the current write position (or at optional offset).
+       *
+       * @param value { BigInt } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeBigInt64BE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigInt64BE");
+        return this._writeNumberValue(Buffer.prototype.writeBigInt64BE, 8, value, offset);
+      }
+      /**
+       * Inserts a BigInt64BE value at the given offset value.
+       *
+       * @param value { BigInt } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertBigInt64BE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigInt64BE");
+        return this._insertNumberValue(Buffer.prototype.writeBigInt64BE, 8, value, offset);
+      }
+      /**
+       * Writes a BigInt64LE value to the current write position (or at optional offset).
+       *
+       * @param value { BigInt } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeBigInt64LE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigInt64LE");
+        return this._writeNumberValue(Buffer.prototype.writeBigInt64LE, 8, value, offset);
+      }
+      /**
+       * Inserts a Int64LE value at the given offset value.
+       *
+       * @param value { BigInt } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertBigInt64LE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigInt64LE");
+        return this._insertNumberValue(Buffer.prototype.writeBigInt64LE, 8, value, offset);
+      }
+      // Unsigned Integers
+      /**
+       * Reads an UInt8 value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readUInt8(offset) {
+        return this._readNumberValue(Buffer.prototype.readUInt8, 1, offset);
+      }
+      /**
+       * Reads an UInt16BE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readUInt16BE(offset) {
+        return this._readNumberValue(Buffer.prototype.readUInt16BE, 2, offset);
+      }
+      /**
+       * Reads an UInt16LE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readUInt16LE(offset) {
+        return this._readNumberValue(Buffer.prototype.readUInt16LE, 2, offset);
+      }
+      /**
+       * Reads an UInt32BE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readUInt32BE(offset) {
+        return this._readNumberValue(Buffer.prototype.readUInt32BE, 4, offset);
+      }
+      /**
+       * Reads an UInt32LE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readUInt32LE(offset) {
+        return this._readNumberValue(Buffer.prototype.readUInt32LE, 4, offset);
+      }
+      /**
+       * Reads a BigUInt64BE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { BigInt }
+       */
+      readBigUInt64BE(offset) {
+        utils_1.bigIntAndBufferInt64Check("readBigUInt64BE");
+        return this._readNumberValue(Buffer.prototype.readBigUInt64BE, 8, offset);
+      }
+      /**
+       * Reads a BigUInt64LE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { BigInt }
+       */
+      readBigUInt64LE(offset) {
+        utils_1.bigIntAndBufferInt64Check("readBigUInt64LE");
+        return this._readNumberValue(Buffer.prototype.readBigUInt64LE, 8, offset);
+      }
+      /**
+       * Writes an UInt8 value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeUInt8(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeUInt8, 1, value, offset);
+      }
+      /**
+       * Inserts an UInt8 value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertUInt8(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeUInt8, 1, value, offset);
+      }
+      /**
+       * Writes an UInt16BE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeUInt16BE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeUInt16BE, 2, value, offset);
+      }
+      /**
+       * Inserts an UInt16BE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertUInt16BE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeUInt16BE, 2, value, offset);
+      }
+      /**
+       * Writes an UInt16LE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeUInt16LE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeUInt16LE, 2, value, offset);
+      }
+      /**
+       * Inserts an UInt16LE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertUInt16LE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeUInt16LE, 2, value, offset);
+      }
+      /**
+       * Writes an UInt32BE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeUInt32BE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeUInt32BE, 4, value, offset);
+      }
+      /**
+       * Inserts an UInt32BE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertUInt32BE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeUInt32BE, 4, value, offset);
+      }
+      /**
+       * Writes an UInt32LE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeUInt32LE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeUInt32LE, 4, value, offset);
+      }
+      /**
+       * Inserts an UInt32LE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertUInt32LE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeUInt32LE, 4, value, offset);
+      }
+      /**
+       * Writes a BigUInt64BE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeBigUInt64BE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigUInt64BE");
+        return this._writeNumberValue(Buffer.prototype.writeBigUInt64BE, 8, value, offset);
+      }
+      /**
+       * Inserts a BigUInt64BE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertBigUInt64BE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigUInt64BE");
+        return this._insertNumberValue(Buffer.prototype.writeBigUInt64BE, 8, value, offset);
+      }
+      /**
+       * Writes a BigUInt64LE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeBigUInt64LE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigUInt64LE");
+        return this._writeNumberValue(Buffer.prototype.writeBigUInt64LE, 8, value, offset);
+      }
+      /**
+       * Inserts a BigUInt64LE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertBigUInt64LE(value, offset) {
+        utils_1.bigIntAndBufferInt64Check("writeBigUInt64LE");
+        return this._insertNumberValue(Buffer.prototype.writeBigUInt64LE, 8, value, offset);
+      }
+      // Floating Point
+      /**
+       * Reads an FloatBE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readFloatBE(offset) {
+        return this._readNumberValue(Buffer.prototype.readFloatBE, 4, offset);
+      }
+      /**
+       * Reads an FloatLE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readFloatLE(offset) {
+        return this._readNumberValue(Buffer.prototype.readFloatLE, 4, offset);
+      }
+      /**
+       * Writes a FloatBE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeFloatBE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeFloatBE, 4, value, offset);
+      }
+      /**
+       * Inserts a FloatBE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertFloatBE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeFloatBE, 4, value, offset);
+      }
+      /**
+       * Writes a FloatLE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeFloatLE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeFloatLE, 4, value, offset);
+      }
+      /**
+       * Inserts a FloatLE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertFloatLE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeFloatLE, 4, value, offset);
+      }
+      // Double Floating Point
+      /**
+       * Reads an DoublEBE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readDoubleBE(offset) {
+        return this._readNumberValue(Buffer.prototype.readDoubleBE, 8, offset);
+      }
+      /**
+       * Reads an DoubleLE value from the current read position or an optionally provided offset.
+       *
+       * @param offset { Number } The offset to read data from (optional)
+       * @return { Number }
+       */
+      readDoubleLE(offset) {
+        return this._readNumberValue(Buffer.prototype.readDoubleLE, 8, offset);
+      }
+      /**
+       * Writes a DoubleBE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeDoubleBE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeDoubleBE, 8, value, offset);
+      }
+      /**
+       * Inserts a DoubleBE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertDoubleBE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeDoubleBE, 8, value, offset);
+      }
+      /**
+       * Writes a DoubleLE value to the current write position (or at optional offset).
+       *
+       * @param value { Number } The value to write.
+       * @param offset { Number } The offset to write the value at.
+       *
+       * @return this
+       */
+      writeDoubleLE(value, offset) {
+        return this._writeNumberValue(Buffer.prototype.writeDoubleLE, 8, value, offset);
+      }
+      /**
+       * Inserts a DoubleLE value at the given offset value.
+       *
+       * @param value { Number } The value to insert.
+       * @param offset { Number } The offset to insert the value at.
+       *
+       * @return this
+       */
+      insertDoubleLE(value, offset) {
+        return this._insertNumberValue(Buffer.prototype.writeDoubleLE, 8, value, offset);
+      }
+      // Strings
+      /**
+       * Reads a String from the current read position.
+       *
+       * @param arg1 { Number | String } The number of bytes to read as a String, or the BufferEncoding to use for
+       *             the string (Defaults to instance level encoding).
+       * @param encoding { String } The BufferEncoding to use for the string (Defaults to instance level encoding).
+       *
+       * @return { String }
+       */
+      readString(arg1, encoding) {
+        let lengthVal;
+        if (typeof arg1 === "number") {
+          utils_1.checkLengthValue(arg1);
+          lengthVal = Math.min(arg1, this.length - this._readOffset);
+        } else {
+          encoding = arg1;
+          lengthVal = this.length - this._readOffset;
+        }
+        if (typeof encoding !== "undefined") {
+          utils_1.checkEncoding(encoding);
+        }
+        const value = this._buff.slice(this._readOffset, this._readOffset + lengthVal).toString(encoding || this._encoding);
+        this._readOffset += lengthVal;
+        return value;
+      }
+      /**
+       * Inserts a String
+       *
+       * @param value { String } The String value to insert.
+       * @param offset { Number } The offset to insert the string at.
+       * @param encoding { String } The BufferEncoding to use for writing strings (defaults to instance encoding).
+       *
+       * @return this
+       */
+      insertString(value, offset, encoding) {
+        utils_1.checkOffsetValue(offset);
+        return this._handleString(value, true, offset, encoding);
+      }
+      /**
+       * Writes a String
+       *
+       * @param value { String } The String value to write.
+       * @param arg2 { Number | String } The offset to write the string at, or the BufferEncoding to use.
+       * @param encoding { String } The BufferEncoding to use for writing strings (defaults to instance encoding).
+       *
+       * @return this
+       */
+      writeString(value, arg2, encoding) {
+        return this._handleString(value, false, arg2, encoding);
+      }
+      /**
+       * Reads a null-terminated String from the current read position.
+       *
+       * @param encoding { String } The BufferEncoding to use for the string (Defaults to instance level encoding).
+       *
+       * @return { String }
+       */
+      readStringNT(encoding) {
+        if (typeof encoding !== "undefined") {
+          utils_1.checkEncoding(encoding);
+        }
+        let nullPos = this.length;
+        for (let i = this._readOffset; i < this.length; i++) {
+          if (this._buff[i] === 0) {
+            nullPos = i;
+            break;
+          }
+        }
+        const value = this._buff.slice(this._readOffset, nullPos);
+        this._readOffset = nullPos + 1;
+        return value.toString(encoding || this._encoding);
+      }
+      /**
+       * Inserts a null-terminated String.
+       *
+       * @param value { String } The String value to write.
+       * @param arg2 { Number | String } The offset to write the string to, or the BufferEncoding to use.
+       * @param encoding { String } The BufferEncoding to use for writing strings (defaults to instance encoding).
+       *
+       * @return this
+       */
+      insertStringNT(value, offset, encoding) {
+        utils_1.checkOffsetValue(offset);
+        this.insertString(value, offset, encoding);
+        this.insertUInt8(0, offset + value.length);
+        return this;
+      }
+      /**
+       * Writes a null-terminated String.
+       *
+       * @param value { String } The String value to write.
+       * @param arg2 { Number | String } The offset to write the string to, or the BufferEncoding to use.
+       * @param encoding { String } The BufferEncoding to use for writing strings (defaults to instance encoding).
+       *
+       * @return this
+       */
+      writeStringNT(value, arg2, encoding) {
+        this.writeString(value, arg2, encoding);
+        this.writeUInt8(0, typeof arg2 === "number" ? arg2 + value.length : this.writeOffset);
+        return this;
+      }
+      // Buffers
+      /**
+       * Reads a Buffer from the internal read position.
+       *
+       * @param length { Number } The length of data to read as a Buffer.
+       *
+       * @return { Buffer }
+       */
+      readBuffer(length) {
+        if (typeof length !== "undefined") {
+          utils_1.checkLengthValue(length);
+        }
+        const lengthVal = typeof length === "number" ? length : this.length;
+        const endPoint = Math.min(this.length, this._readOffset + lengthVal);
+        const value = this._buff.slice(this._readOffset, endPoint);
+        this._readOffset = endPoint;
+        return value;
+      }
+      /**
+       * Writes a Buffer to the current write position.
+       *
+       * @param value { Buffer } The Buffer to write.
+       * @param offset { Number } The offset to write the Buffer to.
+       *
+       * @return this
+       */
+      insertBuffer(value, offset) {
+        utils_1.checkOffsetValue(offset);
+        return this._handleBuffer(value, true, offset);
+      }
+      /**
+       * Writes a Buffer to the current write position.
+       *
+       * @param value { Buffer } The Buffer to write.
+       * @param offset { Number } The offset to write the Buffer to.
+       *
+       * @return this
+       */
+      writeBuffer(value, offset) {
+        return this._handleBuffer(value, false, offset);
+      }
+      /**
+       * Reads a null-terminated Buffer from the current read poisiton.
+       *
+       * @return { Buffer }
+       */
+      readBufferNT() {
+        let nullPos = this.length;
+        for (let i = this._readOffset; i < this.length; i++) {
+          if (this._buff[i] === 0) {
+            nullPos = i;
+            break;
+          }
+        }
+        const value = this._buff.slice(this._readOffset, nullPos);
+        this._readOffset = nullPos + 1;
+        return value;
+      }
+      /**
+       * Inserts a null-terminated Buffer.
+       *
+       * @param value { Buffer } The Buffer to write.
+       * @param offset { Number } The offset to write the Buffer to.
+       *
+       * @return this
+       */
+      insertBufferNT(value, offset) {
+        utils_1.checkOffsetValue(offset);
+        this.insertBuffer(value, offset);
+        this.insertUInt8(0, offset + value.length);
+        return this;
+      }
+      /**
+       * Writes a null-terminated Buffer.
+       *
+       * @param value { Buffer } The Buffer to write.
+       * @param offset { Number } The offset to write the Buffer to.
+       *
+       * @return this
+       */
+      writeBufferNT(value, offset) {
+        if (typeof offset !== "undefined") {
+          utils_1.checkOffsetValue(offset);
+        }
+        this.writeBuffer(value, offset);
+        this.writeUInt8(0, typeof offset === "number" ? offset + value.length : this._writeOffset);
+        return this;
+      }
+      /**
+       * Clears the SmartBuffer instance to its original empty state.
+       */
+      clear() {
+        this._writeOffset = 0;
+        this._readOffset = 0;
+        this.length = 0;
+        return this;
+      }
+      /**
+       * Gets the remaining data left to be read from the SmartBuffer instance.
+       *
+       * @return { Number }
+       */
+      remaining() {
+        return this.length - this._readOffset;
+      }
+      /**
+       * Gets the current read offset value of the SmartBuffer instance.
+       *
+       * @return { Number }
+       */
+      get readOffset() {
+        return this._readOffset;
+      }
+      /**
+       * Sets the read offset value of the SmartBuffer instance.
+       *
+       * @param offset { Number } - The offset value to set.
+       */
+      set readOffset(offset) {
+        utils_1.checkOffsetValue(offset);
+        utils_1.checkTargetOffset(offset, this);
+        this._readOffset = offset;
+      }
+      /**
+       * Gets the current write offset value of the SmartBuffer instance.
+       *
+       * @return { Number }
+       */
+      get writeOffset() {
+        return this._writeOffset;
+      }
+      /**
+       * Sets the write offset value of the SmartBuffer instance.
+       *
+       * @param offset { Number } - The offset value to set.
+       */
+      set writeOffset(offset) {
+        utils_1.checkOffsetValue(offset);
+        utils_1.checkTargetOffset(offset, this);
+        this._writeOffset = offset;
+      }
+      /**
+       * Gets the currently set string encoding of the SmartBuffer instance.
+       *
+       * @return { BufferEncoding } The string Buffer encoding currently set.
+       */
+      get encoding() {
+        return this._encoding;
+      }
+      /**
+       * Sets the string encoding of the SmartBuffer instance.
+       *
+       * @param encoding { BufferEncoding } The string Buffer encoding to set.
+       */
+      set encoding(encoding) {
+        utils_1.checkEncoding(encoding);
+        this._encoding = encoding;
+      }
+      /**
+       * Gets the underlying internal Buffer. (This includes unmanaged data in the Buffer)
+       *
+       * @return { Buffer } The Buffer value.
+       */
+      get internalBuffer() {
+        return this._buff;
+      }
+      /**
+       * Gets the value of the internal managed Buffer (Includes managed data only)
+       *
+       * @param { Buffer }
+       */
+      toBuffer() {
+        return this._buff.slice(0, this.length);
+      }
+      /**
+       * Gets the String value of the internal managed Buffer
+       *
+       * @param encoding { String } The BufferEncoding to display the Buffer as (defaults to instance level encoding).
+       */
+      toString(encoding) {
+        const encodingVal = typeof encoding === "string" ? encoding : this._encoding;
+        utils_1.checkEncoding(encodingVal);
+        return this._buff.toString(encodingVal, 0, this.length);
+      }
+      /**
+       * Destroys the SmartBuffer instance.
+       */
+      destroy() {
+        this.clear();
+        return this;
+      }
+      /**
+       * Handles inserting and writing strings.
+       *
+       * @param value { String } The String value to insert.
+       * @param isInsert { Boolean } True if inserting a string, false if writing.
+       * @param arg2 { Number | String } The offset to insert the string at, or the BufferEncoding to use.
+       * @param encoding { String } The BufferEncoding to use for writing strings (defaults to instance encoding).
+       */
+      _handleString(value, isInsert, arg3, encoding) {
+        let offsetVal = this._writeOffset;
+        let encodingVal = this._encoding;
+        if (typeof arg3 === "number") {
+          offsetVal = arg3;
+        } else if (typeof arg3 === "string") {
+          utils_1.checkEncoding(arg3);
+          encodingVal = arg3;
+        }
+        if (typeof encoding === "string") {
+          utils_1.checkEncoding(encoding);
+          encodingVal = encoding;
+        }
+        const byteLength = Buffer.byteLength(value, encodingVal);
+        if (isInsert) {
+          this.ensureInsertable(byteLength, offsetVal);
+        } else {
+          this._ensureWriteable(byteLength, offsetVal);
+        }
+        this._buff.write(value, offsetVal, byteLength, encodingVal);
+        if (isInsert) {
+          this._writeOffset += byteLength;
+        } else {
+          if (typeof arg3 === "number") {
+            this._writeOffset = Math.max(this._writeOffset, offsetVal + byteLength);
+          } else {
+            this._writeOffset += byteLength;
+          }
+        }
+        return this;
+      }
+      /**
+       * Handles writing or insert of a Buffer.
+       *
+       * @param value { Buffer } The Buffer to write.
+       * @param offset { Number } The offset to write the Buffer to.
+       */
+      _handleBuffer(value, isInsert, offset) {
+        const offsetVal = typeof offset === "number" ? offset : this._writeOffset;
+        if (isInsert) {
+          this.ensureInsertable(value.length, offsetVal);
+        } else {
+          this._ensureWriteable(value.length, offsetVal);
+        }
+        value.copy(this._buff, offsetVal);
+        if (isInsert) {
+          this._writeOffset += value.length;
+        } else {
+          if (typeof offset === "number") {
+            this._writeOffset = Math.max(this._writeOffset, offsetVal + value.length);
+          } else {
+            this._writeOffset += value.length;
+          }
+        }
+        return this;
+      }
+      /**
+       * Ensures that the internal Buffer is large enough to read data.
+       *
+       * @param length { Number } The length of the data that needs to be read.
+       * @param offset { Number } The offset of the data that needs to be read.
+       */
+      ensureReadable(length, offset) {
+        let offsetVal = this._readOffset;
+        if (typeof offset !== "undefined") {
+          utils_1.checkOffsetValue(offset);
+          offsetVal = offset;
+        }
+        if (offsetVal < 0 || offsetVal + length > this.length) {
+          throw new Error(utils_1.ERRORS.INVALID_READ_BEYOND_BOUNDS);
+        }
+      }
+      /**
+       * Ensures that the internal Buffer is large enough to insert data.
+       *
+       * @param dataLength { Number } The length of the data that needs to be written.
+       * @param offset { Number } The offset of the data to be written.
+       */
+      ensureInsertable(dataLength, offset) {
+        utils_1.checkOffsetValue(offset);
+        this._ensureCapacity(this.length + dataLength);
+        if (offset < this.length) {
+          this._buff.copy(this._buff, offset + dataLength, offset, this._buff.length);
+        }
+        if (offset + dataLength > this.length) {
+          this.length = offset + dataLength;
+        } else {
+          this.length += dataLength;
+        }
+      }
+      /**
+       * Ensures that the internal Buffer is large enough to write data.
+       *
+       * @param dataLength { Number } The length of the data that needs to be written.
+       * @param offset { Number } The offset of the data to be written (defaults to writeOffset).
+       */
+      _ensureWriteable(dataLength, offset) {
+        const offsetVal = typeof offset === "number" ? offset : this._writeOffset;
+        this._ensureCapacity(offsetVal + dataLength);
+        if (offsetVal + dataLength > this.length) {
+          this.length = offsetVal + dataLength;
+        }
+      }
+      /**
+       * Ensures that the internal Buffer is large enough to write at least the given amount of data.
+       *
+       * @param minLength { Number } The minimum length of the data needs to be written.
+       */
+      _ensureCapacity(minLength) {
+        const oldLength = this._buff.length;
+        if (minLength > oldLength) {
+          let data = this._buff;
+          let newLength = oldLength * 3 / 2 + 1;
+          if (newLength < minLength) {
+            newLength = minLength;
+          }
+          this._buff = Buffer.allocUnsafe(newLength);
+          data.copy(this._buff, 0, 0, oldLength);
+        }
+      }
+      /**
+       * Reads a numeric number value using the provided function.
+       *
+       * @typeparam T { number | bigint } The type of the value to be read
+       *
+       * @param func { Function(offset: number) => number } The function to read data on the internal Buffer with.
+       * @param byteSize { Number } The number of bytes read.
+       * @param offset { Number } The offset to read from (optional). When this is not provided, the managed readOffset is used instead.
+       *
+       * @returns { T } the number value
+       */
+      _readNumberValue(func, byteSize, offset) {
+        this.ensureReadable(byteSize, offset);
+        const value = func.call(this._buff, typeof offset === "number" ? offset : this._readOffset);
+        if (typeof offset === "undefined") {
+          this._readOffset += byteSize;
+        }
+        return value;
+      }
+      /**
+       * Inserts a numeric number value based on the given offset and value.
+       *
+       * @typeparam T { number | bigint } The type of the value to be written
+       *
+       * @param func { Function(offset: T, offset?) => number} The function to write data on the internal Buffer with.
+       * @param byteSize { Number } The number of bytes written.
+       * @param value { T } The number value to write.
+       * @param offset { Number } the offset to write the number at (REQUIRED).
+       *
+       * @returns SmartBuffer this buffer
+       */
+      _insertNumberValue(func, byteSize, value, offset) {
+        utils_1.checkOffsetValue(offset);
+        this.ensureInsertable(byteSize, offset);
+        func.call(this._buff, value, offset);
+        this._writeOffset += byteSize;
+        return this;
+      }
+      /**
+       * Writes a numeric number value based on the given offset and value.
+       *
+       * @typeparam T { number | bigint } The type of the value to be written
+       *
+       * @param func { Function(offset: T, offset?) => number} The function to write data on the internal Buffer with.
+       * @param byteSize { Number } The number of bytes written.
+       * @param value { T } The number value to write.
+       * @param offset { Number } the offset to write the number at (REQUIRED).
+       *
+       * @returns SmartBuffer this buffer
+       */
+      _writeNumberValue(func, byteSize, value, offset) {
+        if (typeof offset === "number") {
+          if (offset < 0) {
+            throw new Error(utils_1.ERRORS.INVALID_WRITE_BEYOND_BOUNDS);
+          }
+          utils_1.checkOffsetValue(offset);
+        }
+        const offsetVal = typeof offset === "number" ? offset : this._writeOffset;
+        this._ensureWriteable(byteSize, offsetVal);
+        func.call(this._buff, value, offsetVal);
+        if (typeof offset === "number") {
+          this._writeOffset = Math.max(this._writeOffset, offsetVal + byteSize);
+        } else {
+          this._writeOffset += byteSize;
+        }
+        return this;
+      }
+    };
+    exports.SmartBuffer = SmartBuffer;
+  }
+});
+
+// node_modules/socks/build/common/constants.js
+var require_constants2 = __commonJS({
+  "node_modules/socks/build/common/constants.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SOCKS5_NO_ACCEPTABLE_AUTH = exports.SOCKS5_CUSTOM_AUTH_END = exports.SOCKS5_CUSTOM_AUTH_START = exports.SOCKS_INCOMING_PACKET_SIZES = exports.SocksClientState = exports.Socks5Response = exports.Socks5HostType = exports.Socks5Auth = exports.Socks4Response = exports.SocksCommand = exports.ERRORS = exports.DEFAULT_TIMEOUT = void 0;
+    var DEFAULT_TIMEOUT = 3e4;
+    exports.DEFAULT_TIMEOUT = DEFAULT_TIMEOUT;
+    var ERRORS = {
+      InvalidSocksCommand: "An invalid SOCKS command was provided. Valid options are connect, bind, and associate.",
+      InvalidSocksCommandForOperation: "An invalid SOCKS command was provided. Only a subset of commands are supported for this operation.",
+      InvalidSocksCommandChain: "An invalid SOCKS command was provided. Chaining currently only supports the connect command.",
+      InvalidSocksClientOptionsDestination: "An invalid destination host was provided.",
+      InvalidSocksClientOptionsExistingSocket: "An invalid existing socket was provided. This should be an instance of stream.Duplex.",
+      InvalidSocksClientOptionsProxy: "Invalid SOCKS proxy details were provided.",
+      InvalidSocksClientOptionsTimeout: "An invalid timeout value was provided. Please enter a value above 0 (in ms).",
+      InvalidSocksClientOptionsProxiesLength: "At least two socks proxies must be provided for chaining.",
+      InvalidSocksClientOptionsCustomAuthRange: "Custom auth must be a value between 0x80 and 0xFE.",
+      InvalidSocksClientOptionsCustomAuthOptions: "When a custom_auth_method is provided, custom_auth_request_handler, custom_auth_response_size, and custom_auth_response_handler must also be provided and valid.",
+      NegotiationError: "Negotiation error",
+      SocketClosed: "Socket closed",
+      ProxyConnectionTimedOut: "Proxy connection timed out",
+      InternalError: "SocksClient internal error (this should not happen)",
+      InvalidSocks4HandshakeResponse: "Received invalid Socks4 handshake response",
+      Socks4ProxyRejectedConnection: "Socks4 Proxy rejected connection",
+      InvalidSocks4IncomingConnectionResponse: "Socks4 invalid incoming connection response",
+      Socks4ProxyRejectedIncomingBoundConnection: "Socks4 Proxy rejected incoming bound connection",
+      InvalidSocks5InitialHandshakeResponse: "Received invalid Socks5 initial handshake response",
+      InvalidSocks5IntiailHandshakeSocksVersion: "Received invalid Socks5 initial handshake (invalid socks version)",
+      InvalidSocks5InitialHandshakeNoAcceptedAuthType: "Received invalid Socks5 initial handshake (no accepted authentication type)",
+      InvalidSocks5InitialHandshakeUnknownAuthType: "Received invalid Socks5 initial handshake (unknown authentication type)",
+      Socks5AuthenticationFailed: "Socks5 Authentication failed",
+      InvalidSocks5FinalHandshake: "Received invalid Socks5 final handshake response",
+      InvalidSocks5FinalHandshakeRejected: "Socks5 proxy rejected connection",
+      InvalidSocks5IncomingConnectionResponse: "Received invalid Socks5 incoming connection response",
+      Socks5ProxyRejectedIncomingBoundConnection: "Socks5 Proxy rejected incoming bound connection"
+    };
+    exports.ERRORS = ERRORS;
+    var SOCKS_INCOMING_PACKET_SIZES = {
+      Socks5InitialHandshakeResponse: 2,
+      Socks5UserPassAuthenticationResponse: 2,
+      // Command response + incoming connection (bind)
+      Socks5ResponseHeader: 5,
+      // We need at least 5 to read the hostname length, then we wait for the address+port information.
+      Socks5ResponseIPv4: 10,
+      // 4 header + 4 ip + 2 port
+      Socks5ResponseIPv6: 22,
+      // 4 header + 16 ip + 2 port
+      Socks5ResponseHostname: (hostNameLength) => hostNameLength + 7,
+      // 4 header + 1 host length + host + 2 port
+      // Command response + incoming connection (bind)
+      Socks4Response: 8
+      // 2 header + 2 port + 4 ip
+    };
+    exports.SOCKS_INCOMING_PACKET_SIZES = SOCKS_INCOMING_PACKET_SIZES;
+    var SocksCommand;
+    (function(SocksCommand2) {
+      SocksCommand2[SocksCommand2["connect"] = 1] = "connect";
+      SocksCommand2[SocksCommand2["bind"] = 2] = "bind";
+      SocksCommand2[SocksCommand2["associate"] = 3] = "associate";
+    })(SocksCommand || (exports.SocksCommand = SocksCommand = {}));
+    var Socks4Response;
+    (function(Socks4Response2) {
+      Socks4Response2[Socks4Response2["Granted"] = 90] = "Granted";
+      Socks4Response2[Socks4Response2["Failed"] = 91] = "Failed";
+      Socks4Response2[Socks4Response2["Rejected"] = 92] = "Rejected";
+      Socks4Response2[Socks4Response2["RejectedIdent"] = 93] = "RejectedIdent";
+    })(Socks4Response || (exports.Socks4Response = Socks4Response = {}));
+    var Socks5Auth;
+    (function(Socks5Auth2) {
+      Socks5Auth2[Socks5Auth2["NoAuth"] = 0] = "NoAuth";
+      Socks5Auth2[Socks5Auth2["GSSApi"] = 1] = "GSSApi";
+      Socks5Auth2[Socks5Auth2["UserPass"] = 2] = "UserPass";
+    })(Socks5Auth || (exports.Socks5Auth = Socks5Auth = {}));
+    var SOCKS5_CUSTOM_AUTH_START = 128;
+    exports.SOCKS5_CUSTOM_AUTH_START = SOCKS5_CUSTOM_AUTH_START;
+    var SOCKS5_CUSTOM_AUTH_END = 254;
+    exports.SOCKS5_CUSTOM_AUTH_END = SOCKS5_CUSTOM_AUTH_END;
+    var SOCKS5_NO_ACCEPTABLE_AUTH = 255;
+    exports.SOCKS5_NO_ACCEPTABLE_AUTH = SOCKS5_NO_ACCEPTABLE_AUTH;
+    var Socks5Response;
+    (function(Socks5Response2) {
+      Socks5Response2[Socks5Response2["Granted"] = 0] = "Granted";
+      Socks5Response2[Socks5Response2["Failure"] = 1] = "Failure";
+      Socks5Response2[Socks5Response2["NotAllowed"] = 2] = "NotAllowed";
+      Socks5Response2[Socks5Response2["NetworkUnreachable"] = 3] = "NetworkUnreachable";
+      Socks5Response2[Socks5Response2["HostUnreachable"] = 4] = "HostUnreachable";
+      Socks5Response2[Socks5Response2["ConnectionRefused"] = 5] = "ConnectionRefused";
+      Socks5Response2[Socks5Response2["TTLExpired"] = 6] = "TTLExpired";
+      Socks5Response2[Socks5Response2["CommandNotSupported"] = 7] = "CommandNotSupported";
+      Socks5Response2[Socks5Response2["AddressNotSupported"] = 8] = "AddressNotSupported";
+    })(Socks5Response || (exports.Socks5Response = Socks5Response = {}));
+    var Socks5HostType;
+    (function(Socks5HostType2) {
+      Socks5HostType2[Socks5HostType2["IPv4"] = 1] = "IPv4";
+      Socks5HostType2[Socks5HostType2["Hostname"] = 3] = "Hostname";
+      Socks5HostType2[Socks5HostType2["IPv6"] = 4] = "IPv6";
+    })(Socks5HostType || (exports.Socks5HostType = Socks5HostType = {}));
+    var SocksClientState;
+    (function(SocksClientState2) {
+      SocksClientState2[SocksClientState2["Created"] = 0] = "Created";
+      SocksClientState2[SocksClientState2["Connecting"] = 1] = "Connecting";
+      SocksClientState2[SocksClientState2["Connected"] = 2] = "Connected";
+      SocksClientState2[SocksClientState2["SentInitialHandshake"] = 3] = "SentInitialHandshake";
+      SocksClientState2[SocksClientState2["ReceivedInitialHandshakeResponse"] = 4] = "ReceivedInitialHandshakeResponse";
+      SocksClientState2[SocksClientState2["SentAuthentication"] = 5] = "SentAuthentication";
+      SocksClientState2[SocksClientState2["ReceivedAuthenticationResponse"] = 6] = "ReceivedAuthenticationResponse";
+      SocksClientState2[SocksClientState2["SentFinalHandshake"] = 7] = "SentFinalHandshake";
+      SocksClientState2[SocksClientState2["ReceivedFinalResponse"] = 8] = "ReceivedFinalResponse";
+      SocksClientState2[SocksClientState2["BoundWaitingForConnection"] = 9] = "BoundWaitingForConnection";
+      SocksClientState2[SocksClientState2["Established"] = 10] = "Established";
+      SocksClientState2[SocksClientState2["Disconnected"] = 11] = "Disconnected";
+      SocksClientState2[SocksClientState2["Error"] = 99] = "Error";
+    })(SocksClientState || (exports.SocksClientState = SocksClientState = {}));
+  }
+});
+
+// node_modules/socks/build/common/util.js
+var require_util = __commonJS({
+  "node_modules/socks/build/common/util.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SocksClientError = void 0;
+    exports.shuffleArray = shuffleArray;
+    var SocksClientError = class extends Error {
+      constructor(message, options) {
+        super(message);
+        this.options = options;
+      }
+    };
+    exports.SocksClientError = SocksClientError;
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+  }
+});
+
+// node_modules/ip-address/dist/address-error.js
+var require_address_error = __commonJS({
+  "node_modules/ip-address/dist/address-error.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.AddressError = void 0;
+    var AddressError = class extends Error {
+      constructor(message, parseMessage) {
+        super(message);
+        this.name = "AddressError";
+        this.parseMessage = parseMessage;
+      }
+    };
+    exports.AddressError = AddressError;
+  }
+});
+
+// node_modules/ip-address/dist/common.js
+var require_common2 = __commonJS({
+  "node_modules/ip-address/dist/common.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.isInSubnet = isInSubnet;
+    exports.isHostInSubnet = isHostInSubnet;
+    exports.isGloballyReachable = isGloballyReachable;
+    exports.offsetBigInt = offsetBigInt;
+    exports.isCorrect = isCorrect;
+    exports.prefixLengthFromMask = prefixLengthFromMask;
+    exports.assertByteArray = assertByteArray;
+    exports.numberToPaddedHex = numberToPaddedHex;
+    exports.stringToPaddedHex = stringToPaddedHex;
+    exports.testBit = testBit;
+    var address_error_1 = require_address_error();
+    function isInSubnet(address) {
+      if (this.subnetMask < address.subnetMask) {
+        return false;
+      }
+      return isHostInSubnet.call(this, address);
+    }
+    function isHostInSubnet(address) {
+      if (this.binaryZeroPad().length !== address.binaryZeroPad().length) {
+        return false;
+      }
+      return this.mask(address.subnetMask) === address.mask();
+    }
+    function isGloballyReachable(entries) {
+      let best = null;
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        if (entry.reachable !== null && isHostInSubnet.call(this, entry.subnet) && (best === null || entry.subnet.subnetMask > best.subnet.subnetMask)) {
+          best = entry;
+        }
+      }
+      return best === null ? true : best.reachable;
+    }
+    function offsetBigInt(value, n, bits, family) {
+      if (typeof n === "number" && !Number.isSafeInteger(n)) {
+        throw new address_error_1.AddressError(`${family} offset must be an integer`);
+      }
+      if (typeof n !== "number" && typeof n !== "bigint") {
+        throw new address_error_1.AddressError(`${family} offset must be an integer`);
+      }
+      const result = value + BigInt(n);
+      if (result < BigInt(0) || result > (BigInt(1) << BigInt(bits)) - BigInt(1)) {
+        throw new address_error_1.AddressError(`${family} offset leaves the address space`);
+      }
+      return result;
+    }
+    function isCorrect(defaultBits) {
+      return function isCorrectForm() {
+        if (this.addressMinusSuffix !== this.correctForm()) {
+          return false;
+        }
+        if (this.subnetMask === defaultBits && !this.parsedSubnet) {
+          return true;
+        }
+        return this.parsedSubnet === String(this.subnetMask);
+      };
+    }
+    function prefixLengthFromMask(value, totalBits) {
+      const binary = value.toString(2).padStart(totalBits, "0");
+      if (binary.length > totalBits) {
+        throw new address_error_1.AddressError("Invalid subnet mask.");
+      }
+      const firstZero = binary.indexOf("0");
+      if (firstZero === -1) {
+        return totalBits;
+      }
+      if (binary.slice(firstZero).includes("1")) {
+        throw new address_error_1.AddressError("Invalid subnet mask.");
+      }
+      return firstZero;
+    }
+    function assertByteArray(bytes, byteCount, family, minimum) {
+      if (bytes.length !== byteCount) {
+        throw new address_error_1.AddressError(`${family} addresses require exactly ${byteCount} bytes`);
+      }
+      for (let i = 0; i < bytes.length; i++) {
+        if (!Number.isInteger(bytes[i]) || bytes[i] < minimum || bytes[i] > 255) {
+          throw new address_error_1.AddressError(`All bytes must be integers between ${minimum} and 255`);
+        }
+      }
+    }
+    function numberToPaddedHex(number) {
+      return number.toString(16).padStart(2, "0");
+    }
+    function stringToPaddedHex(numberString) {
+      return numberToPaddedHex(parseInt(numberString, 10));
+    }
+    function testBit(binaryValue, position) {
+      const { length } = binaryValue;
+      if (position >= length) {
+        return false;
+      }
+      const positionInString = length - position - 1;
+      return binaryValue.substring(positionInString, positionInString + 1) === "1";
+    }
+  }
+});
+
+// node_modules/ip-address/dist/v4/constants.js
+var require_constants3 = __commonJS({
+  "node_modules/ip-address/dist/v4/constants.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
+    exports.BITS = 32;
+    exports.GROUPS = 4;
+    exports.RE_ADDRESS = /^(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$/g;
+    exports.RE_SUBNET_STRING = /\/\d{1,2}$/;
+    exports.SPECIAL_PURPOSE = [
+      ["0.0.0.0/8", "This network", false],
+      ["0.0.0.0/32", "This host on this network", false],
+      ["10.0.0.0/8", "Private-Use", false],
+      ["100.64.0.0/10", "Shared Address Space", false],
+      ["127.0.0.0/8", "Loopback", false],
+      ["169.254.0.0/16", "Link Local", false],
+      ["172.16.0.0/12", "Private-Use", false],
+      ["192.0.0.0/24", "IETF Protocol Assignments", false],
+      ["192.0.0.0/29", "IPv4 Service Continuity Prefix", false],
+      ["192.0.0.8/32", "IPv4 dummy address", false],
+      ["192.0.0.9/32", "Port Control Protocol Anycast", true],
+      ["192.0.0.10/32", "Traversal Using Relays around NAT Anycast", true],
+      ["192.0.0.170/32", "NAT64/DNS64 Discovery", false],
+      ["192.0.0.171/32", "NAT64/DNS64 Discovery", false],
+      ["192.0.2.0/24", "Documentation (TEST-NET-1)", false],
+      ["192.31.196.0/24", "AS112-v4", true],
+      ["192.52.193.0/24", "AMT", true],
+      ["192.88.99.0/24", "Deprecated (6to4 Relay Anycast)", null],
+      ["192.88.99.2/32", "6a44-relay anycast address", false],
+      ["192.168.0.0/16", "Private-Use", false],
+      ["192.175.48.0/24", "Direct Delegation AS112 Service", true],
+      ["198.18.0.0/15", "Benchmarking", false],
+      ["198.51.100.0/24", "Documentation (TEST-NET-2)", false],
+      ["203.0.113.0/24", "Documentation (TEST-NET-3)", false],
+      ["240.0.0.0/4", "Reserved", false],
+      ["255.255.255.255/32", "Limited Broadcast", false]
+    ];
+  }
+});
+
+// node_modules/ip-address/dist/ipv4.js
+var require_ipv4 = __commonJS({
+  "node_modules/ip-address/dist/ipv4.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __setModuleDefault = exports && exports.__setModuleDefault || (Object.create ? (function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    }) : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar = exports && exports.__importStar || function(mod) {
+      if (mod && mod.__esModule) return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+      }
+      __setModuleDefault(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Address4 = void 0;
+    var common = __importStar(require_common2());
+    var constants2 = __importStar(require_constants3());
+    var address_error_1 = require_address_error();
+    var isCorrect4 = common.isCorrect(constants2.BITS);
+    var Address4 = class _Address4 {
+      constructor(address) {
+        this.addressMinusSuffix = "";
+        this.groups = constants2.GROUPS;
+        this.parsedAddress = [];
+        this.parsedSubnet = "";
+        this.subnet = "/32";
+        this.subnetMask = 32;
+        this.v4 = true;
+        this.isCorrect = isCorrect4;
+        this.isInSubnet = common.isInSubnet;
+        this.isHostInSubnet = common.isHostInSubnet;
+        this.address = address;
+        const subnet = constants2.RE_SUBNET_STRING.exec(address);
+        if (subnet) {
+          this.parsedSubnet = subnet[0].replace("/", "");
+          this.subnetMask = parseInt(this.parsedSubnet, 10);
+          this.subnet = `/${this.subnetMask}`;
+          if (this.subnetMask < 0 || this.subnetMask > constants2.BITS) {
+            throw new address_error_1.AddressError("Invalid subnet mask.");
+          }
+          address = address.replace(constants2.RE_SUBNET_STRING, "");
+        }
+        const longest = constants2.GROUPS * 4 - 1;
+        if (address.length > longest) {
+          throw new address_error_1.AddressError(`IPv4 addresses are at most ${longest} characters.`);
+        }
+        this.addressMinusSuffix = address;
+        this.parsedAddress = this.parse(address);
+      }
+      /**
+       * Returns true if the given string is a valid IPv4 address (with optional
+       * CIDR subnet), false otherwise. Host bits in the subnet portion are
+       * allowed (e.g. `192.168.1.5/24` is valid); for strict network-address
+       * validation compare `correctForm()` to `startAddress().correctForm()`,
+       * or use `networkForm()`.
+       */
+      static isValid(address) {
+        try {
+          new _Address4(address);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      /**
+       * Parses an IPv4 address string into its four octet groups and stores the
+       * result on `this.parsedAddress`. Called automatically by the constructor;
+       * you typically don't need to call it directly. Throws `AddressError` if
+       * the input is not a valid IPv4 address.
+       */
+      parse(address) {
+        const groups = address.split(".");
+        if (groups.some((group) => /^0\d/.test(group))) {
+          throw new address_error_1.AddressError("IPv4 addresses can't have leading zeroes.");
+        }
+        if (!address.match(constants2.RE_ADDRESS)) {
+          throw new address_error_1.AddressError("Invalid IPv4 address.");
+        }
+        return groups;
+      }
+      /**
+       * Returns the address in correct form: octets joined with `.` and any
+       * leading zeros stripped (e.g. `192.168.1.1`). For IPv4 this matches the
+       * canonical dotted-decimal representation.
+       */
+      correctForm() {
+        return this.parsedAddress.map((part) => parseInt(part, 10)).join(".");
+      }
+      /**
+       * Construct an `Address4` from an address and a dotted-decimal subnet
+       * mask given as separate strings (e.g. as returned by Node's
+       * `os.networkInterfaces()`). Throws `AddressError` if the mask is
+       * non-contiguous (e.g. `255.0.255.0`).
+       * @example
+       * var address = Address4.fromAddressAndMask('192.168.1.1', '255.255.255.0');
+       * address.subnetMask; // 24
+       */
+      static fromAddressAndMask(address, mask) {
+        const bits = common.prefixLengthFromMask(new _Address4(mask).bigInt(), constants2.BITS);
+        return new _Address4(`${address}/${bits}`);
+      }
+      /**
+       * Construct an `Address4` from an address and a Cisco-style wildcard mask
+       * given as separate strings (e.g. `0.0.0.255` for a `/24`). The wildcard
+       * mask is the bitwise inverse of the subnet mask. Throws `AddressError`
+       * if the mask is non-contiguous (e.g. `0.255.0.255`).
+       * @example
+       * var address = Address4.fromAddressAndWildcardMask('10.0.0.1', '0.0.0.255');
+       * address.subnetMask; // 24
+       */
+      static fromAddressAndWildcardMask(address, wildcardMask) {
+        const wildcard = new _Address4(wildcardMask).bigInt();
+        const allOnes = (BigInt(1) << BigInt(constants2.BITS)) - BigInt(1);
+        const mask = wildcard ^ allOnes;
+        const bits = common.prefixLengthFromMask(mask, constants2.BITS);
+        return new _Address4(`${address}/${bits}`);
+      }
+      /**
+       * Construct an `Address4` from a wildcard pattern with trailing `*`
+       * octets. The number of trailing wildcards determines the prefix
+       * length: each `*` represents 8 bits.
+       *
+       * Only trailing whole-octet wildcards are supported. Partial-octet
+       * wildcards (e.g. `192.168.0.1*`) and interior wildcards (e.g.
+       * `192.*.0.1`) throw `AddressError`.
+       * @example
+       * Address4.fromWildcard('192.168.0.*').subnet;   // '/24'
+       * Address4.fromWildcard('192.168.*.*').subnet;   // '/16'
+       * Address4.fromWildcard('*.*.*.*').subnet;       // '/0'
+       */
+      static fromWildcard(input) {
+        const groups = input.split(".");
+        if (groups.length !== constants2.GROUPS) {
+          throw new address_error_1.AddressError("Wildcard pattern must have 4 octets");
+        }
+        let firstWildcard = -1;
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i] === "*") {
+            if (firstWildcard === -1) {
+              firstWildcard = i;
+            }
+          } else if (firstWildcard !== -1) {
+            throw new address_error_1.AddressError("Wildcard `*` must only appear in trailing octets (e.g. `192.168.0.*`)");
+          }
+        }
+        const trailing = firstWildcard === -1 ? 0 : groups.length - firstWildcard;
+        const replaced = groups.map((g) => g === "*" ? "0" : g);
+        const subnetBits = constants2.BITS - trailing * 8;
+        return new _Address4(`${replaced.join(".")}/${subnetBits}`);
+      }
+      /**
+       * Converts a hex string to an IPv4 address object. Accepts 8 hex digits
+       * with optional `:` separators (e.g. `'7f000001'` or `'7f:00:00:01'`).
+       * Throws `AddressError` for any other length or for non-hex characters.
+       * @param {string} hex - a hex string to convert
+       * @returns {Address4}
+       */
+      static fromHex(hex) {
+        const stripped = hex.replace(/:/g, "");
+        if (!/^[0-9a-fA-F]{8}$/.test(stripped)) {
+          throw new address_error_1.AddressError("IPv4 hex must be exactly 8 hex digits");
+        }
+        const groups = [];
+        for (let i = 0; i < 8; i += 2) {
+          groups.push(parseInt(stripped.slice(i, i + 2), 16));
+        }
+        return new _Address4(groups.join("."));
+      }
+      /**
+       * Converts an integer into a IPv4 address object. The integer must be a
+       * non-negative safe integer in the range `[0, 2**32 - 1]`; otherwise
+       * `AddressError` is thrown.
+       * @param {integer} integer - a number to convert
+       * @returns {Address4}
+       */
+      static fromInteger(integer) {
+        if (!Number.isInteger(integer) || integer < 0 || integer > 4294967295) {
+          throw new address_error_1.AddressError("IPv4 integer must be in the range 0 to 2**32 - 1");
+        }
+        return _Address4.fromHex(integer.toString(16).padStart(8, "0"));
+      }
+      /**
+       * Return an address from in-addr.arpa form: the four octets reversed, with
+       * or without the `.in-addr.arpa` suffix and root dot, in any case. Throws
+       * `AddressError` unless the reversed labels form a valid IPv4 address, so
+       * `fromArpa(x.reverseForm())` round-trips {@link reverseForm}.
+       * @param {string} arpaFormAddress - an 'in-addr.arpa' form ipv4 address
+       * @returns {Adress4}
+       * @example
+       * var address = Address4.fromArpa('42.2.0.192.in-addr.arpa.')
+       * address.correctForm(); // '192.0.2.42'
+       */
+      static fromArpa(arpaFormAddress) {
+        const longest = constants2.GROUPS * 4 - 1 + "/32".length + ".in-addr.arpa.".length;
+        if (arpaFormAddress.length > longest) {
+          throw new address_error_1.AddressError(`in-addr.arpa names are at most ${longest} characters.`);
+        }
+        const leader = arpaFormAddress.replace(/(\.in-addr\.arpa)?\.?$/i, "");
+        const address = leader.split(".").reverse().join(".");
+        return new _Address4(address);
+      }
+      /**
+       * Converts an IPv4 address object to a hex string
+       * @returns {String}
+       */
+      toHex() {
+        return this.parsedAddress.map((part) => common.stringToPaddedHex(part)).join(":");
+      }
+      /**
+       * Converts an IPv4 address object to an array of bytes.
+       *
+       * To get a Node.js `Buffer`, wrap the result: `Buffer.from(address.toArray())`.
+       * @returns {Array}
+       */
+      toArray() {
+        return this.parsedAddress.map((part) => parseInt(part, 10));
+      }
+      /**
+       * Converts an IPv4 address object to an IPv6 address group
+       * @returns {String}
+       */
+      toGroup6() {
+        const output = [];
+        let i;
+        for (i = 0; i < constants2.GROUPS; i += 2) {
+          output.push(`${common.stringToPaddedHex(this.parsedAddress[i])}${common.stringToPaddedHex(this.parsedAddress[i + 1])}`);
+        }
+        return output.join(":");
+      }
+      /**
+       * Returns the address as a `bigint`
+       * @returns {bigint}
+       */
+      bigInt() {
+        return BigInt(`0x${this.parsedAddress.map((n) => common.stringToPaddedHex(n)).join("")}`);
+      }
+      /**
+       * Helper function getting start address.
+       * @returns {bigint}
+       */
+      _startAddress() {
+        return BigInt(`0b${this.mask() + "0".repeat(constants2.BITS - this.subnetMask)}`);
+      }
+      /**
+       * The first address in the range given by this address' subnet.
+       * Often referred to as the Network Address.
+       * @returns {Address4}
+       */
+      startAddress() {
+        return _Address4.fromBigInt(this._startAddress());
+      }
+      /**
+       * The first host address in the range given by this address's subnet ie
+       * the first address after the Network Address
+       * @returns {Address4}
+       */
+      startAddressExclusive() {
+        const adjust = BigInt("1");
+        return _Address4.fromBigInt(this._startAddress() + adjust);
+      }
+      /**
+       * Returns the address `n` addresses after this one (or before, when `n` is
+       * negative), keeping this address's subnet mask. Throws `AddressError` when
+       * the result would fall outside the IPv4 address space or `n` is not an
+       * integer.
+       * @param {number | bigint} n
+       * @returns {Address4}
+       * @example
+       * new Address4('10.0.0.0/24').offset(1).correctForm(); // '10.0.0.1'
+       */
+      offset(n) {
+        return _Address4.fromBigInt(common.offsetBigInt(this.bigInt(), n, constants2.BITS, "IPv4")).withSubnetMask(this.subnetMask);
+      }
+      /**
+       * Returns the network that follows this address's network: the address after
+       * {@link endAddress}, with the same subnet mask. Throws `AddressError` when
+       * this network is the last one in the address space.
+       * @returns {Address4}
+       * @example
+       * new Address4('10.0.0.0/24').nextNetwork().networkForm(); // '10.0.1.0/24'
+       */
+      nextNetwork() {
+        return _Address4.fromBigInt(common.offsetBigInt(this._endAddress(), 1, constants2.BITS, "IPv4")).withSubnetMask(this.subnetMask);
+      }
+      withSubnetMask(subnetMask) {
+        return new _Address4(`${this.correctForm()}/${subnetMask}`);
+      }
+      /**
+       * Helper function getting end address.
+       * @returns {bigint}
+       */
+      _endAddress() {
+        return BigInt(`0b${this.mask() + "1".repeat(constants2.BITS - this.subnetMask)}`);
+      }
+      /**
+       * The last address in the range given by this address' subnet
+       * Often referred to as the Broadcast
+       * @returns {Address4}
+       */
+      endAddress() {
+        return _Address4.fromBigInt(this._endAddress());
+      }
+      /**
+       * The last host address in the range given by this address's subnet ie
+       * the last address prior to the Broadcast Address
+       * @returns {Address4}
+       */
+      endAddressExclusive() {
+        const adjust = BigInt("1");
+        return _Address4.fromBigInt(this._endAddress() - adjust);
+      }
+      /**
+       * The dotted-decimal form of the subnet mask, e.g. `255.255.240.0` for
+       * a `/20`. Returns an `Address4`; call `.correctForm()` for the string.
+       * @returns {Address4}
+       */
+      subnetMaskAddress() {
+        return _Address4.fromBigInt(BigInt(`0b${"1".repeat(this.subnetMask)}${"0".repeat(constants2.BITS - this.subnetMask)}`));
+      }
+      /**
+       * The Cisco-style wildcard mask, e.g. `0.0.0.255` for a `/24`. This is
+       * the bitwise inverse of `subnetMaskAddress()`. Returns an `Address4`;
+       * call `.correctForm()` for the string.
+       * @returns {Address4}
+       */
+      wildcardMask() {
+        return _Address4.fromBigInt(BigInt(`0b${"0".repeat(this.subnetMask)}${"1".repeat(constants2.BITS - this.subnetMask)}`));
+      }
+      /**
+       * The network address in CIDR string form, e.g. `192.168.1.0/24` for
+       * `192.168.1.5/24`. For an address with no explicit subnet the prefix is
+       * `/32`, e.g. `networkForm()` on `192.168.1.5` returns `192.168.1.5/32`.
+       * @returns {string}
+       */
+      networkForm() {
+        return `${this.startAddress().correctForm()}/${this.subnetMask}`;
+      }
+      /**
+       * Converts a BigInt to a v4 address object. The value must be in the
+       * range `[0, 2**32 - 1]`; otherwise `AddressError` is thrown.
+       * @param {bigint} bigInt - a BigInt to convert
+       * @returns {Address4}
+       */
+      static fromBigInt(bigInt) {
+        if (bigInt < BigInt(0) || bigInt > BigInt(4294967295)) {
+          throw new address_error_1.AddressError("IPv4 BigInt must be in the range 0 to 2**32 - 1");
+        }
+        return _Address4.fromHex(bigInt.toString(16).padStart(8, "0"));
+      }
+      /**
+       * Convert a byte array to an Address4 object. Throws `AddressError` unless
+       * given exactly 4 integers from 0 to 255. Signed bytes are rejected, so
+       * this differs from `Address6.fromByteArray`, which folds them; the two
+       * contracts converge on this stricter form in the next major version.
+       *
+       * To convert from a Node.js `Buffer`, spread it: `Address4.fromByteArray([...buf])`.
+       * @param {Array<number>} bytes - an array of 4 bytes (0-255)
+       * @returns {Address4}
+       */
+      static fromByteArray(bytes) {
+        common.assertByteArray(bytes, 4, "IPv4", 0);
+        return this.fromUnsignedByteArray(bytes);
+      }
+      /**
+       * Convert an unsigned byte array to an Address4 object. Throws
+       * `AddressError` unless given exactly 4 bytes, and rejects values outside
+       * 0 to 255 when parsing the resulting address.
+       *
+       * To convert from a Node.js `Buffer`, spread it:
+       * `Address4.fromUnsignedByteArray([...buf])`.
+       * @param {Array<number>} bytes - an array of 4 unsigned bytes (0-255)
+       * @returns {Address4}
+       */
+      static fromUnsignedByteArray(bytes) {
+        if (bytes.length !== 4) {
+          throw new address_error_1.AddressError("IPv4 addresses require exactly 4 bytes");
+        }
+        const address = bytes.join(".");
+        return new _Address4(address);
+      }
+      /**
+       * Returns the first n bits of the address, defaulting to the
+       * subnet mask
+       * @returns {String}
+       */
+      mask(mask) {
+        if (mask === void 0) {
+          mask = this.subnetMask;
+        }
+        return this.getBitsBase2(0, mask);
+      }
+      /**
+       * Returns the bits in the given range as a base-2 string
+       * @returns {string}
+       */
+      getBitsBase2(start, end) {
+        return this.binaryZeroPad().slice(start, end);
+      }
+      /**
+       * Return the reversed in-addr.arpa form of the address, e.g.
+       * `42.2.0.192.in-addr.arpa.` for `192.0.2.42`.
+       * @param {Object} options
+       * @param {boolean} options.omitSuffix - omit the "in-addr.arpa" suffix
+       * @returns {String}
+       */
+      reverseForm(options) {
+        if (!options) {
+          options = {};
+        }
+        const reversed = this.correctForm().split(".").reverse().join(".");
+        if (options.omitSuffix) {
+          return reversed;
+        }
+        return `${reversed}.in-addr.arpa.`;
+      }
+      /**
+       * Returns true if the given address is a multicast address
+       * @returns {boolean}
+       */
+      isMulticast() {
+        return this.isHostInSubnet(MULTICAST_V4);
+      }
+      /**
+       * Returns true if the address is in one of the [RFC 1918](https://datatracker.ietf.org/doc/html/rfc1918) private address ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`).
+       * @returns {boolean}
+       */
+      isPrivate() {
+        return PRIVATE_V4.some((subnet) => this.isHostInSubnet(subnet));
+      }
+      /**
+       * Returns true if the address is in the loopback range `127.0.0.0/8` ([RFC 1122](https://datatracker.ietf.org/doc/html/rfc1122)).
+       * @returns {boolean}
+       */
+      isLoopback() {
+        return this.isHostInSubnet(LOOPBACK_V4);
+      }
+      /**
+       * Returns true if the address is in the link-local range `169.254.0.0/16` ([RFC 3927](https://datatracker.ietf.org/doc/html/rfc3927)).
+       * @returns {boolean}
+       */
+      isLinkLocal() {
+        return this.isHostInSubnet(LINK_LOCAL_V4);
+      }
+      /**
+       * Returns true if the address is the unspecified address `0.0.0.0`.
+       * @returns {boolean}
+       */
+      isUnspecified() {
+        return this.isHostInSubnet(UNSPECIFIED_V4);
+      }
+      /**
+       * Returns true if the address is the limited broadcast address `255.255.255.255` ([RFC 919](https://datatracker.ietf.org/doc/html/rfc919)).
+       * @returns {boolean}
+       */
+      isBroadcast() {
+        return this.isHostInSubnet(BROADCAST_V4);
+      }
+      /**
+       * Returns true if the address is in the carrier-grade NAT range `100.64.0.0/10` ([RFC 6598](https://datatracker.ietf.org/doc/html/rfc6598)).
+       * @returns {boolean}
+       */
+      isCGNAT() {
+        return this.isHostInSubnet(CGNAT_V4);
+      }
+      /**
+       * Returns true if the address is in one of the documentation ranges
+       * `192.0.2.0/24`, `198.51.100.0/24`, or `203.0.113.0/24` ([RFC 5737](https://datatracker.ietf.org/doc/html/rfc5737)).
+       * @returns {boolean}
+       */
+      isDocumentation() {
+        return DOCUMENTATION_V4.some((subnet) => this.isHostInSubnet(subnet));
+      }
+      /**
+       * Returns true if the address is in the benchmarking range `198.18.0.0/15` ([RFC 2544](https://datatracker.ietf.org/doc/html/rfc2544)).
+       * @returns {boolean}
+       */
+      isBenchmarking() {
+        return this.isHostInSubnet(BENCHMARKING_V4);
+      }
+      /**
+       * Returns true if the address is in the reserved range `240.0.0.0/4` ([RFC 1112](https://datatracker.ietf.org/doc/html/rfc1112)),
+       * which includes the limited broadcast address.
+       * @returns {boolean}
+       */
+      isReserved() {
+        return this.isHostInSubnet(RESERVED_V4);
+      }
+      /**
+       * Returns true if the address is globally reachable: not multicast, and not
+       * in any block the [IANA IPv4 Special-Purpose Address Registry](https://www.iana.org/assignments/iana-ipv4-special-registry/)
+       * marks as not globally reachable. That covers everything the individual
+       * classifiers name (private, loopback, link-local, CGNAT, unspecified,
+       * broadcast, documentation, benchmarking, reserved) and the blocks they do
+       * not, such as `0.0.0.0/8` and the IETF protocol assignments in
+       * `192.0.0.0/24`. This is the single predicate to use where a request must
+       * not reach an internal or special-purpose destination; see SECURITY.md.
+       * @returns {boolean}
+       */
+      isGlobal() {
+        return !this.isMulticast() && common.isGloballyReachable.call(this, SPECIAL_PURPOSE_V4);
+      }
+      /**
+       * Returns a zero-padded base-2 string representation of the address
+       * @returns {string}
+       */
+      binaryZeroPad() {
+        if (this._binaryZeroPad === void 0) {
+          this._binaryZeroPad = this.bigInt().toString(2).padStart(constants2.BITS, "0");
+        }
+        return this._binaryZeroPad;
+      }
+      /**
+       * Groups an IPv4 address for inclusion at the end of an IPv6 address.
+       *
+       * Returns an HTML fragment: each half of the address is wrapped in a
+       * `<span>` carrying the group classes an address-inspector UI hovers on.
+       * The address content is HTML-escaped; anything you concatenate around it
+       * is your responsibility.
+       * @returns {String}
+       */
+      groupForV6() {
+        const segments = this.parsedAddress;
+        return this.correctForm().replace(constants2.RE_ADDRESS, `<span class="hover-group group-v4 group-6">${segments.slice(0, 2).join(".")}</span>.<span class="hover-group group-v4 group-7">${segments.slice(2, 4).join(".")}</span>`);
+      }
+    };
+    exports.Address4 = Address4;
+    var MULTICAST_V4 = new Address4("224.0.0.0/4");
+    var PRIVATE_V4 = [
+      new Address4("10.0.0.0/8"),
+      new Address4("172.16.0.0/12"),
+      new Address4("192.168.0.0/16")
+    ];
+    var LOOPBACK_V4 = new Address4("127.0.0.0/8");
+    var LINK_LOCAL_V4 = new Address4("169.254.0.0/16");
+    var UNSPECIFIED_V4 = new Address4("0.0.0.0/32");
+    var BROADCAST_V4 = new Address4("255.255.255.255/32");
+    var CGNAT_V4 = new Address4("100.64.0.0/10");
+    var DOCUMENTATION_V4 = [
+      new Address4("192.0.2.0/24"),
+      new Address4("198.51.100.0/24"),
+      new Address4("203.0.113.0/24")
+    ];
+    var BENCHMARKING_V4 = new Address4("198.18.0.0/15");
+    var RESERVED_V4 = new Address4("240.0.0.0/4");
+    var SPECIAL_PURPOSE_V4 = constants2.SPECIAL_PURPOSE.map(([cidr, , reachable]) => ({
+      subnet: new Address4(cidr),
+      reachable
+    }));
+  }
+});
+
+// node_modules/ip-address/dist/v6/constants.js
+var require_constants4 = __commonJS({
+  "node_modules/ip-address/dist/v6/constants.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
+    exports.BITS = 128;
+    exports.GROUPS = 8;
+    exports.SCOPES = {
+      0: "Reserved",
+      1: "Interface local",
+      2: "Link local",
+      4: "Admin local",
+      5: "Site local",
+      8: "Organization local",
+      14: "Global",
+      15: "Reserved"
+    };
+    exports.TYPES = {
+      "ff01::1/128": "Multicast (All nodes on this interface)",
+      "ff01::2/128": "Multicast (All routers on this interface)",
+      "ff02::1/128": "Multicast (All nodes on this link)",
+      "ff02::2/128": "Multicast (All routers on this link)",
+      "ff05::2/128": "Multicast (All routers in this site)",
+      "ff02::5/128": "Multicast (OSPFv3 AllSPF routers)",
+      "ff02::6/128": "Multicast (OSPFv3 AllDR routers)",
+      "ff02::9/128": "Multicast (RIP routers)",
+      "ff02::a/128": "Multicast (EIGRP routers)",
+      "ff02::d/128": "Multicast (PIM routers)",
+      "ff02::16/128": "Multicast (MLDv2 reports)",
+      "ff01::fb/128": "Multicast (mDNSv6)",
+      "ff02::fb/128": "Multicast (mDNSv6)",
+      "ff05::fb/128": "Multicast (mDNSv6)",
+      "ff02::1:2/128": "Multicast (All DHCP servers and relay agents on this link)",
+      "ff05::1:2/128": "Multicast (All DHCP servers and relay agents in this site)",
+      "ff02::1:3/128": "Multicast (All DHCP servers on this link)",
+      "ff05::1:3/128": "Multicast (All DHCP servers in this site)",
+      "::/128": "Unspecified",
+      "::1/128": "Loopback",
+      "::ffff:0:0/96": "IPv4-mapped",
+      "ff00::/8": "Multicast",
+      "fe80::/10": "Link-local unicast",
+      "fc00::/7": "Unique local",
+      "2001::/32": "Teredo",
+      "2001:2::/48": "Benchmarking",
+      "2002::/16": "6to4",
+      "2001:db8::/32": "Documentation",
+      "3fff::/20": "Documentation",
+      "100::/64": "Discard-only",
+      "fec0::/10": "Site-local unicast (deprecated)",
+      "::/96": "IPv4-compatible (deprecated)",
+      "64:ff9b::/96": "NAT64 (well-known)",
+      "64:ff9b:1::/48": "NAT64 (local-use)"
+    };
+    exports.RE_BAD_CHARACTERS = /([^0-9a-f:/%])/gi;
+    exports.RE_BAD_ADDRESS = /([0-9a-f]{5,}|:{3,}|[^:]:$|^:[^:]|\/$)/gi;
+    exports.RE_SUBNET_STRING = /\/\d{1,3}(?=%|$)/;
+    exports.RE_ZONE_STRING = /%.*$/;
+    exports.RE_URL = /^(?:\[([0-9a-f:.]+)\]|([0-9a-f:.]+))(?:[/?#].*)?$/i;
+    exports.RE_URL_WITH_PORT = /^\[([0-9a-f:.]+)\]:([0-9]{1,5})(?:[/?#].*)?$/i;
+    exports.SPECIAL_PURPOSE = [
+      ["::1/128", "Loopback Address", false],
+      ["::/128", "Unspecified Address", false],
+      ["::ffff:0:0/96", "IPv4-mapped Address", false],
+      ["64:ff9b::/96", "IPv4-IPv6 Translat.", true],
+      ["64:ff9b:1::/48", "IPv4-IPv6 Translat.", false],
+      ["100::/64", "Discard-Only Address Block", false],
+      ["100:0:0:1::/64", "Dummy IPv6 Prefix", false],
+      ["2001::/23", "IETF Protocol Assignments", false],
+      ["2001::/32", "TEREDO", false],
+      ["2001:1::1/128", "Port Control Protocol Anycast", true],
+      ["2001:1::2/128", "Traversal Using Relays around NAT Anycast", true],
+      ["2001:1::3/128", "DNS-SD Service Registration Protocol Anycast", true],
+      ["2001:2::/48", "Benchmarking", false],
+      ["2001:3::/32", "AMT", true],
+      ["2001:4:112::/48", "AS112-v6", true],
+      ["2001:10::/28", "Deprecated (previously ORCHID)", null],
+      ["2001:20::/28", "ORCHIDv2", true],
+      ["2001:30::/28", "Drone Remote ID Protocol Entity Tags (DETs) Prefix", true],
+      ["2001:db8::/32", "Documentation", false],
+      ["2002::/16", "6to4", false],
+      ["2620:4f:8000::/48", "Direct Delegation AS112 Service", true],
+      ["3fff::/20", "Documentation", false],
+      ["5f00::/16", "Segment Routing (SRv6) SIDs", false],
+      ["fc00::/7", "Unique-Local", false],
+      ["fe80::/10", "Link-Local Unicast", false]
+    ];
+  }
+});
+
+// node_modules/ip-address/dist/v6/helpers.js
+var require_helpers = __commonJS({
+  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.escapeHtml = escapeHtml;
+    exports.spanAllZeroes = spanAllZeroes;
+    exports.spanAll = spanAll;
+    exports.spanLeadingZeroes = spanLeadingZeroes;
+    exports.simpleGroup = simpleGroup;
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+    function spanAllZeroes(s) {
+      return escapeHtml(s).replace(/(0+)/g, '<span class="zero">$1</span>');
+    }
+    function spanAll(s, offset = 0) {
+      const letters = s.split("");
+      return letters.map((n, i) => `<span class="digit value-${escapeHtml(n)} position-${i + offset}">${spanAllZeroes(n)}</span>`).join("");
+    }
+    function spanLeadingZeroesSimple(group) {
+      return escapeHtml(group).replace(/^(0+)/, '<span class="zero">$1</span>');
+    }
+    function spanLeadingZeroes(address) {
+      const groups = address.split(":");
+      return groups.map((g) => spanLeadingZeroesSimple(g)).join(":");
+    }
+    function simpleGroup(addressString, offset = 0) {
+      const groups = addressString.split(":");
+      return groups.map((g, i) => {
+        if (/group-v4/.test(g)) {
+          return g;
+        }
+        return `<span class="hover-group group-${i + offset}">${spanLeadingZeroesSimple(g)}</span>`;
+      });
+    }
+  }
+});
+
+// node_modules/ip-address/dist/v6/regular-expressions.js
+var require_regular_expressions = __commonJS({
+  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __setModuleDefault = exports && exports.__setModuleDefault || (Object.create ? (function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    }) : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar = exports && exports.__importStar || function(mod) {
+      if (mod && mod.__esModule) return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+      }
+      __setModuleDefault(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.ADDRESS_BOUNDARY = void 0;
+    exports.groupPossibilities = groupPossibilities;
+    exports.padGroup = padGroup;
+    exports.simpleRegularExpression = simpleRegularExpression;
+    exports.possibleElisions = possibleElisions;
+    var v6 = __importStar(require_constants4());
+    function groupPossibilities(possibilities) {
+      return `(${possibilities.join("|")})`;
+    }
+    function padGroup(group) {
+      if (group.length < 4) {
+        return `0{0,${4 - group.length}}${group}`;
+      }
+      return group;
+    }
+    exports.ADDRESS_BOUNDARY = "[^A-Fa-f0-9:]";
+    function simpleRegularExpression(groups) {
+      const zeroIndexes = [];
+      groups.forEach((group, i) => {
+        const groupInteger = parseInt(group, 16);
+        if (groupInteger === 0) {
+          zeroIndexes.push(i);
+        }
+      });
+      const possibilities = zeroIndexes.map((zeroIndex) => groups.map((group, i) => {
+        if (i === zeroIndex) {
+          const elision = i === 0 || i === v6.GROUPS - 1 ? ":" : "";
+          return groupPossibilities([padGroup(group), elision]);
+        }
+        return padGroup(group);
+      }).join(":"));
+      possibilities.push(groups.map(padGroup).join(":"));
+      return groupPossibilities(possibilities);
+    }
+    function possibleElisions(elidedGroups, moreLeft, moreRight) {
+      const left = moreLeft ? "" : ":";
+      const right = moreRight ? "" : ":";
+      const possibilities = [];
+      if (!moreLeft && !moreRight) {
+        possibilities.push("::");
+      }
+      if (moreLeft && moreRight) {
+        possibilities.push("");
+      }
+      if (moreRight && !moreLeft || !moreRight && moreLeft) {
+        possibilities.push(":");
+      }
+      possibilities.push(`${left}(:0{1,4}){1,${elidedGroups - 1}}`);
+      possibilities.push(`(0{1,4}:){1,${elidedGroups - 1}}${right}`);
+      possibilities.push(`(0{1,4}:){${elidedGroups - 1}}0{1,4}`);
+      for (let groups = 1; groups < elidedGroups - 1; groups++) {
+        for (let position = 1; position < elidedGroups - groups; position++) {
+          possibilities.push(`(0{1,4}:){${position}}:(0{1,4}:){${elidedGroups - position - groups - 1}}0{1,4}`);
+        }
+      }
+      return groupPossibilities(possibilities);
+    }
+  }
+});
+
+// node_modules/ip-address/dist/ipv6.js
+var require_ipv6 = __commonJS({
+  "node_modules/ip-address/dist/ipv6.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __setModuleDefault = exports && exports.__setModuleDefault || (Object.create ? (function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    }) : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar = exports && exports.__importStar || function(mod) {
+      if (mod && mod.__esModule) return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+      }
+      __setModuleDefault(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Address6 = void 0;
+    var common = __importStar(require_common2());
+    var constants4 = __importStar(require_constants3());
+    var constants6 = __importStar(require_constants4());
+    var helpers = __importStar(require_helpers());
+    var ipv4_1 = require_ipv4();
+    var regular_expressions_1 = require_regular_expressions();
+    var address_error_1 = require_address_error();
+    var common_1 = require_common2();
+    var isCorrect6 = common.isCorrect(constants6.BITS);
+    function assert2(condition) {
+      if (!condition) {
+        throw new Error("Assertion failed.");
+      }
+    }
+    function addCommas(number) {
+      const r = /(\d+)(\d{3})/;
+      while (r.test(number)) {
+        number = number.replace(r, "$1,$2");
+      }
+      return number;
+    }
+    function spanLeadingZeroes4(n) {
+      n = n.replace(/^(0{1,})([1-9]+)$/, '<span class="parse-error">$1</span>$2');
+      n = n.replace(/^(0{1,})(0)$/, '<span class="parse-error">$1</span>$2');
+      return n;
+    }
+    function compact(address, slice) {
+      const s1 = [];
+      const s2 = [];
+      let i;
+      for (i = 0; i < address.length; i++) {
+        if (i < slice[0]) {
+          s1.push(address[i]);
+        } else if (i > slice[1]) {
+          s2.push(address[i]);
+        }
+      }
+      return s1.concat(["compact"]).concat(s2);
+    }
+    function paddedHex(octet) {
+      return parseInt(octet, 16).toString(16).padStart(4, "0");
+    }
+    function unsignByte(b) {
+      return b & 255;
+    }
+    var Address6 = class _Address6 {
+      constructor(address, optionalGroups) {
+        this.addressMinusSuffix = "";
+        this.parsedSubnet = "";
+        this.subnet = "/128";
+        this.subnetMask = 128;
+        this.v4 = false;
+        this.zone = "";
+        this.isInSubnet = common.isInSubnet;
+        this.isHostInSubnet = common.isHostInSubnet;
+        this.isCorrect = isCorrect6;
+        if (optionalGroups === void 0) {
+          this.groups = constants6.GROUPS;
+        } else {
+          this.groups = optionalGroups;
+        }
+        this.address = address;
+        const subnet = constants6.RE_SUBNET_STRING.exec(address);
+        if (subnet) {
+          this.parsedSubnet = subnet[0].replace("/", "");
+          this.subnetMask = parseInt(this.parsedSubnet, 10);
+          this.subnet = `/${this.subnetMask}`;
+          if (Number.isNaN(this.subnetMask) || this.subnetMask < 0 || this.subnetMask > constants6.BITS) {
+            throw new address_error_1.AddressError("Invalid subnet mask.");
+          }
+          address = address.replace(constants6.RE_SUBNET_STRING, "");
+        }
+        if (/\//.test(address)) {
+          throw new address_error_1.AddressError("Invalid subnet mask.");
+        }
+        const zoneStart = address.indexOf("%");
+        if (zoneStart !== -1 && /^.*$/.test(address.slice(zoneStart))) {
+          this.zone = address.slice(zoneStart);
+          address = address.slice(0, zoneStart);
+        }
+        const longest = this.groups * 5 + 5;
+        if (address.length > longest) {
+          throw new address_error_1.AddressError(`IPv6 addresses are at most ${longest} characters.`);
+        }
+        this.addressMinusSuffix = address;
+        this.parsedAddress = this.parse(this.addressMinusSuffix);
+      }
+      /**
+       * Returns true if the given string is a valid IPv6 address (with optional
+       * CIDR subnet and zone identifier), false otherwise. Host bits in the
+       * subnet portion are allowed (e.g. `2001:db8::1/32` is valid); for strict
+       * network-address validation compare `correctForm()` to
+       * `startAddress().correctForm()`, or use `networkForm()`.
+       */
+      static isValid(address) {
+        try {
+          new _Address6(address);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      /**
+       * Convert a BigInt to a v6 address object. The value must be in the
+       * range `[0, 2**128 - 1]`; otherwise `AddressError` is thrown.
+       * @param {bigint} bigInt - a BigInt to convert
+       * @returns {Address6}
+       * @example
+       * var bigInt = BigInt('1000000000000');
+       * var address = Address6.fromBigInt(bigInt);
+       * address.correctForm(); // '::e8:d4a5:1000'
+       */
+      static fromBigInt(bigInt) {
+        if (bigInt < BigInt(0) || bigInt > (BigInt(1) << BigInt(constants6.BITS)) - BigInt(1)) {
+          throw new address_error_1.AddressError("IPv6 BigInt must be in the range 0 to 2**128 - 1");
+        }
+        const hex = bigInt.toString(16).padStart(32, "0");
+        const groups = [];
+        for (let i = 0; i < constants6.GROUPS; i++) {
+          groups.push(hex.slice(i * 4, (i + 1) * 4));
+        }
+        return new _Address6(groups.join(":"));
+      }
+      /**
+       * Parse a URL (with optional bracketed host and port) into an address and
+       * port. Returns either `{ address, port }` on success or
+       * `{ error, address: null, port: null }` if the URL could not be parsed.
+       * Ports are returned as numbers (or `null` if absent or out of range).
+       * @example
+       * var addressAndPort = Address6.fromURL('http://[ffff::]:8080/foo/');
+       * addressAndPort.address.correctForm(); // 'ffff::'
+       * addressAndPort.port; // 8080
+       */
+      static fromURL(url) {
+        var _a;
+        let host;
+        let port = null;
+        let result;
+        let error;
+        const stripped = url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+        if (stripped.indexOf("[") !== -1 && stripped.indexOf("]:") !== -1) {
+          error = "failed to parse address with port";
+          result = constants6.RE_URL_WITH_PORT.exec(stripped);
+          if (result === null) {
+            return { error, address: null, port: null };
+          }
+          host = result[1];
+          port = result[2];
+        } else {
+          error = "failed to parse address from URL";
+          result = constants6.RE_URL.exec(stripped);
+          if (result === null) {
+            return { error, address: null, port: null };
+          }
+          host = (_a = result[1]) !== null && _a !== void 0 ? _a : result[2];
+        }
+        if (port) {
+          port = parseInt(port, 10);
+          if (port < 0 || port > 65535) {
+            port = null;
+          }
+        } else {
+          port = null;
+        }
+        let address;
+        try {
+          address = new _Address6(host);
+        } catch {
+          return { error, address: null, port: null };
+        }
+        return { address, port };
+      }
+      /**
+       * Construct an `Address6` from an address and a hex subnet mask given as
+       * separate strings (e.g. as returned by Node's `os.networkInterfaces()`).
+       * Throws `AddressError` if the mask is non-contiguous (e.g.
+       * `ffff::ffff`).
+       * @example
+       * var address = Address6.fromAddressAndMask('fe80::1', 'ffff:ffff:ffff:ffff::');
+       * address.subnetMask; // 64
+       */
+      static fromAddressAndMask(address, mask) {
+        const bits = common.prefixLengthFromMask(new _Address6(mask).bigInt(), constants6.BITS);
+        return new _Address6(`${address}/${bits}`);
+      }
+      /**
+       * Construct an `Address6` from an address and a Cisco-style wildcard mask
+       * given as separate strings (e.g. `::ffff:ffff:ffff:ffff` for a `/64`).
+       * The wildcard mask is the bitwise inverse of the subnet mask. Throws
+       * `AddressError` if the mask is non-contiguous.
+       * @example
+       * var address = Address6.fromAddressAndWildcardMask('fe80::1', '::ffff:ffff:ffff:ffff');
+       * address.subnetMask; // 64
+       */
+      static fromAddressAndWildcardMask(address, wildcardMask) {
+        const wildcard = new _Address6(wildcardMask).bigInt();
+        const allOnes = (BigInt(1) << BigInt(constants6.BITS)) - BigInt(1);
+        const mask = wildcard ^ allOnes;
+        const bits = common.prefixLengthFromMask(mask, constants6.BITS);
+        return new _Address6(`${address}/${bits}`);
+      }
+      /**
+       * Construct an `Address6` from a wildcard pattern with trailing `*`
+       * groups. The number of trailing wildcards determines the prefix
+       * length: each `*` represents 16 bits. `::` is expanded to zero groups
+       * (not wildcards) before evaluating trailing wildcards.
+       *
+       * Only trailing whole-group wildcards are supported. Partial-group
+       * wildcards (e.g. `2001:db8::0*`) and interior wildcards (e.g.
+       * `*::1`) throw `AddressError`.
+       * @example
+       * Address6.fromWildcard('2001:db8:*:*:*:*:*:*').subnet;  // '/32'
+       * Address6.fromWildcard('2001:db8::*').subnet;           // '/112'
+       * Address6.fromWildcard('*:*:*:*:*:*:*:*').subnet;       // '/0'
+       */
+      static fromWildcard(input) {
+        if (input.includes("%") || input.includes("/")) {
+          throw new address_error_1.AddressError("Wildcard pattern must not include a zone or CIDR suffix");
+        }
+        const halves = input.split("::");
+        if (halves.length > 2) {
+          throw new address_error_1.AddressError("Wildcard pattern cannot contain more than one '::'");
+        }
+        let groups;
+        if (halves.length === 2) {
+          const left = halves[0] === "" ? [] : halves[0].split(":");
+          const right = halves[1] === "" ? [] : halves[1].split(":");
+          const remaining = constants6.GROUPS - left.length - right.length;
+          if (remaining < 1) {
+            throw new address_error_1.AddressError("Wildcard pattern with '::' has too many groups");
+          }
+          groups = [...left, ...new Array(remaining).fill("0"), ...right];
+        } else {
+          groups = input.split(":");
+        }
+        if (groups.length !== constants6.GROUPS) {
+          throw new address_error_1.AddressError("Wildcard pattern must have 8 groups");
+        }
+        let firstWildcard = -1;
+        for (let i = 0; i < groups.length; i++) {
+          if (groups[i] === "*") {
+            if (firstWildcard === -1) {
+              firstWildcard = i;
+            }
+          } else if (firstWildcard !== -1) {
+            throw new address_error_1.AddressError("Wildcard `*` must only appear in trailing groups (e.g. `2001:db8:*:*:*:*:*:*`)");
+          }
+        }
+        const trailing = firstWildcard === -1 ? 0 : groups.length - firstWildcard;
+        const replaced = groups.map((g) => g === "*" ? "0" : g);
+        const subnetBits = constants6.BITS - trailing * 16;
+        return new _Address6(`${replaced.join(":")}/${subnetBits}`);
+      }
+      /**
+       * Create an IPv6-mapped address given an IPv4 address
+       * @param {string} address - An IPv4 address string
+       * @returns {Address6}
+       * @example
+       * var address = Address6.fromAddress4('192.168.0.1');
+       * address.correctForm(); // '::ffff:c0a8:1'
+       * address.to4in6(); // '::ffff:192.168.0.1'
+       */
+      static fromAddress4(address) {
+        const address4 = new ipv4_1.Address4(address);
+        const mask6 = constants6.BITS - (constants4.BITS - address4.subnetMask);
+        return new _Address6(`::ffff:${address4.correctForm()}/${mask6}`);
+      }
+      /**
+       * Return an address from ip6.arpa form. A full 32-nibble name gives a /128
+       * address; a shorter name, as used for a delegated reverse zone, gives the
+       * network it covers, with a subnet mask of four bits per nibble, so
+       * `fromArpa(x.reverseForm())` round-trips {@link reverseForm} for any prefix.
+       * @param {string} arpaFormAddress - an 'ip6.arpa' form address
+       * @returns {Adress6}
+       * @example
+       * var address = Address6.fromArpa(e.f.f.f.3.c.2.6.f.f.f.e.6.6.8.e.1.0.6.7.9.4.e.c.0.0.0.0.1.0.0.2.ip6.arpa.)
+       * address.correctForm(); // '2001:0:ce49:7601:e866:efff:62c3:fffe'
+       * Address6.fromArpa('8.b.d.0.1.0.0.2.ip6.arpa.').networkForm(); // '2001:db8::/32'
+       */
+      static fromArpa(arpaFormAddress) {
+        const nibbles = arpaFormAddress.replace(/(\.ip6\.arpa)?\.?$/i, "");
+        if (!/^[0-9a-f](\.[0-9a-f]){0,31}$/i.test(nibbles)) {
+          throw new address_error_1.AddressError("Invalid 'ip6.arpa' form.");
+        }
+        const reversed = nibbles.split(".").reverse();
+        const subnetMask = reversed.length * 4;
+        const hex = reversed.join("").padEnd(32, "0");
+        const groups = [];
+        for (let i = 0; i < constants6.GROUPS; i++) {
+          groups.push(hex.slice(i * 4, (i + 1) * 4));
+        }
+        return new _Address6(`${groups.join(":")}/${subnetMask}`);
+      }
+      /**
+       * Return the Microsoft UNC transcription of the address
+       * @returns {String} the Microsoft UNC transcription of the address
+       */
+      microsoftTranscription() {
+        return `${this.correctForm().replace(/:/g, "-")}.ipv6-literal.net`;
+      }
+      /**
+       * Return the first n bits of the address, defaulting to the subnet mask
+       * @param {number} [mask=subnet] - the number of bits to mask
+       * @returns {String} the first n bits of the address as a string
+       */
+      mask(mask = this.subnetMask) {
+        return this.getBitsBase2(0, mask);
+      }
+      /**
+       * Return the number of possible subnets of a given size in the address
+       * @param {number} [subnetSize=128] - the subnet size
+       * @returns {String}
+       */
+      // TODO: probably useful to have a numeric version of this too
+      possibleSubnets(subnetSize = 128) {
+        const availableBits = constants6.BITS - this.subnetMask;
+        const subnetBits = Math.abs(subnetSize - constants6.BITS);
+        const subnetPowers = availableBits - subnetBits;
+        if (subnetPowers < 0) {
+          return "0";
+        }
+        return addCommas((BigInt("2") ** BigInt(subnetPowers)).toString(10));
+      }
+      /**
+       * Helper function getting start address.
+       * @returns {bigint}
+       */
+      _startAddress() {
+        return BigInt(`0b${this.mask() + "0".repeat(constants6.BITS - this.subnetMask)}`);
+      }
+      /**
+       * The first address in the range given by this address' subnet
+       * Often referred to as the Network Address.
+       * @returns {Address6}
+       */
+      startAddress() {
+        return _Address6.fromBigInt(this._startAddress());
+      }
+      /**
+       * The first host address in the range given by this address's subnet ie
+       * the first address after the Network Address
+       * @returns {Address6}
+       */
+      startAddressExclusive() {
+        const adjust = BigInt("1");
+        return _Address6.fromBigInt(this._startAddress() + adjust);
+      }
+      /**
+       * Helper function getting end address.
+       * @returns {bigint}
+       */
+      _endAddress() {
+        return BigInt(`0b${this.mask() + "1".repeat(constants6.BITS - this.subnetMask)}`);
+      }
+      /**
+       * The last address in the range given by this address's subnet. IPv6 has
+       * no broadcast address, so this is an ordinary assignable address (in a
+       * 64-bit-interface-identifier subnet it falls inside the reserved
+       * subnet-anycast block of [RFC 2526](https://datatracker.ietf.org/doc/html/rfc2526)).
+       * @returns {Address6}
+       */
+      endAddress() {
+        return _Address6.fromBigInt(this._endAddress());
+      }
+      /**
+       * The address one before {@link endAddress}. This is the IPv6 counterpart
+       * of the IPv4 method that skips the broadcast address; IPv6 has no broadcast,
+       * so it drops exactly one address and does not model the 128 reserved
+       * subnet-anycast identifiers of [RFC 2526](https://datatracker.ietf.org/doc/html/rfc2526).
+       * @returns {Address6}
+       */
+      endAddressExclusive() {
+        const adjust = BigInt("1");
+        return _Address6.fromBigInt(this._endAddress() - adjust);
+      }
+      /**
+       * Returns the address `n` addresses after this one (or before, when `n` is
+       * negative), keeping this address's subnet mask. Throws `AddressError` when
+       * the result would fall outside the IPv6 address space or `n` is not an
+       * integer.
+       * @param {number | bigint} n
+       * @returns {Address6}
+       * @example
+       * new Address6('2001:db8::/64').offset(1).correctForm(); // '2001:db8::1'
+       */
+      offset(n) {
+        return _Address6.fromBigInt(common.offsetBigInt(this.bigInt(), n, constants6.BITS, "IPv6")).withSubnetMask(this.subnetMask);
+      }
+      /**
+       * Returns the network that follows this address's network: the address after
+       * {@link endAddress}, with the same subnet mask. Throws `AddressError` when
+       * this network is the last one in the address space.
+       * @returns {Address6}
+       * @example
+       * new Address6('2001:db8::/64').nextNetwork().networkForm(); // '2001:db8:0:1::/64'
+       */
+      nextNetwork() {
+        return _Address6.fromBigInt(common.offsetBigInt(this._endAddress(), 1, constants6.BITS, "IPv6")).withSubnetMask(this.subnetMask);
+      }
+      withSubnetMask(subnetMask) {
+        return new _Address6(`${this.correctForm()}/${subnetMask}`);
+      }
+      /**
+       * The hex form of the subnet mask, e.g. `ffff:ffff:ffff:ffff::` for a
+       * `/64`. Returns an `Address6`; call `.correctForm()` for the string.
+       * @returns {Address6}
+       */
+      subnetMaskAddress() {
+        return _Address6.fromBigInt(BigInt(`0b${"1".repeat(this.subnetMask)}${"0".repeat(constants6.BITS - this.subnetMask)}`));
+      }
+      /**
+       * The Cisco-style wildcard mask, e.g. `::ffff:ffff:ffff:ffff` for a
+       * `/64`. This is the bitwise inverse of `subnetMaskAddress()`. Returns
+       * an `Address6`; call `.correctForm()` for the string.
+       * @returns {Address6}
+       */
+      wildcardMask() {
+        return _Address6.fromBigInt(BigInt(`0b${"0".repeat(this.subnetMask)}${"1".repeat(constants6.BITS - this.subnetMask)}`));
+      }
+      /**
+       * The network address in CIDR string form, e.g. `2001:db8::/32` for
+       * `2001:db8::1/32`. For an address with no explicit subnet the prefix
+       * is `/128`, e.g. `networkForm()` on `2001:db8::1` returns
+       * `2001:db8::1/128`.
+       * @returns {string}
+       */
+      networkForm() {
+        return `${this.startAddress().correctForm()}/${this.subnetMask}`;
+      }
+      /**
+       * Return the scope of the address. The 4-bit scope field
+       * ([RFC 4291 §2.7](https://datatracker.ietf.org/doc/html/rfc4291#section-2.7))
+       * is only defined for multicast addresses; for unicast addresses the scope
+       * is derived from the address type per
+       * [RFC 4007 §6](https://datatracker.ietf.org/doc/html/rfc4007#section-6).
+       * @returns {String}
+       */
+      getScope() {
+        const type = this.getType();
+        if (type === "Multicast" || type.startsWith("Multicast ")) {
+          const scope = constants6.SCOPES[parseInt(this.getBits(12, 16).toString(10), 10)];
+          return scope || "Unknown";
+        }
+        if (type === "Link-local unicast" || type === "Loopback") {
+          return "Link local";
+        }
+        if (type === "Unspecified") {
+          return "Unknown";
+        }
+        return "Global";
+      }
+      /**
+       * Return the type of the address
+       * @returns {String}
+       */
+      getType() {
+        for (let i = 0; i < TYPE_SUBNETS.length; i++) {
+          const entry = TYPE_SUBNETS[i];
+          if (this.isHostInSubnet(entry[0])) {
+            return entry[1];
+          }
+        }
+        return "Global unicast";
+      }
+      /**
+       * Return the bits in the given range as a BigInt
+       * @returns {bigint}
+       */
+      getBits(start, end) {
+        return BigInt(`0b${this.getBitsBase2(start, end)}`);
+      }
+      /**
+       * Return the bits in the given range as a base-2 string
+       * @returns {String}
+       */
+      getBitsBase2(start, end) {
+        return this.binaryZeroPad().slice(start, end);
+      }
+      /**
+       * Return the bits in the given range as a base-16 string
+       * @returns {String}
+       */
+      getBitsBase16(start, end) {
+        const length = end - start;
+        if (length % 4 !== 0) {
+          throw new Error("Length of bits to retrieve must be divisible by four");
+        }
+        return this.getBits(start, end).toString(16).padStart(length / 4, "0");
+      }
+      /**
+       * Return the bits that are set past the subnet mask length
+       * @returns {String}
+       */
+      getBitsPastSubnet() {
+        return this.getBitsBase2(this.subnetMask, constants6.BITS);
+      }
+      /**
+       * Return the reversed ip6.arpa form of the address
+       * @param {Object} options
+       * @param {boolean} options.omitSuffix - omit the "ip6.arpa" suffix
+       * @returns {String}
+       */
+      reverseForm(options) {
+        if (!options) {
+          options = {};
+        }
+        const characters = Math.floor(this.subnetMask / 4);
+        const reversed = this.canonicalForm().replace(/:/g, "").split("").slice(0, characters).reverse().join(".");
+        if (characters > 0) {
+          if (options.omitSuffix) {
+            return reversed;
+          }
+          return `${reversed}.ip6.arpa.`;
+        }
+        if (options.omitSuffix) {
+          return "";
+        }
+        return "ip6.arpa.";
+      }
+      /**
+       * Returns the address in correct form, per
+       * [RFC 5952](https://datatracker.ietf.org/doc/html/rfc5952): leading zeros
+       * stripped, the longest run of zero groups collapsed to `::`, and hex digits
+       * lowercased (e.g. `2001:db8::1`). This is the recommended form for display.
+       */
+      correctForm() {
+        let i;
+        let groups = [];
+        let zeroCounter = 0;
+        const zeroes = [];
+        for (i = 0; i < this.parsedAddress.length; i++) {
+          const value = parseInt(this.parsedAddress[i], 16);
+          if (value === 0) {
+            zeroCounter++;
+          }
+          if (value !== 0 && zeroCounter > 0) {
+            if (zeroCounter > 1) {
+              zeroes.push([i - zeroCounter, i - 1]);
+            }
+            zeroCounter = 0;
+          }
+        }
+        if (zeroCounter > 1) {
+          zeroes.push([this.parsedAddress.length - zeroCounter, this.parsedAddress.length - 1]);
+        }
+        const zeroLengths = zeroes.map((n) => n[1] - n[0] + 1);
+        if (zeroes.length > 0) {
+          const index = zeroLengths.indexOf(Math.max(...zeroLengths));
+          groups = compact(this.parsedAddress, zeroes[index]);
+        } else {
+          groups = this.parsedAddress;
+        }
+        for (i = 0; i < groups.length; i++) {
+          if (groups[i] !== "compact") {
+            groups[i] = parseInt(groups[i], 16).toString(16);
+          }
+        }
+        let correct = groups.join(":");
+        correct = correct.replace(/^compact$/, "::");
+        correct = correct.replace(/(^compact)|(compact$)/, ":");
+        correct = correct.replace(/compact/, "");
+        return correct;
+      }
+      /**
+       * Return a zero-padded base-2 string representation of the address
+       * @returns {String}
+       * @example
+       * var address = new Address6('2001:4860:4001:803::1011');
+       * address.binaryZeroPad();
+       * // '0010000000000001010010000110000001000000000000010000100000000011
+       * //  0000000000000000000000000000000000000000000000000001000000010001'
+       */
+      binaryZeroPad() {
+        if (this._binaryZeroPad === void 0) {
+          this._binaryZeroPad = this.bigInt().toString(2).padStart(constants6.BITS, "0");
+        }
+        return this._binaryZeroPad;
+      }
+      /**
+       * Parses a v4-in-v6 string (e.g. `::ffff:192.168.0.1`) by extracting the
+       * trailing IPv4 address into `this.address4` / `this.parsedAddress4` and
+       * returning the address with the v4 portion converted to two v6 groups.
+       * Used internally by `parse()`.
+       */
+      // TODO: Improve the semantics of this helper function
+      parse4in6(address) {
+        if (address.indexOf(".") === -1) {
+          return address;
+        }
+        const groups = address.split(":");
+        const lastGroup = groups.slice(-1)[0];
+        const v4Octets = lastGroup.split(".");
+        if (v4Octets.length === constants4.GROUPS && v4Octets.every((octet) => /^\d{1,3}$/.test(octet))) {
+          if (v4Octets.some((octet) => /^0\d/.test(octet))) {
+            const highlighted = v4Octets.map(spanLeadingZeroes4).join(".");
+            const prefix = groups.slice(0, -1).map(helpers.escapeHtml).join(":");
+            const separator = groups.length > 1 ? ":" : "";
+            throw new address_error_1.AddressError("IPv4 addresses can't have leading zeroes.", `${prefix}${separator}${highlighted}`);
+          }
+        }
+        const address4 = lastGroup.match(constants4.RE_ADDRESS);
+        if (address4) {
+          this.parsedAddress4 = address4[0];
+          const v4Suffix = this.subnetMask >= 96 ? `/${this.subnetMask - 96}` : "";
+          this.address4 = new ipv4_1.Address4(`${this.parsedAddress4}${v4Suffix}`);
+          this.v4 = true;
+          groups[groups.length - 1] = this.address4.toGroup6();
+          address = groups.join(":");
+        }
+        return address;
+      }
+      /**
+       * Parses an IPv6 address string into its 8 hexadecimal groups (expanding
+       * any `::` elision and any trailing v4-in-v6 portion) and stores the result
+       * on `this.parsedAddress`. Called automatically by the constructor; you
+       * typically don't need to call it directly. Throws `AddressError` if the
+       * input is malformed.
+       */
+      // TODO: Make private?
+      parse(address) {
+        address = this.parse4in6(address);
+        const badCharacters = address.match(constants6.RE_BAD_CHARACTERS);
+        if (badCharacters) {
+          throw new address_error_1.AddressError(`Bad character${badCharacters.length > 1 ? "s" : ""} detected in address: ${badCharacters.join("")}`, address.replace(constants6.RE_BAD_CHARACTERS, (character) => `<span class="parse-error">${helpers.escapeHtml(character)}</span>`));
+        }
+        const badAddress = address.match(constants6.RE_BAD_ADDRESS);
+        if (badAddress) {
+          throw new address_error_1.AddressError(`Address failed regex: ${badAddress.join("")}`, address.replace(constants6.RE_BAD_ADDRESS, '<span class="parse-error">$1</span>'));
+        }
+        let groups = [];
+        const halves = address.split("::");
+        if (halves.length === 2) {
+          let first = halves[0].split(":");
+          let last = halves[1].split(":");
+          if (first.length === 1 && first[0] === "") {
+            first = [];
+          }
+          if (last.length === 1 && last[0] === "") {
+            last = [];
+          }
+          const remaining = this.groups - (first.length + last.length);
+          if (!remaining) {
+            throw new address_error_1.AddressError("Error parsing groups");
+          }
+          this.elidedGroups = remaining;
+          this.elisionBegin = first.length;
+          this.elisionEnd = first.length + this.elidedGroups;
+          groups = groups.concat(first);
+          for (let i = 0; i < remaining; i++) {
+            groups.push("0");
+          }
+          groups = groups.concat(last);
+        } else if (halves.length === 1) {
+          groups = address.split(":");
+          this.elidedGroups = 0;
+        } else {
+          throw new address_error_1.AddressError("Too many :: groups found");
+        }
+        groups = groups.map((group) => parseInt(group, 16).toString(16));
+        if (groups.length !== this.groups) {
+          throw new address_error_1.AddressError("Incorrect number of groups found");
+        }
+        return groups;
+      }
+      /**
+       * Returns the canonical (fully expanded) form of the address: all 8 groups,
+       * each padded to 4 hex digits, with no `::` collapsing
+       * (e.g. `2001:0db8:0000:0000:0000:0000:0000:0001`). Useful for sorting and
+       * byte-exact comparison.
+       */
+      canonicalForm() {
+        return this.parsedAddress.map(paddedHex).join(":");
+      }
+      /**
+       * Return the decimal form of the address
+       * @returns {String}
+       */
+      decimal() {
+        return this.parsedAddress.map((n) => parseInt(n, 16).toString(10).padStart(5, "0")).join(":");
+      }
+      /**
+       * Return the address as a BigInt
+       * @returns {bigint}
+       */
+      bigInt() {
+        return BigInt(`0x${this.parsedAddress.map(paddedHex).join("")}`);
+      }
+      /**
+       * Return the last two groups of this address as an IPv4 address string.
+       * If this address carries a CIDR prefix that covers the trailing 32 bits
+       * (i.e. `subnetMask >= 96`), the resulting `Address4` inherits the
+       * corresponding v4 prefix (`subnetMask - 96`); otherwise it defaults to
+       * `/32`.
+       * @returns {Address4}
+       * @example
+       * var address = new Address6('2001:4860:4001::1825:bf11');
+       * address.to4().correctForm(); // '24.37.191.17'
+       */
+      to4() {
+        const binary = this.binaryZeroPad().split("");
+        const hex = BigInt(`0b${binary.slice(96, 128).join("")}`).toString(16).padStart(8, "0");
+        if (this.subnetMask >= 96) {
+          const v4Mask = this.subnetMask - 96;
+          const groups = [];
+          for (let i = 0; i < 8; i += 2) {
+            groups.push(parseInt(hex.slice(i, i + 2), 16));
+          }
+          return new ipv4_1.Address4(`${groups.join(".")}/${v4Mask}`);
+        }
+        return ipv4_1.Address4.fromHex(hex);
+      }
+      /**
+       * Return the v4-in-v6 form of the address
+       * @returns {String}
+       */
+      to4in6() {
+        const address4 = this.to4();
+        const address6 = new _Address6(this.parsedAddress.slice(0, 6).join(":"), 6);
+        const correct = address6.correctForm();
+        let infix = "";
+        if (!/:$/.test(correct)) {
+          infix = ":";
+        }
+        return correct + infix + address4.correctForm();
+      }
+      /**
+       * Decodes the Teredo tunneling fields embedded in this address. Returns the
+       * Teredo prefix, server IPv4, client IPv4, raw flag bits, cone-NAT flag,
+       * UDP port, and Microsoft-format flag breakdown (reserved, universal/local,
+       * group/individual, nonce). Only meaningful for addresses in `2001::/32`.
+       */
+      inspectTeredo() {
+        const prefix = this.getBitsBase16(0, 32);
+        const bitsForUdpPort = this.getBits(80, 96);
+        const udpPort = (bitsForUdpPort ^ BigInt("0xffff")).toString();
+        const server4 = ipv4_1.Address4.fromHex(this.getBitsBase16(32, 64));
+        const bitsForClient4 = this.getBits(96, 128);
+        const client4 = ipv4_1.Address4.fromHex((bitsForClient4 ^ BigInt("0xffffffff")).toString(16).padStart(8, "0"));
+        const flagsBase2 = this.getBitsBase2(64, 80);
+        const coneNat = (0, common_1.testBit)(flagsBase2, 15);
+        const reserved = (0, common_1.testBit)(flagsBase2, 14);
+        const groupIndividual = (0, common_1.testBit)(flagsBase2, 8);
+        const universalLocal = (0, common_1.testBit)(flagsBase2, 9);
+        const nonce = BigInt(`0b${flagsBase2.slice(2, 6) + flagsBase2.slice(8, 16)}`).toString(10);
+        return {
+          prefix: `${prefix.slice(0, 4)}:${prefix.slice(4, 8)}`,
+          server4: server4.address,
+          client4: client4.address,
+          flags: flagsBase2,
+          coneNat,
+          microsoft: {
+            reserved,
+            universalLocal,
+            groupIndividual,
+            nonce
+          },
+          udpPort
+        };
+      }
+      /**
+       * Decodes the 6to4 tunneling fields embedded in this address. Returns the
+       * 6to4 prefix and the embedded IPv4 gateway address. Only meaningful for
+       * addresses in `2002::/16`.
+       */
+      inspect6to4() {
+        const prefix = this.getBitsBase16(0, 16);
+        const gateway = ipv4_1.Address4.fromHex(this.getBitsBase16(16, 48));
+        return {
+          prefix: prefix.slice(0, 4),
+          gateway: gateway.address
+        };
+      }
+      /**
+       * Return a v6 6to4 address from a v6 v4inv6 address
+       * @returns {Address6}
+       */
+      to6to4() {
+        if (!this.is4()) {
+          return null;
+        }
+        const addr6to4 = [
+          "2002",
+          this.getBitsBase16(96, 112),
+          this.getBitsBase16(112, 128),
+          "",
+          "/16"
+        ].join(":");
+        return new _Address6(addr6to4);
+      }
+      /**
+       * Embed an IPv4 address into a NAT64 IPv6 address using the encoding
+       * defined by [RFC 6052](https://datatracker.ietf.org/doc/html/rfc6052).
+       * The default prefix is the well-known prefix `64:ff9b::/96`. The prefix
+       * length must be one of 32, 40, 48, 56, 64, or 96; for prefixes shorter
+       * than /64 the IPv4 octets are split around the reserved bits 64–71.
+       * @example
+       * Address6.fromAddress4Nat64('192.0.2.33').correctForm(); // '64:ff9b::c000:221'
+       * Address6.fromAddress4Nat64('192.0.2.33', '2001:db8::/32').correctForm(); // '2001:db8:c000:221::'
+       */
+      static fromAddress4Nat64(address, prefix = "64:ff9b::/96") {
+        const v4 = new ipv4_1.Address4(address);
+        const prefix6 = new _Address6(prefix);
+        const pl = prefix6.subnetMask;
+        if (pl !== 32 && pl !== 40 && pl !== 48 && pl !== 56 && pl !== 64 && pl !== 96) {
+          throw new address_error_1.AddressError("NAT64 prefix length must be 32, 40, 48, 56, 64, or 96");
+        }
+        const prefixBits = prefix6.binaryZeroPad();
+        const v4Bits = v4.binaryZeroPad();
+        let bits;
+        if (pl === 96) {
+          bits = prefixBits.slice(0, 96) + v4Bits;
+        } else {
+          const beforeU = 64 - pl;
+          bits = [
+            prefixBits.slice(0, pl),
+            v4Bits.slice(0, beforeU),
+            // Bits 64 to 71 are the reserved u octet and are always zero.
+            "00000000",
+            v4Bits.slice(beforeU),
+            "0".repeat(128 - 72 - (32 - beforeU))
+          ].join("");
+        }
+        const hex = BigInt(`0b${bits}`).toString(16).padStart(32, "0");
+        const groups = [];
+        for (let i = 0; i < 8; i++) {
+          groups.push(hex.slice(i * 4, (i + 1) * 4));
+        }
+        return new _Address6(groups.join(":"));
+      }
+      /**
+       * Extract the embedded IPv4 address from a NAT64 IPv6 address using the
+       * encoding defined by [RFC 6052](https://datatracker.ietf.org/doc/html/rfc6052).
+       * The default prefix is the well-known prefix `64:ff9b::/96`. Returns
+       * `null` if this address is not contained within the given prefix.
+       * @example
+       * new Address6('64:ff9b::c000:221').toAddress4Nat64()!.correctForm(); // '192.0.2.33'
+       */
+      toAddress4Nat64(prefix = "64:ff9b::/96") {
+        const prefix6 = new _Address6(prefix);
+        const pl = prefix6.subnetMask;
+        if (pl !== 32 && pl !== 40 && pl !== 48 && pl !== 56 && pl !== 64 && pl !== 96) {
+          throw new address_error_1.AddressError("NAT64 prefix length must be 32, 40, 48, 56, 64, or 96");
+        }
+        if (!this.isHostInSubnet(prefix6)) {
+          return null;
+        }
+        const bits = this.binaryZeroPad();
+        let v4Bits;
+        if (pl === 96) {
+          v4Bits = bits.slice(96, 128);
+        } else {
+          const beforeU = 64 - pl;
+          v4Bits = bits.slice(pl, pl + beforeU) + bits.slice(72, 72 + (32 - beforeU));
+        }
+        const octets = [];
+        for (let i = 0; i < 4; i++) {
+          octets.push(parseInt(v4Bits.slice(i * 8, (i + 1) * 8), 2).toString());
+        }
+        return new ipv4_1.Address4(octets.join("."));
+      }
+      /**
+       * Return a byte array.
+       *
+       * To get a Node.js `Buffer`, wrap the result: `Buffer.from(address.toByteArray())`.
+       * @returns {Array}
+       */
+      toByteArray() {
+        const value = this.bigInt().toString(16).padStart(constants6.BITS / 4, "0");
+        const bytes = [];
+        for (let i = 0, length = value.length; i < length; i += 2) {
+          bytes.push(parseInt(value.substring(i, i + 2), 16));
+        }
+        return bytes;
+      }
+      /**
+       * Return an unsigned byte array.
+       *
+       * To get a Node.js `Buffer`, wrap the result: `Buffer.from(address.toUnsignedByteArray())`.
+       * @returns {Array}
+       */
+      toUnsignedByteArray() {
+        return this.toByteArray().map(unsignByte);
+      }
+      /**
+       * Convert a byte array to an Address6 object.
+       *
+       * Accepts unsigned bytes (0 to 255) or signed bytes (-128 to 127, as an
+       * `Int8Array` or a Java `byte[]` holds them), folding signed values to their
+       * unsigned equivalent. Throws `AddressError` unless given exactly 16
+       * integers from -128 to 255.
+       *
+       * To convert from a Node.js `Buffer`, spread it: `Address6.fromByteArray([...buf])`.
+       * @returns {Address6}
+       */
+      static fromByteArray(bytes) {
+        common.assertByteArray(bytes, 16, "IPv6", -128);
+        return this.fromUnsignedByteArray(bytes.map(unsignByte));
+      }
+      /**
+       * Convert an unsigned byte array to an Address6 object.
+       *
+       * Throws `AddressError` unless given exactly 16 integers from 0 to 255.
+       *
+       * To convert from a Node.js `Buffer`, spread it: `Address6.fromUnsignedByteArray([...buf])`.
+       * @returns {Address6}
+       */
+      static fromUnsignedByteArray(bytes) {
+        common.assertByteArray(bytes, 16, "IPv6", 0);
+        const BYTE_MAX = BigInt("256");
+        let result = BigInt("0");
+        let multiplier = BigInt("1");
+        for (let i = bytes.length - 1; i >= 0; i--) {
+          result += multiplier * BigInt(bytes[i].toString(10));
+          multiplier *= BYTE_MAX;
+        }
+        return _Address6.fromBigInt(result);
+      }
+      /**
+       * Returns true if the address is in the canonical form, false otherwise
+       * @returns {boolean}
+       */
+      isCanonical() {
+        return this.addressMinusSuffix === this.canonicalForm();
+      }
+      /**
+       * Returns true if the address is a link-local unicast address in `fe80::/10`
+       * ([RFC 4291 §2.4](https://datatracker.ietf.org/doc/html/rfc4291#section-2.4))
+       * or an IPv4-mapped / NAT64 address whose embedded IPv4 address is link-local
+       * (`169.254.0.0/16`, e.g. `::ffff:169.254.169.254`), false otherwise.
+       * @returns {boolean}
+       */
+      isLinkLocal() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isLinkLocal();
+        }
+        return this.isHostInSubnet(LINK_LOCAL_SUBNET);
+      }
+      /**
+       * Returns true if the address is a multicast address, false otherwise
+       * @returns {boolean}
+       */
+      isMulticast() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isMulticast();
+        }
+        const type = this.getType();
+        return type === "Multicast" || type.startsWith("Multicast ");
+      }
+      /**
+       * Returns true if the address was written in v4-in-v6 dotted-quad notation
+       * (e.g. `::ffff:127.0.0.1`), false otherwise. This is a notation-level flag
+       * and does not reflect whether the address bits lie in the IPv4-mapped
+       * (`::ffff:0:0/96`) subnet — for that, see {@link isMapped4}.
+       * @returns {boolean}
+       */
+      is4() {
+        return this.v4;
+      }
+      /**
+       * Returns true if the address is an IPv4-mapped IPv6 address in
+       * `::ffff:0:0/96` ([RFC 4291 §2.5.5.2](https://datatracker.ietf.org/doc/html/rfc4291#section-2.5.5.2)),
+       * false otherwise. Unlike {@link is4}, this checks the underlying address
+       * bits rather than the textual notation, so `::ffff:127.0.0.1` and
+       * `::ffff:7f00:1` both return true.
+       * @returns {boolean}
+       */
+      isMapped4() {
+        return this.isHostInSubnet(IPV4_MAPPED_SUBNET);
+      }
+      /**
+       * If this address embeds a routable IPv4 address — i.e. it is IPv4-mapped
+       * (`::ffff:0:0/96`) or sits in the NAT64 well-known prefix (`64:ff9b::/96`,
+       * [RFC 6052](https://datatracker.ietf.org/doc/html/rfc6052)) — return that
+       * embedded address as an {@link Address4}; otherwise return null.
+       *
+       * The special-property checks (`isLoopback`, `isLinkLocal`, `isMulticast`,
+       * `isUnspecified`, `isPrivate`, `isCGNAT`, `isBroadcast`) call this first and
+       * delegate to the embedded {@link Address4} when present, so a literal such as
+       * `::ffff:127.0.0.1` is classified by what it actually reaches (loopback)
+       * rather than by its IPv6 wrapper (which `getType()` reports as IPv4-mapped).
+       * This matters wherever the checks back a trust-boundary decision (e.g. an
+       * SSRF allow/deny filter): without normalization, `::ffff:10.0.0.1`,
+       * `::ffff:169.254.169.254`, `64:ff9b::7f00:1`, etc. would all read as
+       * non-internal.
+       * @returns {Address4 | null}
+       */
+      embeddedIPv4() {
+        if (this.isMapped4() || this.isHostInSubnet(NAT64_WELL_KNOWN_SUBNET)) {
+          return this.to4();
+        }
+        return null;
+      }
+      /**
+       * Returns true if the address is a Teredo address, false otherwise
+       * @returns {boolean}
+       */
+      isTeredo() {
+        return this.isHostInSubnet(TEREDO_SUBNET);
+      }
+      /**
+       * Returns true if the address is a 6to4 address, false otherwise
+       * @returns {boolean}
+       */
+      is6to4() {
+        return this.isHostInSubnet(SIX_TO_FOUR_SUBNET);
+      }
+      /**
+       * Returns true if the address is a loopback address, false otherwise
+       * @returns {boolean}
+       */
+      isLoopback() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isLoopback();
+        }
+        return this.getType() === "Loopback";
+      }
+      /**
+       * Returns true if the address is a Unique Local Address in `fc00::/7` ([RFC 4193](https://datatracker.ietf.org/doc/html/rfc4193)). ULAs are the IPv6 equivalent of IPv4 [RFC 1918](https://datatracker.ietf.org/doc/html/rfc1918) private addresses.
+       * @returns {boolean}
+       */
+      isULA() {
+        return this.isHostInSubnet(ULA_SUBNET);
+      }
+      /**
+       * Returns true if the address is private, i.e. a Unique Local Address in
+       * `fc00::/7` ([RFC 4193](https://datatracker.ietf.org/doc/html/rfc4193)), an
+       * address in the NAT64 local-use range `64:ff9b:1::/48`
+       * ([RFC 8215](https://datatracker.ietf.org/doc/html/rfc8215)), or an
+       * IPv4-mapped / NAT64 well-known address whose embedded IPv4 address is in
+       * one of the [RFC 1918](https://datatracker.ietf.org/doc/html/rfc1918)
+       * private ranges (e.g. `::ffff:10.0.0.1`). This is the IPv6 counterpart to
+       * {@link Address4.isPrivate}; use it instead of {@link isULA} when you need to
+       * catch mapped RFC 1918 addresses as well as native ULAs.
+       *
+       * The local-use NAT64 range is reported private as a whole rather than by
+       * its embedded IPv4 address: an operator may carve a prefix of any RFC 6052
+       * length out of `64:ff9b:1::/48`, so the same bits decode to different IPv4
+       * addresses under different deployments and no single decoding is correct.
+       * Use {@link toAddress4Nat64} with the deployment's prefix to decode one.
+       * @returns {boolean}
+       */
+      isPrivate() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isPrivate();
+        }
+        return this.isULA() || this.isHostInSubnet(NAT64_LOCAL_USE_SUBNET);
+      }
+      /**
+       * Returns true if the address is an IPv4-mapped / NAT64 address whose embedded
+       * IPv4 address is in the carrier-grade NAT range `100.64.0.0/10`
+       * ([RFC 6598](https://datatracker.ietf.org/doc/html/rfc6598)), false
+       * otherwise. There is no native IPv6 CGNAT range, so this only ever returns
+       * true for an embedded IPv4 address (e.g. `::ffff:100.64.0.1`).
+       * @returns {boolean}
+       */
+      isCGNAT() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isCGNAT();
+        }
+        return false;
+      }
+      /**
+       * Returns true if the address is an IPv4-mapped / NAT64 address whose embedded
+       * IPv4 address is the limited broadcast address `255.255.255.255`
+       * ([RFC 919](https://datatracker.ietf.org/doc/html/rfc919)), false otherwise.
+       * There is no IPv6 broadcast, so this only ever returns true for an embedded
+       * IPv4 address (e.g. `::ffff:255.255.255.255`).
+       * @returns {boolean}
+       */
+      isBroadcast() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isBroadcast();
+        }
+        return false;
+      }
+      /**
+       * Returns true if the address is the unspecified address `::`.
+       * @returns {boolean}
+       */
+      isUnspecified() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isUnspecified();
+        }
+        return this.getType() === "Unspecified";
+      }
+      /**
+       * Returns true if the address is in the documentation prefix `2001:db8::/32` ([RFC 3849](https://datatracker.ietf.org/doc/html/rfc3849)).
+       * @returns {boolean}
+       */
+      isDocumentation() {
+        return DOCUMENTATION_SUBNETS.some((subnet) => this.isHostInSubnet(subnet));
+      }
+      /**
+       * Returns true if the address is in the benchmarking range `2001:2::/48`
+       * ([RFC 5180](https://datatracker.ietf.org/doc/html/rfc5180)) or is an
+       * IPv4-mapped / NAT64 address whose embedded IPv4 address is in
+       * `198.18.0.0/15`, false otherwise.
+       * @returns {boolean}
+       */
+      isBenchmarking() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isBenchmarking();
+        }
+        return this.isHostInSubnet(BENCHMARKING_SUBNET);
+      }
+      /**
+       * Returns true if the address is globally reachable: inside the global
+       * unicast allocation `2000::/3` (the only range the [IANA IPv6 Address Space
+       * Registry](https://www.iana.org/assignments/ipv6-address-space/) assigns
+       * for global unicast; everything else is reserved, ULA, link-local, or
+       * multicast) and not in any block the [IANA IPv6 Special-Purpose Address Registry](https://www.iana.org/assignments/iana-ipv6-special-registry/)
+       * marks as not globally reachable. An IPv4-mapped or NAT64 well-known
+       * address answers for its embedded IPv4 address, so `::ffff:10.0.0.1` and
+       * `64:ff9b::7f00:1` are not global. Teredo (`2001::/32`) and 6to4
+       * (`2002::/16`) are not global either: the registry lists them as N/A and a
+       * packet to one needs a relay.
+       *
+       * This covers everything the individual classifiers name and the blocks they
+       * do not: the discard-only prefix `100::/64`, the IETF protocol assignments
+       * in `2001::/23`, the deprecated site-local `fec0::/10` and IPv4-compatible
+       * `::/96` ranges, and unallocated space such as `4000::/3`. It is the single
+       * predicate to use where a request must not reach an internal or
+       * special-purpose destination; see SECURITY.md.
+       * @returns {boolean}
+       */
+      isGlobal() {
+        const embedded = this.embeddedIPv4();
+        if (embedded) {
+          return embedded.isGlobal();
+        }
+        return this.isHostInSubnet(GLOBAL_UNICAST_SUBNET) && common.isGloballyReachable.call(this, SPECIAL_PURPOSE_V6);
+      }
+      // #endregion
+      // #region HTML
+      /**
+       * Returns the address as an HTTP URL with the host bracketed, e.g.
+       * `http://[2001:db8::1]/`. If `optionalPort` is provided it is appended,
+       * e.g. `http://[2001:db8::1]:8080/`.
+       */
+      href(optionalPort) {
+        if (optionalPort === void 0) {
+          optionalPort = "";
+        } else {
+          optionalPort = `:${optionalPort}`;
+        }
+        return `http://[${this.correctForm()}]${optionalPort}/`;
+      }
+      /**
+       * Returns an HTML `<a>` element whose `href` encodes the address in a URL
+       * hash fragment (default prefix `/#address=`). Useful for linking between
+       * pages of an address-inspector UI.
+       * @param options.className - CSS class for the rendered `<a>` element
+       * @param options.prefix - hash prefix prepended to the address (default `/#address=`)
+       * @param options.v4 - when true, render the address in v4-in-v6 form
+       */
+      link(options) {
+        if (!options) {
+          options = {};
+        }
+        if (options.className === void 0) {
+          options.className = "";
+        }
+        if (options.prefix === void 0) {
+          options.prefix = "/#address=";
+        }
+        if (options.v4 === void 0) {
+          options.v4 = false;
+        }
+        let formFunction = this.correctForm;
+        if (options.v4) {
+          formFunction = this.to4in6;
+        }
+        const form = formFunction.call(this);
+        const safeHref = helpers.escapeHtml(`${options.prefix}${form}`);
+        const safeForm = helpers.escapeHtml(form);
+        if (options.className) {
+          const safeClass = helpers.escapeHtml(options.className);
+          return `<a href="${safeHref}" class="${safeClass}">${safeForm}</a>`;
+        }
+        return `<a href="${safeHref}">${safeForm}</a>`;
+      }
+      /**
+       * Groups an address.
+       *
+       * Returns an HTML fragment: each group is wrapped in a `<span>` carrying
+       * the group classes an address-inspector UI hovers on. The address content
+       * is HTML-escaped; anything you concatenate around it is your
+       * responsibility.
+       * @returns {String}
+       */
+      group() {
+        if (this.elidedGroups === 0) {
+          return helpers.simpleGroup(this.addressMinusSuffix).join(":");
+        }
+        assert2(typeof this.elidedGroups === "number");
+        assert2(typeof this.elisionBegin === "number");
+        const output = [];
+        const [left, right] = this.addressMinusSuffix.split("::");
+        if (left.length) {
+          output.push(...helpers.simpleGroup(left));
+        } else {
+          output.push("");
+        }
+        const classes = ["hover-group"];
+        for (let i = this.elisionBegin; i < this.elisionBegin + this.elidedGroups; i++) {
+          classes.push(`group-${i}`);
+        }
+        output.push(`<span class="${classes.join(" ")}"></span>`);
+        if (right.length) {
+          output.push(...helpers.simpleGroup(right, this.elisionEnd));
+        } else {
+          output.push("");
+        }
+        if (this.is4()) {
+          assert2(this.address4 instanceof ipv4_1.Address4);
+          output.pop();
+          output.push(this.address4.groupForV6());
+        }
+        return output.join(":");
+      }
+      // #endregion
+      // #region Regular expressions
+      /**
+       * Generate a regular expression string that can be used to find or validate
+       * all variations of this address
+       * @param {boolean} substringSearch
+       * @returns {string}
+       */
+      regularExpressionString(substringSearch = false) {
+        let output = [];
+        const address6 = new _Address6(this.correctForm());
+        if (address6.elidedGroups === 0) {
+          output.push((0, regular_expressions_1.simpleRegularExpression)(address6.parsedAddress));
+        } else if (address6.elidedGroups === constants6.GROUPS) {
+          output.push((0, regular_expressions_1.possibleElisions)(constants6.GROUPS));
+        } else {
+          const halves = address6.address.split("::");
+          if (halves[0].length) {
+            output.push((0, regular_expressions_1.simpleRegularExpression)(halves[0].split(":")));
+          }
+          assert2(typeof address6.elidedGroups === "number");
+          output.push((0, regular_expressions_1.possibleElisions)(address6.elidedGroups, halves[0].length !== 0, halves[1].length !== 0));
+          if (halves[1].length) {
+            output.push((0, regular_expressions_1.simpleRegularExpression)(halves[1].split(":")));
+          }
+          output = [output.join(":")];
+        }
+        if (!substringSearch) {
+          output = [
+            "(?=^|",
+            regular_expressions_1.ADDRESS_BOUNDARY,
+            "|[^\\w\\:])(",
+            ...output,
+            ")(?=[^\\w\\:]|",
+            regular_expressions_1.ADDRESS_BOUNDARY,
+            "|$)"
+          ];
+        }
+        return output.join("");
+      }
+      /**
+       * Generate a regular expression that can be used to find or validate all
+       * variations of this address.
+       * @param {boolean} substringSearch
+       * @returns {RegExp}
+       */
+      regularExpression(substringSearch = false) {
+        return new RegExp(this.regularExpressionString(substringSearch), "i");
+      }
+    };
+    exports.Address6 = Address6;
+    var TYPE_SUBNETS = Object.keys(constants6.TYPES).map((subnet) => [
+      new Address6(subnet),
+      constants6.TYPES[subnet]
+    ]);
+    var TEREDO_SUBNET = new Address6("2001::/32");
+    var SIX_TO_FOUR_SUBNET = new Address6("2002::/16");
+    var ULA_SUBNET = new Address6("fc00::/7");
+    var LINK_LOCAL_SUBNET = new Address6("fe80::/10");
+    var DOCUMENTATION_SUBNETS = [new Address6("2001:db8::/32"), new Address6("3fff::/20")];
+    var BENCHMARKING_SUBNET = new Address6("2001:2::/48");
+    var GLOBAL_UNICAST_SUBNET = new Address6("2000::/3");
+    var SPECIAL_PURPOSE_V6 = constants6.SPECIAL_PURPOSE.map(([cidr, , reachable]) => ({
+      subnet: new Address6(cidr),
+      reachable
+    }));
+    var IPV4_MAPPED_SUBNET = new Address6("::ffff:0:0/96");
+    var NAT64_WELL_KNOWN_SUBNET = new Address6("64:ff9b::/96");
+    var NAT64_LOCAL_USE_SUBNET = new Address6("64:ff9b:1::/48");
+  }
+});
+
+// node_modules/ip-address/dist/ip-address.js
+var require_ip_address = __commonJS({
+  "node_modules/ip-address/dist/ip-address.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __setModuleDefault = exports && exports.__setModuleDefault || (Object.create ? (function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    }) : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar = exports && exports.__importStar || function(mod) {
+      if (mod && mod.__esModule) return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+      }
+      __setModuleDefault(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.v6 = exports.AddressError = exports.Address6 = exports.Address4 = void 0;
+    var ipv4_1 = require_ipv4();
+    Object.defineProperty(exports, "Address4", { enumerable: true, get: function() {
+      return ipv4_1.Address4;
+    } });
+    var ipv6_1 = require_ipv6();
+    Object.defineProperty(exports, "Address6", { enumerable: true, get: function() {
+      return ipv6_1.Address6;
+    } });
+    var address_error_1 = require_address_error();
+    Object.defineProperty(exports, "AddressError", { enumerable: true, get: function() {
+      return address_error_1.AddressError;
+    } });
+    var helpers = __importStar(require_helpers());
+    exports.v6 = { helpers };
+  }
+});
+
+// node_modules/socks/build/common/helpers.js
+var require_helpers2 = __commonJS({
+  "node_modules/socks/build/common/helpers.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.validateSocksClientOptions = validateSocksClientOptions;
+    exports.validateSocksClientChainOptions = validateSocksClientChainOptions;
+    exports.ipv4ToInt32 = ipv4ToInt32;
+    exports.int32ToIpv4 = int32ToIpv4;
+    exports.ipToBuffer = ipToBuffer;
+    var util_1 = require_util();
+    var constants_1 = require_constants2();
+    var stream = __require("stream");
+    var ip_address_1 = require_ip_address();
+    var net4 = __require("net");
+    function validateSocksClientOptions(options, acceptedCommands = ["connect", "bind", "associate"]) {
+      if (!constants_1.SocksCommand[options.command]) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksCommand, options);
+      }
+      if (acceptedCommands.indexOf(options.command) === -1) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksCommandForOperation, options);
+      }
+      if (!isValidSocksRemoteHost(options.destination)) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsDestination, options);
+      }
+      if (!isValidSocksProxy(options.proxy)) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsProxy, options);
+      }
+      validateCustomProxyAuth(options.proxy, options);
+      if (options.timeout && !isValidTimeoutValue(options.timeout)) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsTimeout, options);
+      }
+      if (options.existing_socket && !(options.existing_socket instanceof stream.Duplex)) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsExistingSocket, options);
+      }
+    }
+    function validateSocksClientChainOptions(options) {
+      if (options.command !== "connect") {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksCommandChain, options);
+      }
+      if (!isValidSocksRemoteHost(options.destination)) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsDestination, options);
+      }
+      if (!(options.proxies && Array.isArray(options.proxies) && options.proxies.length >= 2)) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsProxiesLength, options);
+      }
+      options.proxies.forEach((proxy) => {
+        if (!isValidSocksProxy(proxy)) {
+          throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsProxy, options);
+        }
+        validateCustomProxyAuth(proxy, options);
+      });
+      if (options.timeout && !isValidTimeoutValue(options.timeout)) {
+        throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsTimeout, options);
+      }
+    }
+    function validateCustomProxyAuth(proxy, options) {
+      if (proxy.custom_auth_method !== void 0) {
+        if (proxy.custom_auth_method < constants_1.SOCKS5_CUSTOM_AUTH_START || proxy.custom_auth_method > constants_1.SOCKS5_CUSTOM_AUTH_END) {
+          throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsCustomAuthRange, options);
+        }
+        if (proxy.custom_auth_request_handler === void 0 || typeof proxy.custom_auth_request_handler !== "function") {
+          throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsCustomAuthOptions, options);
+        }
+        if (proxy.custom_auth_response_size === void 0) {
+          throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsCustomAuthOptions, options);
+        }
+        if (proxy.custom_auth_response_handler === void 0 || typeof proxy.custom_auth_response_handler !== "function") {
+          throw new util_1.SocksClientError(constants_1.ERRORS.InvalidSocksClientOptionsCustomAuthOptions, options);
+        }
+      }
+    }
+    function isValidSocksRemoteHost(remoteHost) {
+      return remoteHost && typeof remoteHost.host === "string" && Buffer.byteLength(remoteHost.host) < 256 && typeof remoteHost.port === "number" && remoteHost.port >= 0 && remoteHost.port <= 65535;
+    }
+    function isValidSocksProxy(proxy) {
+      return proxy && (typeof proxy.host === "string" || typeof proxy.ipaddress === "string") && typeof proxy.port === "number" && proxy.port >= 0 && proxy.port <= 65535 && (proxy.type === 4 || proxy.type === 5);
+    }
+    function isValidTimeoutValue(value) {
+      return typeof value === "number" && value > 0;
+    }
+    function ipv4ToInt32(ip) {
+      const address = new ip_address_1.Address4(ip);
+      return address.toArray().reduce((acc, part) => (acc << 8) + part, 0) >>> 0;
+    }
+    function int32ToIpv4(int32) {
+      const octet1 = int32 >>> 24 & 255;
+      const octet2 = int32 >>> 16 & 255;
+      const octet3 = int32 >>> 8 & 255;
+      const octet4 = int32 & 255;
+      return [octet1, octet2, octet3, octet4].join(".");
+    }
+    function ipToBuffer(ip) {
+      if (net4.isIPv4(ip)) {
+        const address = new ip_address_1.Address4(ip);
+        return Buffer.from(address.toArray());
+      } else if (net4.isIPv6(ip)) {
+        const address = new ip_address_1.Address6(ip);
+        return Buffer.from(address.canonicalForm().split(":").map((segment) => segment.padStart(4, "0")).join(""), "hex");
+      } else {
+        throw new Error("Invalid IP address format");
+      }
+    }
+  }
+});
+
+// node_modules/socks/build/common/receivebuffer.js
+var require_receivebuffer = __commonJS({
+  "node_modules/socks/build/common/receivebuffer.js"(exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.ReceiveBuffer = void 0;
+    var ReceiveBuffer = class {
+      constructor(size = 4096) {
+        this.buffer = Buffer.allocUnsafe(size);
+        this.offset = 0;
+        this.originalSize = size;
+      }
+      get length() {
+        return this.offset;
+      }
+      append(data) {
+        if (!Buffer.isBuffer(data)) {
+          throw new Error("Attempted to append a non-buffer instance to ReceiveBuffer.");
+        }
+        if (this.offset + data.length >= this.buffer.length) {
+          const tmp = this.buffer;
+          this.buffer = Buffer.allocUnsafe(Math.max(this.buffer.length + this.originalSize, this.buffer.length + data.length));
+          tmp.copy(this.buffer);
+        }
+        data.copy(this.buffer, this.offset);
+        return this.offset += data.length;
+      }
+      peek(length) {
+        if (length > this.offset) {
+          throw new Error("Attempted to read beyond the bounds of the managed internal data.");
+        }
+        return this.buffer.slice(0, length);
+      }
+      get(length) {
+        if (length > this.offset) {
+          throw new Error("Attempted to read beyond the bounds of the managed internal data.");
+        }
+        const value = Buffer.allocUnsafe(length);
+        this.buffer.slice(0, length).copy(value);
+        this.buffer.copyWithin(0, length, length + this.offset - length);
+        this.offset -= length;
+        return value;
+      }
+    };
+    exports.ReceiveBuffer = ReceiveBuffer;
+  }
+});
+
+// node_modules/socks/build/client/socksclient.js
+var require_socksclient = __commonJS({
+  "node_modules/socks/build/client/socksclient.js"(exports) {
+    "use strict";
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve7) {
+          resolve7(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve7, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve7(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SocksClientError = exports.SocksClient = void 0;
+    var events_1 = __require("events");
+    var net4 = __require("net");
+    var smart_buffer_1 = require_smartbuffer();
+    var constants_1 = require_constants2();
+    var helpers_1 = require_helpers2();
+    var receivebuffer_1 = require_receivebuffer();
+    var util_1 = require_util();
+    Object.defineProperty(exports, "SocksClientError", { enumerable: true, get: function() {
+      return util_1.SocksClientError;
+    } });
+    var ip_address_1 = require_ip_address();
+    var SocksClient2 = class _SocksClient extends events_1.EventEmitter {
+      constructor(options) {
+        super();
+        this.options = Object.assign({}, options);
+        (0, helpers_1.validateSocksClientOptions)(options);
+        this.setState(constants_1.SocksClientState.Created);
+      }
+      /**
+       * Creates a new SOCKS connection.
+       *
+       * Note: Supports callbacks and promises. Only supports the connect command.
+       * @param options { SocksClientOptions } Options.
+       * @param callback { Function } An optional callback function.
+       * @returns { Promise }
+       */
+      static createConnection(options, callback) {
+        return new Promise((resolve7, reject) => {
+          try {
+            (0, helpers_1.validateSocksClientOptions)(options, ["connect"]);
+          } catch (err) {
+            if (typeof callback === "function") {
+              callback(err);
+              return resolve7(err);
+            } else {
+              return reject(err);
+            }
+          }
+          const client = new _SocksClient(options);
+          client.connect(options.existing_socket);
+          client.once("established", (info) => {
+            client.removeAllListeners();
+            if (typeof callback === "function") {
+              callback(null, info);
+              resolve7(info);
+            } else {
+              resolve7(info);
+            }
+          });
+          client.once("error", (err) => {
+            client.removeAllListeners();
+            if (typeof callback === "function") {
+              callback(err);
+              resolve7(err);
+            } else {
+              reject(err);
+            }
+          });
+        });
+      }
+      /**
+       * Creates a new SOCKS connection chain to a destination host through 2 or more SOCKS proxies.
+       *
+       * Note: Supports callbacks and promises. Only supports the connect method.
+       * Note: Implemented via createConnection() factory function.
+       * @param options { SocksClientChainOptions } Options
+       * @param callback { Function } An optional callback function.
+       * @returns { Promise }
+       */
+      static createConnectionChain(options, callback) {
+        return new Promise((resolve7, reject) => __awaiter(this, void 0, void 0, function* () {
+          try {
+            (0, helpers_1.validateSocksClientChainOptions)(options);
+          } catch (err) {
+            if (typeof callback === "function") {
+              callback(err);
+              return resolve7(err);
+            } else {
+              return reject(err);
+            }
+          }
+          if (options.randomizeChain) {
+            (0, util_1.shuffleArray)(options.proxies);
+          }
+          try {
+            let sock;
+            for (let i = 0; i < options.proxies.length; i++) {
+              const nextProxy = options.proxies[i];
+              const nextDestination = i === options.proxies.length - 1 ? options.destination : {
+                host: options.proxies[i + 1].host || options.proxies[i + 1].ipaddress,
+                port: options.proxies[i + 1].port
+              };
+              const result = yield _SocksClient.createConnection({
+                command: "connect",
+                proxy: nextProxy,
+                destination: nextDestination,
+                existing_socket: sock
+              });
+              sock = sock || result.socket;
+            }
+            if (typeof callback === "function") {
+              callback(null, { socket: sock });
+              resolve7({ socket: sock });
+            } else {
+              resolve7({ socket: sock });
+            }
+          } catch (err) {
+            if (typeof callback === "function") {
+              callback(err);
+              resolve7(err);
+            } else {
+              reject(err);
+            }
+          }
+        }));
+      }
+      /**
+       * Creates a SOCKS UDP Frame.
+       * @param options
+       */
+      static createUDPFrame(options) {
+        const buff = new smart_buffer_1.SmartBuffer();
+        buff.writeUInt16BE(0);
+        buff.writeUInt8(options.frameNumber || 0);
+        if (net4.isIPv4(options.remoteHost.host)) {
+          buff.writeUInt8(constants_1.Socks5HostType.IPv4);
+          buff.writeUInt32BE((0, helpers_1.ipv4ToInt32)(options.remoteHost.host));
+        } else if (net4.isIPv6(options.remoteHost.host)) {
+          buff.writeUInt8(constants_1.Socks5HostType.IPv6);
+          buff.writeBuffer((0, helpers_1.ipToBuffer)(options.remoteHost.host));
+        } else {
+          buff.writeUInt8(constants_1.Socks5HostType.Hostname);
+          buff.writeUInt8(Buffer.byteLength(options.remoteHost.host));
+          buff.writeString(options.remoteHost.host);
+        }
+        buff.writeUInt16BE(options.remoteHost.port);
+        buff.writeBuffer(options.data);
+        return buff.toBuffer();
+      }
+      /**
+       * Parses a SOCKS UDP frame.
+       * @param data
+       */
+      static parseUDPFrame(data) {
+        const buff = smart_buffer_1.SmartBuffer.fromBuffer(data);
+        buff.readOffset = 2;
+        const frameNumber = buff.readUInt8();
+        const hostType = buff.readUInt8();
+        let remoteHost;
+        if (hostType === constants_1.Socks5HostType.IPv4) {
+          remoteHost = (0, helpers_1.int32ToIpv4)(buff.readUInt32BE());
+        } else if (hostType === constants_1.Socks5HostType.IPv6) {
+          remoteHost = ip_address_1.Address6.fromByteArray(Array.from(buff.readBuffer(16))).canonicalForm();
+        } else {
+          remoteHost = buff.readString(buff.readUInt8());
+        }
+        const remotePort = buff.readUInt16BE();
+        return {
+          frameNumber,
+          remoteHost: {
+            host: remoteHost,
+            port: remotePort
+          },
+          data: buff.readBuffer()
+        };
+      }
+      /**
+       * Internal state setter. If the SocksClient is in an error state, it cannot be changed to a non error state.
+       */
+      setState(newState) {
+        if (this.state !== constants_1.SocksClientState.Error) {
+          this.state = newState;
+        }
+      }
+      /**
+       * Starts the connection establishment to the proxy and destination.
+       * @param existingSocket Connected socket to use instead of creating a new one (internal use).
+       */
+      connect(existingSocket) {
+        this.onDataReceived = (data) => this.onDataReceivedHandler(data);
+        this.onClose = () => this.onCloseHandler();
+        this.onError = (err) => this.onErrorHandler(err);
+        this.onConnect = () => this.onConnectHandler();
+        const timer = setTimeout(() => this.onEstablishedTimeout(), this.options.timeout || constants_1.DEFAULT_TIMEOUT);
+        if (timer.unref && typeof timer.unref === "function") {
+          timer.unref();
+        }
+        if (existingSocket) {
+          this.socket = existingSocket;
+        } else {
+          this.socket = new net4.Socket();
+        }
+        this.socket.once("close", this.onClose);
+        this.socket.once("error", this.onError);
+        this.socket.once("connect", this.onConnect);
+        this.socket.on("data", this.onDataReceived);
+        this.setState(constants_1.SocksClientState.Connecting);
+        this.receiveBuffer = new receivebuffer_1.ReceiveBuffer();
+        if (existingSocket) {
+          this.socket.emit("connect");
+        } else {
+          this.socket.connect(this.getSocketOptions());
+          if (this.options.set_tcp_nodelay !== void 0 && this.options.set_tcp_nodelay !== null) {
+            this.socket.setNoDelay(!!this.options.set_tcp_nodelay);
+          }
+        }
+        this.prependOnceListener("established", (info) => {
+          setImmediate(() => {
+            if (this.receiveBuffer.length > 0) {
+              const excessData = this.receiveBuffer.get(this.receiveBuffer.length);
+              info.socket.emit("data", excessData);
+            }
+            info.socket.resume();
+          });
+        });
+      }
+      // Socket options (defaults host/port to options.proxy.host/options.proxy.port)
+      getSocketOptions() {
+        return Object.assign(Object.assign({}, this.options.socket_options), { host: this.options.proxy.host || this.options.proxy.ipaddress, port: this.options.proxy.port });
+      }
+      /**
+       * Handles internal Socks timeout callback.
+       * Note: If the Socks client is not BoundWaitingForConnection or Established, the connection will be closed.
+       */
+      onEstablishedTimeout() {
+        if (this.state !== constants_1.SocksClientState.Established && this.state !== constants_1.SocksClientState.BoundWaitingForConnection) {
+          this.closeSocket(constants_1.ERRORS.ProxyConnectionTimedOut);
+        }
+      }
+      /**
+       * Handles Socket connect event.
+       */
+      onConnectHandler() {
+        this.setState(constants_1.SocksClientState.Connected);
+        if (this.options.proxy.type === 4) {
+          this.sendSocks4InitialHandshake();
+        } else {
+          this.sendSocks5InitialHandshake();
+        }
+        this.setState(constants_1.SocksClientState.SentInitialHandshake);
+      }
+      /**
+       * Handles Socket data event.
+       * @param data
+       */
+      onDataReceivedHandler(data) {
+        this.receiveBuffer.append(data);
+        this.processData();
+      }
+      /**
+       * Handles processing of the data we have received.
+       */
+      processData() {
+        while (this.state !== constants_1.SocksClientState.Established && this.state !== constants_1.SocksClientState.Error && this.receiveBuffer.length >= this.nextRequiredPacketBufferSize) {
+          if (this.state === constants_1.SocksClientState.SentInitialHandshake) {
+            if (this.options.proxy.type === 4) {
+              this.handleSocks4FinalHandshakeResponse();
+            } else {
+              this.handleInitialSocks5HandshakeResponse();
+            }
+          } else if (this.state === constants_1.SocksClientState.SentAuthentication) {
+            this.handleInitialSocks5AuthenticationHandshakeResponse();
+          } else if (this.state === constants_1.SocksClientState.SentFinalHandshake) {
+            this.handleSocks5FinalHandshakeResponse();
+          } else if (this.state === constants_1.SocksClientState.BoundWaitingForConnection) {
+            if (this.options.proxy.type === 4) {
+              this.handleSocks4IncomingConnectionResponse();
+            } else {
+              this.handleSocks5IncomingConnectionResponse();
+            }
+          } else {
+            this.closeSocket(constants_1.ERRORS.InternalError);
+            break;
+          }
+        }
+      }
+      /**
+       * Handles Socket close event.
+       * @param had_error
+       */
+      onCloseHandler() {
+        this.closeSocket(constants_1.ERRORS.SocketClosed);
+      }
+      /**
+       * Handles Socket error event.
+       * @param err
+       */
+      onErrorHandler(err) {
+        this.closeSocket(err.message);
+      }
+      /**
+       * Removes internal event listeners on the underlying Socket.
+       */
+      removeInternalSocketHandlers() {
+        this.socket.pause();
+        this.socket.removeListener("data", this.onDataReceived);
+        this.socket.removeListener("close", this.onClose);
+        this.socket.removeListener("error", this.onError);
+        this.socket.removeListener("connect", this.onConnect);
+      }
+      /**
+       * Closes and destroys the underlying Socket. Emits an error event.
+       * @param err { String } An error string to include in error event.
+       */
+      closeSocket(err) {
+        if (this.state !== constants_1.SocksClientState.Error) {
+          this.setState(constants_1.SocksClientState.Error);
+          this.socket.destroy();
+          this.removeInternalSocketHandlers();
+          this.emit("error", new util_1.SocksClientError(err, this.options));
+        }
+      }
+      /**
+       * Sends initial Socks v4 handshake request.
+       */
+      sendSocks4InitialHandshake() {
+        const userId = this.options.proxy.userId || "";
+        const buff = new smart_buffer_1.SmartBuffer();
+        buff.writeUInt8(4);
+        buff.writeUInt8(constants_1.SocksCommand[this.options.command]);
+        buff.writeUInt16BE(this.options.destination.port);
+        if (net4.isIPv4(this.options.destination.host)) {
+          buff.writeBuffer((0, helpers_1.ipToBuffer)(this.options.destination.host));
+          buff.writeStringNT(userId);
+        } else {
+          buff.writeUInt8(0);
+          buff.writeUInt8(0);
+          buff.writeUInt8(0);
+          buff.writeUInt8(1);
+          buff.writeStringNT(userId);
+          buff.writeStringNT(this.options.destination.host);
+        }
+        this.nextRequiredPacketBufferSize = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks4Response;
+        this.socket.write(buff.toBuffer());
+      }
+      /**
+       * Handles Socks v4 handshake response.
+       * @param data
+       */
+      handleSocks4FinalHandshakeResponse() {
+        const data = this.receiveBuffer.get(8);
+        if (data[1] !== constants_1.Socks4Response.Granted) {
+          this.closeSocket(`${constants_1.ERRORS.Socks4ProxyRejectedConnection} - (${constants_1.Socks4Response[data[1]]})`);
+        } else {
+          if (constants_1.SocksCommand[this.options.command] === constants_1.SocksCommand.bind) {
+            const buff = smart_buffer_1.SmartBuffer.fromBuffer(data);
+            buff.readOffset = 2;
+            const remoteHost = {
+              port: buff.readUInt16BE(),
+              host: (0, helpers_1.int32ToIpv4)(buff.readUInt32BE())
+            };
+            if (remoteHost.host === "0.0.0.0") {
+              remoteHost.host = this.options.proxy.ipaddress;
+            }
+            this.setState(constants_1.SocksClientState.BoundWaitingForConnection);
+            this.emit("bound", { remoteHost, socket: this.socket });
+          } else {
+            this.setState(constants_1.SocksClientState.Established);
+            this.removeInternalSocketHandlers();
+            this.emit("established", { socket: this.socket });
+          }
+        }
+      }
+      /**
+       * Handles Socks v4 incoming connection request (BIND)
+       * @param data
+       */
+      handleSocks4IncomingConnectionResponse() {
+        const data = this.receiveBuffer.get(8);
+        if (data[1] !== constants_1.Socks4Response.Granted) {
+          this.closeSocket(`${constants_1.ERRORS.Socks4ProxyRejectedIncomingBoundConnection} - (${constants_1.Socks4Response[data[1]]})`);
+        } else {
+          const buff = smart_buffer_1.SmartBuffer.fromBuffer(data);
+          buff.readOffset = 2;
+          const remoteHost = {
+            port: buff.readUInt16BE(),
+            host: (0, helpers_1.int32ToIpv4)(buff.readUInt32BE())
+          };
+          this.setState(constants_1.SocksClientState.Established);
+          this.removeInternalSocketHandlers();
+          this.emit("established", { remoteHost, socket: this.socket });
+        }
+      }
+      /**
+       * Sends initial Socks v5 handshake request.
+       */
+      sendSocks5InitialHandshake() {
+        const buff = new smart_buffer_1.SmartBuffer();
+        const supportedAuthMethods = [constants_1.Socks5Auth.NoAuth];
+        if (this.options.proxy.userId || this.options.proxy.password) {
+          supportedAuthMethods.push(constants_1.Socks5Auth.UserPass);
+        }
+        if (this.options.proxy.custom_auth_method !== void 0) {
+          supportedAuthMethods.push(this.options.proxy.custom_auth_method);
+        }
+        buff.writeUInt8(5);
+        buff.writeUInt8(supportedAuthMethods.length);
+        for (const authMethod of supportedAuthMethods) {
+          buff.writeUInt8(authMethod);
+        }
+        this.nextRequiredPacketBufferSize = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5InitialHandshakeResponse;
+        this.socket.write(buff.toBuffer());
+        this.setState(constants_1.SocksClientState.SentInitialHandshake);
+      }
+      /**
+       * Handles initial Socks v5 handshake response.
+       * @param data
+       */
+      handleInitialSocks5HandshakeResponse() {
+        const data = this.receiveBuffer.get(2);
+        if (data[0] !== 5) {
+          this.closeSocket(constants_1.ERRORS.InvalidSocks5IntiailHandshakeSocksVersion);
+        } else if (data[1] === constants_1.SOCKS5_NO_ACCEPTABLE_AUTH) {
+          this.closeSocket(constants_1.ERRORS.InvalidSocks5InitialHandshakeNoAcceptedAuthType);
+        } else {
+          if (data[1] === constants_1.Socks5Auth.NoAuth) {
+            this.socks5ChosenAuthType = constants_1.Socks5Auth.NoAuth;
+            this.sendSocks5CommandRequest();
+          } else if (data[1] === constants_1.Socks5Auth.UserPass) {
+            this.socks5ChosenAuthType = constants_1.Socks5Auth.UserPass;
+            this.sendSocks5UserPassAuthentication();
+          } else if (data[1] === this.options.proxy.custom_auth_method) {
+            this.socks5ChosenAuthType = this.options.proxy.custom_auth_method;
+            this.sendSocks5CustomAuthentication();
+          } else {
+            this.closeSocket(constants_1.ERRORS.InvalidSocks5InitialHandshakeUnknownAuthType);
+          }
+        }
+      }
+      /**
+       * Sends Socks v5 user & password auth handshake.
+       *
+       * Note: No auth and user/pass are currently supported.
+       */
+      sendSocks5UserPassAuthentication() {
+        const userId = this.options.proxy.userId || "";
+        const password = this.options.proxy.password || "";
+        const buff = new smart_buffer_1.SmartBuffer();
+        buff.writeUInt8(1);
+        buff.writeUInt8(Buffer.byteLength(userId));
+        buff.writeString(userId);
+        buff.writeUInt8(Buffer.byteLength(password));
+        buff.writeString(password);
+        this.nextRequiredPacketBufferSize = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5UserPassAuthenticationResponse;
+        this.socket.write(buff.toBuffer());
+        this.setState(constants_1.SocksClientState.SentAuthentication);
+      }
+      sendSocks5CustomAuthentication() {
+        return __awaiter(this, void 0, void 0, function* () {
+          this.nextRequiredPacketBufferSize = this.options.proxy.custom_auth_response_size;
+          this.socket.write(yield this.options.proxy.custom_auth_request_handler());
+          this.setState(constants_1.SocksClientState.SentAuthentication);
+        });
+      }
+      handleSocks5CustomAuthHandshakeResponse(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+          return yield this.options.proxy.custom_auth_response_handler(data);
+        });
+      }
+      handleSocks5AuthenticationNoAuthHandshakeResponse(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+          return data[1] === 0;
+        });
+      }
+      handleSocks5AuthenticationUserPassHandshakeResponse(data) {
+        return __awaiter(this, void 0, void 0, function* () {
+          return data[1] === 0;
+        });
+      }
+      /**
+       * Handles Socks v5 auth handshake response.
+       * @param data
+       */
+      handleInitialSocks5AuthenticationHandshakeResponse() {
+        return __awaiter(this, void 0, void 0, function* () {
+          this.setState(constants_1.SocksClientState.ReceivedAuthenticationResponse);
+          let authResult = false;
+          if (this.socks5ChosenAuthType === constants_1.Socks5Auth.NoAuth) {
+            authResult = yield this.handleSocks5AuthenticationNoAuthHandshakeResponse(this.receiveBuffer.get(2));
+          } else if (this.socks5ChosenAuthType === constants_1.Socks5Auth.UserPass) {
+            authResult = yield this.handleSocks5AuthenticationUserPassHandshakeResponse(this.receiveBuffer.get(2));
+          } else if (this.socks5ChosenAuthType === this.options.proxy.custom_auth_method) {
+            authResult = yield this.handleSocks5CustomAuthHandshakeResponse(this.receiveBuffer.get(this.options.proxy.custom_auth_response_size));
+          }
+          if (!authResult) {
+            this.closeSocket(constants_1.ERRORS.Socks5AuthenticationFailed);
+          } else {
+            this.sendSocks5CommandRequest();
+          }
+        });
+      }
+      /**
+       * Sends Socks v5 final handshake request.
+       */
+      sendSocks5CommandRequest() {
+        const buff = new smart_buffer_1.SmartBuffer();
+        buff.writeUInt8(5);
+        buff.writeUInt8(constants_1.SocksCommand[this.options.command]);
+        buff.writeUInt8(0);
+        if (net4.isIPv4(this.options.destination.host)) {
+          buff.writeUInt8(constants_1.Socks5HostType.IPv4);
+          buff.writeBuffer((0, helpers_1.ipToBuffer)(this.options.destination.host));
+        } else if (net4.isIPv6(this.options.destination.host)) {
+          buff.writeUInt8(constants_1.Socks5HostType.IPv6);
+          buff.writeBuffer((0, helpers_1.ipToBuffer)(this.options.destination.host));
+        } else {
+          buff.writeUInt8(constants_1.Socks5HostType.Hostname);
+          buff.writeUInt8(this.options.destination.host.length);
+          buff.writeString(this.options.destination.host);
+        }
+        buff.writeUInt16BE(this.options.destination.port);
+        this.nextRequiredPacketBufferSize = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseHeader;
+        this.socket.write(buff.toBuffer());
+        this.setState(constants_1.SocksClientState.SentFinalHandshake);
+      }
+      /**
+       * Handles Socks v5 final handshake response.
+       * @param data
+       */
+      handleSocks5FinalHandshakeResponse() {
+        const header = this.receiveBuffer.peek(5);
+        if (header[0] !== 5 || header[1] !== constants_1.Socks5Response.Granted) {
+          this.closeSocket(`${constants_1.ERRORS.InvalidSocks5FinalHandshakeRejected} - ${constants_1.Socks5Response[header[1]]}`);
+        } else {
+          const addressType = header[3];
+          let remoteHost;
+          let buff;
+          if (addressType === constants_1.Socks5HostType.IPv4) {
+            const dataNeeded = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseIPv4;
+            if (this.receiveBuffer.length < dataNeeded) {
+              this.nextRequiredPacketBufferSize = dataNeeded;
+              return;
+            }
+            buff = smart_buffer_1.SmartBuffer.fromBuffer(this.receiveBuffer.get(dataNeeded).slice(4));
+            remoteHost = {
+              host: (0, helpers_1.int32ToIpv4)(buff.readUInt32BE()),
+              port: buff.readUInt16BE()
+            };
+            if (remoteHost.host === "0.0.0.0") {
+              remoteHost.host = this.options.proxy.ipaddress;
+            }
+          } else if (addressType === constants_1.Socks5HostType.Hostname) {
+            const hostLength = header[4];
+            const dataNeeded = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseHostname(hostLength);
+            if (this.receiveBuffer.length < dataNeeded) {
+              this.nextRequiredPacketBufferSize = dataNeeded;
+              return;
+            }
+            buff = smart_buffer_1.SmartBuffer.fromBuffer(this.receiveBuffer.get(dataNeeded).slice(5));
+            remoteHost = {
+              host: buff.readString(hostLength),
+              port: buff.readUInt16BE()
+            };
+          } else if (addressType === constants_1.Socks5HostType.IPv6) {
+            const dataNeeded = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseIPv6;
+            if (this.receiveBuffer.length < dataNeeded) {
+              this.nextRequiredPacketBufferSize = dataNeeded;
+              return;
+            }
+            buff = smart_buffer_1.SmartBuffer.fromBuffer(this.receiveBuffer.get(dataNeeded).slice(4));
+            remoteHost = {
+              host: ip_address_1.Address6.fromByteArray(Array.from(buff.readBuffer(16))).canonicalForm(),
+              port: buff.readUInt16BE()
+            };
+          }
+          this.setState(constants_1.SocksClientState.ReceivedFinalResponse);
+          if (constants_1.SocksCommand[this.options.command] === constants_1.SocksCommand.connect) {
+            this.setState(constants_1.SocksClientState.Established);
+            this.removeInternalSocketHandlers();
+            this.emit("established", { remoteHost, socket: this.socket });
+          } else if (constants_1.SocksCommand[this.options.command] === constants_1.SocksCommand.bind) {
+            this.setState(constants_1.SocksClientState.BoundWaitingForConnection);
+            this.nextRequiredPacketBufferSize = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseHeader;
+            this.emit("bound", { remoteHost, socket: this.socket });
+          } else if (constants_1.SocksCommand[this.options.command] === constants_1.SocksCommand.associate) {
+            this.setState(constants_1.SocksClientState.Established);
+            this.removeInternalSocketHandlers();
+            this.emit("established", {
+              remoteHost,
+              socket: this.socket
+            });
+          }
+        }
+      }
+      /**
+       * Handles Socks v5 incoming connection request (BIND).
+       */
+      handleSocks5IncomingConnectionResponse() {
+        const header = this.receiveBuffer.peek(5);
+        if (header[0] !== 5 || header[1] !== constants_1.Socks5Response.Granted) {
+          this.closeSocket(`${constants_1.ERRORS.Socks5ProxyRejectedIncomingBoundConnection} - ${constants_1.Socks5Response[header[1]]}`);
+        } else {
+          const addressType = header[3];
+          let remoteHost;
+          let buff;
+          if (addressType === constants_1.Socks5HostType.IPv4) {
+            const dataNeeded = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseIPv4;
+            if (this.receiveBuffer.length < dataNeeded) {
+              this.nextRequiredPacketBufferSize = dataNeeded;
+              return;
+            }
+            buff = smart_buffer_1.SmartBuffer.fromBuffer(this.receiveBuffer.get(dataNeeded).slice(4));
+            remoteHost = {
+              host: (0, helpers_1.int32ToIpv4)(buff.readUInt32BE()),
+              port: buff.readUInt16BE()
+            };
+            if (remoteHost.host === "0.0.0.0") {
+              remoteHost.host = this.options.proxy.ipaddress;
+            }
+          } else if (addressType === constants_1.Socks5HostType.Hostname) {
+            const hostLength = header[4];
+            const dataNeeded = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseHostname(hostLength);
+            if (this.receiveBuffer.length < dataNeeded) {
+              this.nextRequiredPacketBufferSize = dataNeeded;
+              return;
+            }
+            buff = smart_buffer_1.SmartBuffer.fromBuffer(this.receiveBuffer.get(dataNeeded).slice(5));
+            remoteHost = {
+              host: buff.readString(hostLength),
+              port: buff.readUInt16BE()
+            };
+          } else if (addressType === constants_1.Socks5HostType.IPv6) {
+            const dataNeeded = constants_1.SOCKS_INCOMING_PACKET_SIZES.Socks5ResponseIPv6;
+            if (this.receiveBuffer.length < dataNeeded) {
+              this.nextRequiredPacketBufferSize = dataNeeded;
+              return;
+            }
+            buff = smart_buffer_1.SmartBuffer.fromBuffer(this.receiveBuffer.get(dataNeeded).slice(4));
+            remoteHost = {
+              host: ip_address_1.Address6.fromByteArray(Array.from(buff.readBuffer(16))).canonicalForm(),
+              port: buff.readUInt16BE()
+            };
+          }
+          this.setState(constants_1.SocksClientState.Established);
+          this.removeInternalSocketHandlers();
+          this.emit("established", { remoteHost, socket: this.socket });
+        }
+      }
+      get socksClientOptions() {
+        return Object.assign({}, this.options);
+      }
+    };
+    exports.SocksClient = SocksClient2;
+  }
+});
+
+// node_modules/socks/build/index.js
+var require_build = __commonJS({
+  "node_modules/socks/build/index.js"(exports) {
+    "use strict";
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __exportStar = exports && exports.__exportStar || function(m, exports2) {
+      for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    __exportStar(require_socksclient(), exports);
+  }
+});
+
 // index.js
-import { join as join13, resolve as resolve6 } from "node:path";
+import { join as join15, resolve as resolve6 } from "node:path";
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -3778,7 +8985,7 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 // src/config.js
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join as join3 } from "node:path";
+import { join as join5 } from "node:path";
 
 // node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
@@ -4669,12 +9876,685 @@ function createDelivery({ mode }) {
   throw Object.assign(new Error(`unknown delivery mode ${String(mode)}`), { code: "invalid" });
 }
 
+// src/proxy.js
+import { createWriteStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { pipeline } from "node:stream/promises";
+
+// node_modules/https-proxy-agent/dist/index.js
+var import_debug2 = __toESM(require_src(), 1);
+import * as net2 from "net";
+import * as tls from "tls";
+import assert from "assert";
+
+// node_modules/agent-base/dist/index.js
+import * as net from "net";
+import * as http from "http";
+import { Agent as HttpsAgent } from "https";
+var INTERNAL = /* @__PURE__ */ Symbol("AgentBaseInternalState");
+var Agent2 = class extends http.Agent {
+  constructor(opts) {
+    super(opts);
+    this[INTERNAL] = {};
+  }
+  /**
+   * Determine whether this is an `http` or `https` request.
+   */
+  isSecureEndpoint(options) {
+    if (options) {
+      if (typeof options.secureEndpoint === "boolean") {
+        return options.secureEndpoint;
+      }
+      if (typeof options.protocol === "string") {
+        return options.protocol === "https:";
+      }
+    }
+    const { stack } = new Error();
+    if (typeof stack !== "string")
+      return false;
+    return stack.split("\n").some((l) => l.indexOf("(https.js:") !== -1 || l.indexOf("node:https:") !== -1);
+  }
+  // In order to support async signatures in `connect()` and Node's native
+  // connection pooling in `http.Agent`, the array of sockets for each origin
+  // has to be updated synchronously. This is so the length of the array is
+  // accurate when `addRequest()` is next called. We achieve this by creating a
+  // fake socket and adding it to `sockets[origin]` and incrementing
+  // `totalSocketCount`.
+  incrementSockets(name2) {
+    if (this.maxSockets === Infinity && this.maxTotalSockets === Infinity) {
+      return null;
+    }
+    if (!this.sockets[name2]) {
+      this.sockets[name2] = [];
+    }
+    const fakeSocket = new net.Socket({ writable: false });
+    this.sockets[name2].push(fakeSocket);
+    this.totalSocketCount++;
+    return fakeSocket;
+  }
+  decrementSockets(name2, socket) {
+    if (!this.sockets[name2] || socket === null) {
+      return;
+    }
+    const sockets = this.sockets[name2];
+    const index = sockets.indexOf(socket);
+    if (index !== -1) {
+      sockets.splice(index, 1);
+      this.totalSocketCount--;
+      if (sockets.length === 0) {
+        delete this.sockets[name2];
+      }
+    }
+  }
+  // In order to properly update the socket pool, we need to call `getName()` on
+  // the core `https.Agent` if it is a secureEndpoint.
+  getName(options) {
+    const secureEndpoint = this.isSecureEndpoint(options);
+    if (secureEndpoint) {
+      return HttpsAgent.prototype.getName.call(this, options);
+    }
+    return super.getName(options);
+  }
+  createSocket(req, options, cb) {
+    const connectOpts = {
+      ...options,
+      secureEndpoint: this.isSecureEndpoint(options)
+    };
+    const name2 = this.getName(connectOpts);
+    const fakeSocket = this.incrementSockets(name2);
+    Promise.resolve().then(() => this.connect(req, connectOpts)).then((socket) => {
+      this.decrementSockets(name2, fakeSocket);
+      if (typeof socket.addRequest === "function") {
+        try {
+          return socket.addRequest(req, connectOpts);
+        } catch (err) {
+          return cb(err);
+        }
+      }
+      this[INTERNAL].currentSocket = socket;
+      super.createSocket(req, options, cb);
+    }, (err) => {
+      this.decrementSockets(name2, fakeSocket);
+      cb(err);
+    });
+  }
+  createConnection() {
+    const socket = this[INTERNAL].currentSocket;
+    this[INTERNAL].currentSocket = void 0;
+    if (!socket) {
+      throw new Error("No socket was returned in the `connect()` function");
+    }
+    return socket;
+  }
+  get defaultPort() {
+    return this[INTERNAL].defaultPort ?? (this.protocol === "https:" ? 443 : 80);
+  }
+  set defaultPort(v) {
+    if (this[INTERNAL]) {
+      this[INTERNAL].defaultPort = v;
+    }
+  }
+  get protocol() {
+    return this[INTERNAL].protocol ?? (this.isSecureEndpoint() ? "https:" : "http:");
+  }
+  set protocol(v) {
+    if (this[INTERNAL]) {
+      this[INTERNAL].protocol = v;
+    }
+  }
+};
+
+// node_modules/https-proxy-agent/dist/index.js
+import { URL as URL2 } from "url";
+
+// node_modules/https-proxy-agent/dist/parse-proxy-response.js
+var import_debug = __toESM(require_src(), 1);
+var debug = (0, import_debug.default)("https-proxy-agent:parse-proxy-response");
+function parseProxyResponse(socket) {
+  return new Promise((resolve7, reject) => {
+    let buffersLength = 0;
+    const buffers = [];
+    function read() {
+      const b = socket.read();
+      if (b)
+        ondata(b);
+      else
+        socket.once("readable", read);
+    }
+    function cleanup() {
+      socket.removeListener("end", onend);
+      socket.removeListener("error", onerror);
+      socket.removeListener("readable", read);
+    }
+    function onend() {
+      cleanup();
+      debug("onend");
+      reject(new Error("Proxy connection ended before receiving CONNECT response"));
+    }
+    function onerror(err) {
+      cleanup();
+      debug("onerror %o", err);
+      reject(err);
+    }
+    function ondata(b) {
+      buffers.push(b);
+      buffersLength += b.length;
+      const buffered = Buffer.concat(buffers, buffersLength);
+      const endOfHeaders = buffered.indexOf("\r\n\r\n");
+      if (endOfHeaders === -1) {
+        debug("have not received end of HTTP headers yet...");
+        read();
+        return;
+      }
+      const headerParts = buffered.slice(0, endOfHeaders).toString("ascii").split("\r\n");
+      const firstLine = headerParts.shift();
+      if (!firstLine) {
+        socket.destroy();
+        return reject(new Error("No header received from proxy CONNECT response"));
+      }
+      const firstLineParts = firstLine.split(" ");
+      const statusCode = +firstLineParts[1];
+      const statusText = firstLineParts.slice(2).join(" ");
+      const headers = {};
+      for (const header of headerParts) {
+        if (!header)
+          continue;
+        const firstColon = header.indexOf(":");
+        if (firstColon === -1) {
+          socket.destroy();
+          return reject(new Error(`Invalid header from proxy CONNECT response: "${header}"`));
+        }
+        const key = header.slice(0, firstColon).toLowerCase();
+        const value = header.slice(firstColon + 1).trimStart();
+        const current = headers[key];
+        if (typeof current === "string") {
+          headers[key] = [current, value];
+        } else if (Array.isArray(current)) {
+          current.push(value);
+        } else {
+          headers[key] = value;
+        }
+      }
+      debug("got proxy server response: %o %o", firstLine, headers);
+      cleanup();
+      resolve7({
+        connect: {
+          statusCode,
+          statusText,
+          headers
+        },
+        buffered
+      });
+    }
+    socket.on("error", onerror);
+    socket.on("end", onend);
+    read();
+  });
+}
+
+// node_modules/proxy-agent-negotiate/dist/index.js
+function createNegotiateAuth() {
+  return async ({ response, scheme }) => {
+    if (scheme.toLowerCase() !== "negotiate") {
+      throw new Error(`Expected Negotiate scheme but got "${scheme}"`);
+    }
+    let kerberos;
+    try {
+      kerberos = await import("kerberos");
+    } catch {
+      throw new Error('The "kerberos" package is required for Negotiate proxy authentication. Install it with: npm install kerberos');
+    }
+    const proxyAuthenticate = response.headers["proxy-authenticate"] || "";
+    const challengeHeader = Array.isArray(proxyAuthenticate) ? proxyAuthenticate[0] : proxyAuthenticate;
+    const serverToken = typeof challengeHeader === "string" && challengeHeader.includes(" ") ? challengeHeader.split(" ").slice(1).join(" ") : void 0;
+    const client = await kerberos.initializeClient("HTTP@proxy", {
+      mechOID: kerberos.GSS_MECH_OID_SPNEGO
+    });
+    const token = await client.step(serverToken || "");
+    if (!token) {
+      throw new Error("Kerberos client.step() returned no token");
+    }
+    return {
+      headers: {
+        "Proxy-Authorization": `Negotiate ${token}`
+      }
+    };
+  };
+}
+
+// node_modules/https-proxy-agent/dist/index.js
+var debug2 = (0, import_debug2.default)("https-proxy-agent");
+var setServernameFromNonIpHost = (options) => {
+  if (options.servername === void 0 && options.host && !net2.isIP(options.host)) {
+    return {
+      ...options,
+      servername: options.host
+    };
+  }
+  return options;
+};
+var HttpsProxyAgent = class extends Agent2 {
+  constructor(proxy, opts) {
+    super(opts);
+    this.options = { path: void 0 };
+    this.proxy = typeof proxy === "string" ? new URL2(proxy) : proxy;
+    this.proxyHeaders = opts?.headers ?? {};
+    debug2("Creating new HttpsProxyAgent instance: %o", this.proxy.href);
+    if (opts?.negotiate) {
+      this.onProxyAuth = createNegotiateAuth();
+    } else if (opts?.onProxyAuth) {
+      this.onProxyAuth = opts.onProxyAuth;
+    }
+    const host = (this.proxy.hostname || this.proxy.host).replace(/^\[|\]$/g, "");
+    const port = this.proxy.port ? parseInt(this.proxy.port, 10) : this.proxy.protocol === "https:" ? 443 : 80;
+    this.connectOpts = {
+      // Attempt to negotiate http/1.1 for proxy servers that support http/2
+      ALPNProtocols: ["http/1.1"],
+      ...opts ? omit(opts, "headers", "onProxyAuth", "negotiate") : null,
+      host,
+      port
+    };
+  }
+  /**
+   * Called when the node-core HTTP client library is creating a
+   * new HTTP request.
+   */
+  async connect(req, opts) {
+    const { proxy } = this;
+    if (!opts.host) {
+      throw new TypeError('No "host" provided');
+    }
+    let socket;
+    if (proxy.protocol === "https:") {
+      debug2("Creating `tls.Socket`: %o", this.connectOpts);
+      socket = tls.connect(setServernameFromNonIpHost(this.connectOpts));
+    } else {
+      debug2("Creating `net.Socket`: %o", this.connectOpts);
+      socket = net2.connect(this.connectOpts);
+    }
+    const headers = typeof this.proxyHeaders === "function" ? this.proxyHeaders() : { ...this.proxyHeaders };
+    const host = net2.isIPv6(opts.host) ? `[${opts.host}]` : opts.host;
+    let payload = `CONNECT ${host}:${opts.port} HTTP/1.1\r
+`;
+    if (proxy.username || proxy.password) {
+      const auth = `${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`;
+      headers["Proxy-Authorization"] = `Basic ${Buffer.from(auth).toString("base64")}`;
+    }
+    headers.Host = `${host}:${opts.port}`;
+    if (!headers["Proxy-Connection"]) {
+      headers["Proxy-Connection"] = this.keepAlive ? "Keep-Alive" : "close";
+    }
+    for (const name2 of Object.keys(headers)) {
+      payload += `${name2}: ${headers[name2]}\r
+`;
+    }
+    const proxyResponsePromise = parseProxyResponse(socket);
+    socket.write(`${payload}\r
+`);
+    const { connect: connect4, buffered } = await proxyResponsePromise;
+    req.emit("proxyConnect", connect4);
+    this.emit("proxyConnect", connect4, req);
+    req.emit("proxy", { proxy: this.proxy.href, socket });
+    if (connect4.statusCode === 200) {
+      req.once("socket", resume);
+      if (opts.secureEndpoint) {
+        debug2("Upgrading socket connection to TLS");
+        return tls.connect({
+          ...omit(setServernameFromNonIpHost(opts), "host", "path", "port"),
+          socket
+        });
+      }
+      return socket;
+    }
+    if (connect4.statusCode === 407 && this.onProxyAuth) {
+      debug2("Got 407 response, invoking onProxyAuth callback");
+      socket.destroy();
+      const proxyAuthenticate = connect4.headers["proxy-authenticate"] || "";
+      const scheme = Array.isArray(proxyAuthenticate) ? proxyAuthenticate[0].split(/\s/)[0] : proxyAuthenticate.split(/\s/)[0];
+      const authResponse = await this.onProxyAuth({
+        response: connect4,
+        scheme
+      });
+      return this._connectWithAuth(req, opts, authResponse.headers);
+    }
+    socket.destroy();
+    const fakeSocket = new net2.Socket({ writable: false });
+    fakeSocket.readable = true;
+    req.once("socket", (s) => {
+      debug2("Replaying proxy buffer for failed request");
+      assert(s.listenerCount("data") > 0);
+      s.push(buffered);
+      s.push(null);
+    });
+    return fakeSocket;
+  }
+  /**
+   * Retry a CONNECT request with additional auth headers.
+   */
+  async _connectWithAuth(req, opts, authHeaders) {
+    const { proxy } = this;
+    let socket;
+    if (proxy.protocol === "https:") {
+      socket = tls.connect(setServernameFromNonIpHost(this.connectOpts));
+    } else {
+      socket = net2.connect(this.connectOpts);
+    }
+    const headers = typeof this.proxyHeaders === "function" ? this.proxyHeaders() : { ...this.proxyHeaders };
+    const host = net2.isIPv6(opts.host) ? `[${opts.host}]` : opts.host;
+    let payload = `CONNECT ${host}:${opts.port} HTTP/1.1\r
+`;
+    if (proxy.username || proxy.password) {
+      const auth = `${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`;
+      headers["Proxy-Authorization"] = `Basic ${Buffer.from(auth).toString("base64")}`;
+    }
+    Object.assign(headers, authHeaders);
+    headers.Host = `${host}:${opts.port}`;
+    if (!headers["Proxy-Connection"]) {
+      headers["Proxy-Connection"] = this.keepAlive ? "Keep-Alive" : "close";
+    }
+    for (const name2 of Object.keys(headers)) {
+      payload += `${name2}: ${headers[name2]}\r
+`;
+    }
+    const proxyResponsePromise = parseProxyResponse(socket);
+    socket.write(`${payload}\r
+`);
+    const { connect: connect4 } = await proxyResponsePromise;
+    req.emit("proxyConnect", connect4);
+    this.emit("proxyConnect", connect4, req);
+    if (connect4.statusCode === 200) {
+      req.once("socket", resume);
+      if (opts.secureEndpoint) {
+        debug2("Upgrading socket connection to TLS");
+        return tls.connect({
+          ...omit(setServernameFromNonIpHost(opts), "host", "path", "port"),
+          socket
+        });
+      }
+      return socket;
+    }
+    socket.destroy();
+    throw new Error(`Proxy authentication failed with status ${connect4.statusCode} after retry`);
+  }
+};
+HttpsProxyAgent.protocols = ["http", "https"];
+function resume(socket) {
+  setImmediate(() => {
+    socket.resume();
+  });
+}
+function omit(obj, ...keys) {
+  const ret = {};
+  let key;
+  for (key in obj) {
+    if (!keys.includes(key)) {
+      ret[key] = obj[key];
+    }
+  }
+  return ret;
+}
+
+// node_modules/socks-proxy-agent/dist/index.js
+var import_socks = __toESM(require_build(), 1);
+var import_debug3 = __toESM(require_src(), 1);
+import * as dns from "dns";
+import * as net3 from "net";
+import * as tls2 from "tls";
+import { URL as URL3 } from "url";
+var debug3 = (0, import_debug3.default)("socks-proxy-agent");
+var setServernameFromNonIpHost2 = (options) => {
+  if (options.servername === void 0 && options.host && !net3.isIP(options.host)) {
+    return {
+      ...options,
+      servername: options.host
+    };
+  }
+  return options;
+};
+function parseSocksURL(url) {
+  let lookup2 = false;
+  let type = 5;
+  const host = url.hostname;
+  const port = parseInt(url.port, 10) || 1080;
+  switch (url.protocol.replace(":", "")) {
+    case "socks4":
+      lookup2 = true;
+      type = 4;
+      break;
+    // pass through
+    case "socks4a":
+      type = 4;
+      break;
+    case "socks5":
+      lookup2 = true;
+      type = 5;
+      break;
+    // pass through
+    case "socks":
+      type = 5;
+      break;
+    case "socks5h":
+      type = 5;
+      break;
+    default:
+      throw new TypeError(`A "socks" protocol must be specified! Got: ${String(url.protocol)}`);
+  }
+  const proxy = {
+    host,
+    port,
+    type
+  };
+  if (url.username) {
+    Object.defineProperty(proxy, "userId", {
+      value: decodeURIComponent(url.username),
+      enumerable: false
+    });
+  }
+  if (url.password != null) {
+    Object.defineProperty(proxy, "password", {
+      value: decodeURIComponent(url.password),
+      enumerable: false
+    });
+  }
+  return { lookup: lookup2, proxy };
+}
+var SocksProxyAgent = class extends Agent2 {
+  constructor(uri, opts) {
+    super(opts);
+    const url = typeof uri === "string" ? new URL3(uri) : uri;
+    const { proxy, lookup: lookup2 } = parseSocksURL(url);
+    this.shouldLookup = lookup2;
+    this.proxy = proxy;
+    this.proxyUrl = url.href;
+    this.timeout = opts?.timeout ?? null;
+    this.socketOptions = opts?.socketOptions ?? null;
+  }
+  /**
+   * Initiates a SOCKS connection to the specified SOCKS proxy server,
+   * which in turn connects to the specified remote host and port.
+   */
+  async connect(req, opts) {
+    const { shouldLookup, proxy, timeout } = this;
+    if (!opts.host) {
+      throw new Error("No `host` defined!");
+    }
+    let { host } = opts;
+    const { port, lookup: lookupFn = dns.lookup } = opts;
+    if (shouldLookup) {
+      host = await new Promise((resolve7, reject) => {
+        lookupFn(host, {}, (err, address) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve7(typeof address === "string" ? address : address[0].address);
+          }
+        });
+      });
+    }
+    const socksOpts = {
+      proxy,
+      destination: {
+        host,
+        port: typeof port === "number" ? port : parseInt(port, 10)
+      },
+      command: "connect",
+      timeout: timeout ?? void 0,
+      // @ts-expect-error the type supplied by socks for socket_options is wider
+      // than necessary since socks will always override the host and port
+      socket_options: this.socketOptions ?? void 0
+    };
+    const cleanup = (tlsSocket) => {
+      req.destroy();
+      socket.destroy();
+      if (tlsSocket)
+        tlsSocket.destroy();
+    };
+    debug3("Creating socks proxy connection: %o", socksOpts);
+    const { socket } = await import_socks.SocksClient.createConnection(socksOpts);
+    debug3("Successfully created socks proxy connection");
+    req.emit("proxy", { proxy: this.proxyUrl, socket });
+    if (timeout !== null) {
+      socket.setTimeout(timeout);
+      socket.on("timeout", () => cleanup());
+    }
+    if (opts.secureEndpoint) {
+      debug3("Upgrading socket connection to TLS");
+      const tlsSocket = tls2.connect({
+        ...omit2(setServernameFromNonIpHost2(opts), "host", "path", "port"),
+        socket
+      });
+      tlsSocket.once("error", (error) => {
+        debug3("Socket TLS error", error.message);
+        cleanup(tlsSocket);
+      });
+      return tlsSocket;
+    }
+    return socket;
+  }
+};
+SocksProxyAgent.protocols = [
+  "socks",
+  "socks4",
+  "socks4a",
+  "socks5",
+  "socks5h"
+];
+function omit2(obj, ...keys) {
+  const ret = {};
+  let key;
+  for (key in obj) {
+    if (!keys.includes(key)) {
+      ret[key] = obj[key];
+    }
+  }
+  return ret;
+}
+
+// src/proxy.js
+var PROXY_URL = /^(socks4a?|socks5h?|https?):\/\/[^\s/]+\/?$/;
+var MAX_REDIRECTS = 5;
+var USER_AGENT = "dsh-media-hub";
+var proxyError = (code, message) => Object.assign(new Error(message), { code });
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/\.$/, "");
+  } catch {
+    return "";
+  }
+}
+var parseHosts = (text2) => text2.split("\n").map((line) => line.split("#")[0].trim().toLowerCase()).filter(Boolean);
+function hostMatches(host, pattern2) {
+  if (host === "") return false;
+  if (pattern2 === "*") return true;
+  if (pattern2.startsWith(".")) return host.endsWith(pattern2);
+  return host === pattern2 || host.endsWith(`.${pattern2}`);
+}
+function createProxies(rules = [], io = {}) {
+  const read = io.read ?? ((path) => readFile(path, "utf8"));
+  const version = io.version ?? (async (path) => (await stat(path)).mtimeMs);
+  const files = /* @__PURE__ */ new Map();
+  const agents = /* @__PURE__ */ new Map();
+  async function patternsOf(rule) {
+    const listed = (rule.hosts ?? []).map((pattern2) => pattern2.trim().toLowerCase()).filter(Boolean);
+    if (!rule.hostsFile) return listed;
+    try {
+      const current = await version(rule.hostsFile);
+      if (files.get(rule.hostsFile)?.version !== current) files.set(rule.hostsFile, { version: current, patterns: parseHosts(await read(rule.hostsFile)) });
+    } catch (error) {
+      files.delete(rule.hostsFile);
+      throw proxyError("proxy_unavailable", `cannot read the proxy hosts file ${rule.hostsFile}: ${error.message}`);
+    }
+    return [...listed, ...files.get(rule.hostsFile).patterns];
+  }
+  async function route(url, page = "") {
+    const hosts = [hostOf(url), hostOf(page)].filter(Boolean);
+    for (const rule of rules) {
+      const patterns = await patternsOf(rule);
+      if (hosts.some((host) => patterns.some((pattern2) => hostMatches(host, pattern2)))) return rule.url;
+    }
+    return "";
+  }
+  function agentFor(proxy) {
+    if (proxy === "") return void 0;
+    if (!agents.has(proxy)) agents.set(proxy, proxy.startsWith("socks") ? new SocksProxyAgent(proxy) : new HttpsProxyAgent(proxy));
+    return agents.get(proxy);
+  }
+  async function get(url, page, timeoutMs) {
+    const protocol = new URL(url).protocol;
+    if (protocol !== "https:" && protocol !== "http:") throw proxyError("invalid", `not a web address: ${url}`);
+    const agent = agentFor(await route(url, page));
+    return new Promise((resolve7, reject) => {
+      const send = protocol === "https:" ? httpsRequest : httpRequest;
+      const req = send(url, { agent, headers: { "user-agent": USER_AGENT, accept: "image/*,*/*;q=0.5" }, timeout: timeoutMs }, resolve7);
+      req.on("timeout", () => req.destroy(proxyError("timeout", `no answer from ${hostOf(url)} in ${timeoutMs / 1e3} s`)));
+      req.on("error", reject);
+      req.end();
+    });
+  }
+  return {
+    route,
+    /**
+     * Fetch `url` into `file` through its route, following redirects (each hop routed again).
+     * @param {{ page?: string, maxBytes: number, timeoutMs: number }} options
+     */
+    async download(url, file, { page = "", maxBytes, timeoutMs }) {
+      let target = url;
+      for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+        const response = await get(target, page, timeoutMs);
+        const { statusCode = 0, headers } = response;
+        if (statusCode >= 300 && statusCode < 400 && headers.location) {
+          response.resume();
+          target = new URL(headers.location, target).href;
+          continue;
+        }
+        if (statusCode !== 200) {
+          response.resume();
+          throw proxyError("fetch_failed", `${hostOf(target)} answered ${statusCode}`);
+        }
+        if (Number(headers["content-length"]) > maxBytes) {
+          response.destroy();
+          throw proxyError("too_large", `the file is over ${maxBytes} bytes`);
+        }
+        let received = 0;
+        response.on("data", (chunk) => {
+          received += chunk.length;
+          if (received > maxBytes) response.destroy(proxyError("too_large", `the file is over ${maxBytes} bytes`));
+        });
+        await pipeline(response, createWriteStream(file));
+        return;
+      }
+      throw proxyError("fetch_failed", `more than ${MAX_REDIRECTS} redirects from ${hostOf(url)}`);
+    }
+  };
+}
+
 // src/sources/command.js
-import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { access, constants, mkdir, rm, stat } from "node:fs/promises";
-import { basename as basename2, delimiter, isAbsolute, join } from "node:path";
+import { mkdir, rm, stat as stat2 } from "node:fs/promises";
+import { basename as basename2, join as join2 } from "node:path";
 
 // src/i18n.js
 var BASE = "en";
@@ -4695,88 +10575,12 @@ function pick2(value, tag) {
   return Object.values(value).find((text2) => typeof text2 === "string" && text2 !== "") ?? "";
 }
 
-// src/sources/command.js
-var SEARCH_LIMIT = 12;
-var QUERY_TIMEOUT_MS = 6e4;
-var COVER_TIMEOUT_MS = 3e4;
+// src/sources/process.js
+import { spawn } from "node:child_process";
+import { access, constants } from "node:fs/promises";
+import { delimiter, isAbsolute, join } from "node:path";
 var MAX_OUTPUT = 16 * 1024 * 1024;
-var ID = /^[^\s\0]{1,200}$/;
 var sourceError = (code, message) => Object.assign(new Error(message), { code });
-var text = (value) => typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
-var numberOrNull = (value) => Number.isFinite(value) ? value : null;
-var STATUSES = /* @__PURE__ */ new Set(["finished", "ongoing", "stopped"]);
-var COVER_URL = /^https?:\/\/[^\s]{1,2000}$/;
-var MAX_TAGS = 12;
-var MAX_META = 16;
-var MAX_RELATED = 30;
-var countOrNull = (value) => Number.isInteger(value) && value >= 0 ? value : null;
-var FORMAT = /^[a-z0-9]{1,8}$/;
-var MAX_FORMATS = 12;
-var YEAR = (value) => Number.isInteger(value) && value > 0 && value < 1e4 ? value : null;
-function formatsOf(raw) {
-  if (!Array.isArray(raw)) return [];
-  const seen = /* @__PURE__ */ new Set();
-  const out = [];
-  for (const row of raw) {
-    const format = text(row?.format).toLowerCase().replace(/^\./, "");
-    if (!FORMAT.test(format) || seen.has(format)) continue;
-    seen.add(format);
-    out.push({ format, bytes: countOrNull(row.bytes) });
-    if (out.length === MAX_FORMATS) break;
-  }
-  return out;
-}
-function popularityOf(raw) {
-  if (raw === null || typeof raw !== "object" || !(raw.count >= 0) || !Number.isFinite(raw.count)) return null;
-  const label = text(raw.label);
-  return label === "" ? null : { count: Math.round(raw.count), label, text: text(raw.text) };
-}
-function metaOf(raw) {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((row) => row !== null && typeof row === "object" ? { key: text(row.key), label: text(row.label), value: text(row.value) } : null).filter((row) => row !== null && row.label !== "" && row.value !== "").slice(0, MAX_META);
-}
-function factsOf(raw) {
-  return {
-    cover: COVER_URL.test(text(raw.cover)) ? text(raw.cover) : null,
-    popularity: popularityOf(raw.popularity),
-    status: STATUSES.has(text(raw.status)) ? text(raw.status) : "",
-    tags: Array.isArray(raw.tags) ? raw.tags.map(text).filter(Boolean).slice(0, MAX_TAGS) : [],
-    latest: text(raw.latest),
-    meta: metaOf(raw.meta),
-    year: YEAR(raw.year),
-    language: text(raw.language).slice(0, 35),
-    publisher: text(raw.publisher),
-    origin: text(raw.origin),
-    formats: formatsOf(raw.formats),
-    bytes: countOrNull(raw.bytes)
-  };
-}
-function resultOf(raw, kindIds) {
-  if (raw === null || typeof raw !== "object") return null;
-  const id = text(raw.id);
-  const kind = text(raw.kind);
-  if (!ID.test(id) || kindIds !== null && !kindIds.has(kind)) return null;
-  return { id, title: text(raw.title), kind, author: text(raw.author), score: numberOrNull(raw.score), blurb: text(raw.blurb).replace(/\s+/g, " "), episodes: countOrNull(raw.episode_count), ...factsOf(raw) };
-}
-function parseSearch(document, kinds) {
-  if (!Array.isArray(document?.results)) throw sourceError("source_failed", "the search answer has no results list");
-  const kindIds = new Set(kinds.map((kind) => kind.id));
-  return document.results.map((raw) => resultOf(raw, kindIds)).filter((result) => result !== null);
-}
-function nextOffset(document, offset = 0) {
-  return Number.isInteger(document?.next) && document.next > offset ? document.next : null;
-}
-function parseInfo(document) {
-  const id = text(document?.id);
-  if (!ID.test(id)) throw sourceError("source_failed", "the source returned no work");
-  const listed = Array.isArray(document.episodes) ? document.episodes.length : 0;
-  const related = (Array.isArray(document.related) ? document.related : []).map((raw) => {
-    const work = resultOf(raw, null);
-    return work === null ? null : { ...work, relation: text(raw.relation) };
-  }).filter((work) => work !== null && work.id !== id).slice(0, MAX_RELATED);
-  const episodeTitles = Array.isArray(document.episodes) ? document.episodes.map((episode) => text(episode?.title)) : [];
-  return { ...resultOf(document, null), id, episodes: listed > 0 ? listed : null, episodeTitles, related };
-}
 async function commandExists(command, path = process.env.PATH ?? "") {
   const candidates = isAbsolute(command) ? [command] : path.split(delimiter).filter(Boolean).map((dir) => join(dir, command));
   for (const candidate of candidates) {
@@ -4787,12 +10591,6 @@ async function commandExists(command, path = process.env.PATH ?? "") {
     }
   }
   return false;
-}
-function sha256Of(path) {
-  return new Promise((resolve7, reject) => {
-    const hash = createHash("sha256");
-    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve7(hash.digest("hex")));
-  });
 }
 function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env } = {}) {
   return new Promise((resolve7, reject) => {
@@ -4847,12 +10645,103 @@ function parseLine(line) {
     return null;
   }
 }
+var lastLine = (text2) => text2.trim().split("\n").filter(Boolean).pop() ?? "";
+
+// src/sources/command.js
+var SEARCH_LIMIT = 12;
+var QUERY_TIMEOUT_MS = 6e4;
+var COVER_TIMEOUT_MS = 3e4;
+var ID = /^[^\s\0]{1,200}$/;
+var sourceError2 = (code, message) => Object.assign(new Error(message), { code });
+var text = (value) => typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
+var numberOrNull = (value) => Number.isFinite(value) ? value : null;
+var STATUSES = /* @__PURE__ */ new Set(["finished", "ongoing", "stopped"]);
+var WEB_URL = /^https?:\/\/[^\s]{1,2000}$/;
+var MAX_TAGS = 12;
+var MAX_META = 16;
+var MAX_RELATED = 30;
+var countOrNull = (value) => Number.isInteger(value) && value >= 0 ? value : null;
+var FORMAT = /^[a-z0-9]{1,8}$/;
+var MAX_FORMATS = 12;
+var YEAR = (value) => Number.isInteger(value) && value > 0 && value < 1e4 ? value : null;
+function formatsOf(raw) {
+  if (!Array.isArray(raw)) return [];
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const row of raw) {
+    const format = text(row?.format).toLowerCase().replace(/^\./, "");
+    if (!FORMAT.test(format) || seen.has(format)) continue;
+    seen.add(format);
+    out.push({ format, bytes: countOrNull(row.bytes) });
+    if (out.length === MAX_FORMATS) break;
+  }
+  return out;
+}
+function popularityOf(raw) {
+  if (raw === null || typeof raw !== "object" || !(raw.count >= 0) || !Number.isFinite(raw.count)) return null;
+  const label = text(raw.label);
+  return label === "" ? null : { count: Math.round(raw.count), label, text: text(raw.text) };
+}
+function metaOf(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((row) => row !== null && typeof row === "object" ? { key: text(row.key), label: text(row.label), value: text(row.value) } : null).filter((row) => row !== null && row.label !== "" && row.value !== "").slice(0, MAX_META);
+}
+function factsOf(raw) {
+  return {
+    cover: WEB_URL.test(text(raw.cover)) ? text(raw.cover) : null,
+    url: WEB_URL.test(text(raw.url)) ? text(raw.url) : null,
+    duration: Number.isFinite(raw.duration) && raw.duration > 0 ? Math.round(raw.duration) : null,
+    popularity: popularityOf(raw.popularity),
+    status: STATUSES.has(text(raw.status)) ? text(raw.status) : "",
+    tags: Array.isArray(raw.tags) ? raw.tags.map(text).filter(Boolean).slice(0, MAX_TAGS) : [],
+    latest: text(raw.latest),
+    meta: metaOf(raw.meta),
+    year: YEAR(raw.year),
+    language: text(raw.language).slice(0, 35),
+    publisher: text(raw.publisher),
+    origin: text(raw.origin),
+    formats: formatsOf(raw.formats),
+    bytes: countOrNull(raw.bytes)
+  };
+}
+function resultOf(raw, kindIds) {
+  if (raw === null || typeof raw !== "object") return null;
+  const id = text(raw.id);
+  const kind = text(raw.kind);
+  if (!ID.test(id) || kindIds !== null && !kindIds.has(kind)) return null;
+  return { id, title: text(raw.title), kind, author: text(raw.author), score: numberOrNull(raw.score), blurb: text(raw.blurb).replace(/\s+/g, " "), episodes: countOrNull(raw.episode_count), ...factsOf(raw) };
+}
+function parseSearch(document2, kinds) {
+  if (!Array.isArray(document2?.results)) throw sourceError2("source_failed", "the search answer has no results list");
+  const kindIds = new Set(kinds.map((kind) => kind.id));
+  return document2.results.map((raw) => resultOf(raw, kindIds)).filter((result) => result !== null);
+}
+function nextOffset(document2, offset = 0) {
+  return Number.isInteger(document2?.next) && document2.next > offset ? document2.next : null;
+}
+function parseInfo(document2) {
+  const id = text(document2?.id);
+  if (!ID.test(id)) throw sourceError2("source_failed", "the source returned no work");
+  const listed = Array.isArray(document2.episodes) ? document2.episodes.length : 0;
+  const related = (Array.isArray(document2.related) ? document2.related : []).map((raw) => {
+    const work = resultOf(raw, null);
+    return work === null ? null : { ...work, relation: text(raw.relation) };
+  }).filter((work) => work !== null && work.id !== id).slice(0, MAX_RELATED);
+  const episodeTitles = Array.isArray(document2.episodes) ? document2.episodes.map((episode) => text(episode?.title)) : [];
+  return { ...resultOf(document2, null), id, episodes: listed > 0 ? listed : null, episodeTitles, related };
+}
+function sha256Of(path) {
+  return new Promise((resolve7, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve7(hash.digest("hex")));
+  });
+}
 async function verify(dir, event, label, logger) {
   const name2 = typeof event.name === "string" ? event.name : "";
   if (name2 === "" || basename2(name2) !== name2 || name2.startsWith(".")) return { ok: false, name: name2 };
-  const path = join(dir, name2);
+  const path = join2(dir, name2);
   try {
-    const intact = (await stat(path)).size === event.bytes && (typeof event.sha256 !== "string" || await sha256Of(path) === event.sha256);
+    const intact = (await stat2(path)).size === event.bytes && (typeof event.sha256 !== "string" || await sha256Of(path) === event.sha256);
     if (intact) return { ok: true, name: name2 };
     await rm(path, { force: true });
     logger.warn("%s: %s does not match what the command reported; removed", label, name2);
@@ -4862,7 +10751,6 @@ async function verify(dir, event, label, logger) {
   }
   return { ok: false, name: name2 };
 }
-var lastLine = (text2) => text2.trim().split("\n").filter(Boolean).pop() ?? "";
 var FILTERS = Object.freeze(["language", "format", "year"]);
 function filterArgs({ language = "", format = "", yearFrom = null, yearTo = null } = {}, understood = []) {
   const args = [];
@@ -4884,12 +10772,12 @@ function createCommandSource(definition, { logger, cwd }) {
   }
   async function query(args) {
     const { code, stdout, stderr, oversized } = await run([...command, ...args], { timeoutMs: QUERY_TIMEOUT_MS, cwd: await workDir(), env });
-    if (oversized) throw sourceError("source_failed", `${name2()}: the answer is too large`);
-    if (code !== 0) throw sourceError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+    if (oversized) throw sourceError2("source_failed", `${name2()}: the answer is too large`);
+    if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
     try {
       return JSON.parse(stdout);
     } catch {
-      throw sourceError("source_failed", `${name2()}: the answer is not JSON`);
+      throw sourceError2("source_failed", `${name2()}: the answer is not JSON`);
     }
   }
   return {
@@ -4900,25 +10788,25 @@ function createCommandSource(definition, { logger, cwd }) {
     available: () => commandExists(command[0]),
     /** @returns {{ results: object[], next: number | null }} `next` is the offset of the following page when the source offers one. */
     async search(textQuery, { kind = kinds[0]?.id, limit = SEARCH_LIMIT, offset = 0, filters = {} } = {}) {
-      if (!kindIds.has(kind)) throw sourceError("invalid", `${name2()} has no kind ${kind}`);
+      if (!kindIds.has(kind)) throw sourceError2("invalid", `${name2()} has no kind ${kind}`);
       const q = String(textQuery ?? "").trim();
       if (q === "") return { results: [], next: null };
       const paging = offset > 0 ? ["--offset", String(offset)] : [];
-      const document = await query(["search", "--kind", kind, "--limit", String(limit), ...paging, ...filterArgs(filters, understood), "--json", "--", q]);
-      return { results: parseSearch(document, kinds).filter((result) => result.kind === kind), next: nextOffset(document, offset) };
+      const document2 = await query(["search", "--kind", kind, "--limit", String(limit), ...paging, ...filterArgs(filters, understood), "--json", "--", q]);
+      return { results: parseSearch(document2, kinds).filter((result) => result.kind === kind), next: nextOffset(document2, offset) };
     },
     async info(id) {
-      if (!ID.test(String(id))) throw sourceError("invalid", `not a ${name2()} id`);
+      if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
       return parseInfo(await query(["info", "--json", "--", String(id)]));
     },
     /** Fetch a cover image into `file` through the command, which keeps its own network policy. Rejects when the command has no `cover` verb or cannot fetch it. */
     async cover(url, file) {
-      if (!COVER_URL.test(String(url))) throw sourceError("invalid", "not a cover url");
+      if (!WEB_URL.test(String(url))) throw sourceError2("invalid", "not a cover url");
       const { code, stderr } = await run([...command, "cover", "--output", file, "--", String(url)], { timeoutMs: COVER_TIMEOUT_MS, cwd: await workDir(), env });
-      if (code !== 0) throw sourceError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+      if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
     },
     async download({ id, dir, from: from2 = 1, to = null, signal, onEpisode, onStart }) {
-      if (!ID.test(String(id))) throw sourceError("invalid", `not a ${name2()} id`);
+      if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
       const failed = [];
       let result = null;
       let checking = Promise.resolve();
@@ -4943,9 +10831,9 @@ function createCommandSource(definition, { logger, cwd }) {
       if (signal?.aborted) return { failed };
       if (code !== 0 && failed.length === 0) {
         logger.warn("%s download %s ended with %s: %s", name2(), id, code, lastLine(stderr));
-        throw sourceError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+        throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
       }
-      if (code === 0 && result === null) throw sourceError("source_failed", `${name2()}: the download ended without a result`);
+      if (code === 0 && result === null) throw sourceError2("source_failed", `${name2()}: the download ended without a result`);
       return { failed };
     },
     /**
@@ -4953,8 +10841,8 @@ function createCommandSource(definition, { logger, cwd }) {
      * @returns {Promise<{ name: string, bytes: number, sha256: string }>} the file, checked against what the command reported
      */
     async downloadFile({ id, format, dir, signal }) {
-      if (!ID.test(String(id))) throw sourceError("invalid", `not a ${name2()} id`);
-      if (!FORMAT.test(String(format))) throw sourceError("invalid", `not a format: ${format}`);
+      if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
+      if (!FORMAT.test(String(format))) throw sourceError2("invalid", `not a format: ${format}`);
       await mkdir(dir, { recursive: true });
       const reported = [];
       let result = null;
@@ -4965,24 +10853,217 @@ function createCommandSource(definition, { logger, cwd }) {
       };
       const argv = [...command, "download", `--id=${String(id)}`, "--format", String(format), "--output", dir, "--json"];
       const { code, stderr } = await run(argv, { signal, cwd: await workDir(), env, onStdoutLine: onLine });
-      if (signal?.aborted) throw sourceError("cancelled", `${name2()}: cancelled`);
-      if (code !== 0) throw sourceError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
-      if (result === null || reported.length === 0) throw sourceError("source_failed", `${name2()}: the download ended without a file`);
+      if (signal?.aborted) throw sourceError2("cancelled", `${name2()}: cancelled`);
+      if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+      if (result === null || reported.length === 0) throw sourceError2("source_failed", `${name2()}: the download ended without a file`);
       const event = reported[reported.length - 1];
       const file = await verify(dir, event, name2(), logger);
-      if (!file.ok) throw sourceError("source_failed", `${name2()}: the file did not arrive whole`);
-      return { name: file.name, bytes: event.bytes, sha256: typeof event.sha256 === "string" ? event.sha256 : await sha256Of(join(dir, file.name)) };
+      if (!file.ok) throw sourceError2("source_failed", `${name2()}: the file did not arrive whole`);
+      return { name: file.name, bytes: event.bytes, sha256: typeof event.sha256 === "string" ? event.sha256 : await sha256Of(join2(dir, file.name)) };
     }
   };
 }
 
 // src/sources/index.js
-import { join as join2 } from "node:path";
+import { join as join4 } from "node:path";
+
+// src/sources/link.js
+import { mkdir as mkdir2, readdir } from "node:fs/promises";
+import { join as join3 } from "node:path";
+
+// src/episodes.js
+import { basename as basename3, extname } from "node:path";
+
+// src/work.js
+var RELATED_FIELDS = ["id", "title", "kind", "relation", "author", "score", "cover", "popularity", "episodes", "status", "tags"];
+function snapshotOf(info, at) {
+  const related = (info.related ?? []).map((work) => Object.fromEntries(RELATED_FIELDS.map((field) => [field, work[field] ?? null])));
+  return {
+    title: info.title,
+    kind: info.kind,
+    author: info.author,
+    score: info.score ?? null,
+    blurb: info.blurb ?? "",
+    cover: info.cover ?? null,
+    popularity: info.popularity ?? null,
+    episodes: info.episodes ?? null,
+    status: info.status ?? "",
+    tags: info.tags ?? [],
+    latest: info.latest ?? "",
+    meta: info.meta ?? [],
+    related: related.map((work) => ({ ...work, tags: work.tags ?? [] })),
+    episodeTitles: info.episodeTitles ?? [],
+    at
+  };
+}
+var episodeTitle = (work, n) => work?.episodeTitles?.[n - 1] || null;
+
+// src/episodes.js
+var titleOf = (name2) => basename3(name2, extname(name2));
+function episodeNumber(name2) {
+  const match = /^\s*0*(\d+)(?!\d)/.exec(basename3(name2));
+  return match === null ? null : Number(match[1]);
+}
+var isSourced = (entry) => entry?.source?.episodes > 0;
+var numbersOf = (names) => new Set(names.map(episodeNumber).filter((n) => n !== null));
+function slotsOf(entry, files) {
+  if (!isSourced(entry)) return files.map((file, index) => ({ key: file.name, n: index + 1, title: titleOf(file.name), file }));
+  const byNumber = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const n = episodeNumber(file.name);
+    if (n !== null && !byNumber.has(n)) byNumber.set(n, file);
+  }
+  const numbers = new Set(byNumber.keys());
+  for (let n = 1; n <= entry.source.episodes; n++) numbers.add(n);
+  return [...numbers].sort((a, b) => a - b).map((n) => ({ key: n, n, title: episodeTitle(entry.work, n) ?? (byNumber.has(n) ? titleOf(byNumber.get(n).name) : null), file: byNumber.get(n) ?? null }));
+}
+var keyOf = (entry, name2) => isSourced(entry) ? episodeNumber(name2) : name2;
+function noteFor(entry, notes, name2) {
+  if (notes === void 0) return void 0;
+  if (!isSourced(entry)) return notes[name2];
+  const n = episodeNumber(name2);
+  const found = Object.entries(notes).find(([saved]) => episodeNumber(saved) === n);
+  return found?.[1];
+}
+
+// src/sources/link.js
+var LINK_SOURCE = "link";
+var AUTO = "auto";
+var AUDIO = "audio";
+var HEIGHTS = Object.freeze([2160, 1440, 1080, 720, 480, 360]);
+var isQuality = (value) => value === AUTO || value === AUDIO || /^\d{3,4}$/.test(String(value)) && Number(value) >= 144;
+var INFO_TIMEOUT_MS = 12e4;
+var COVER_TIMEOUT_MS2 = 3e4;
+var MAX_BLURB = 1e3;
+var MAX_URL = 200;
+var linkError = (code, message) => Object.assign(new Error(message), { code });
+var isWebAddress = (value) => {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+};
+function thumbnailOf(data) {
+  if (typeof data.thumbnail === "string") return data.thumbnail;
+  const listed = (Array.isArray(data.thumbnails) ? data.thumbnails : []).filter((entry) => typeof entry?.url === "string");
+  return listed.sort((a, b) => (a.width ?? 0) - (b.width ?? 0)).pop()?.url ?? null;
+}
+var seconds = (value) => Number.isFinite(value) && value > 0 ? Math.round(value) : null;
+function qualityChoices(formats, maxHeight) {
+  const known = Array.isArray(formats) ? formats.map((format) => format?.height).filter((height) => Number.isInteger(height) && height > 0) : [];
+  const heights = (known.length > 0 ? [...new Set(known)] : HEIGHTS).filter((height) => height <= maxHeight && height >= 144).sort((a, b) => b - a);
+  return [AUTO, ...heights.map(String), AUDIO];
+}
+function infoDocument(data, url, maxHeight) {
+  const page = typeof data.webpage_url === "string" && isWebAddress(data.webpage_url) ? data.webpage_url : url;
+  const entries = data._type === "playlist" ? (data.entries ?? []).filter((entry) => entry !== null && typeof entry === "object") : [data];
+  const durations = entries.map((entry) => seconds(entry.duration));
+  const site = data.webpage_url_domain ?? new URL(page).hostname;
+  return {
+    id: page,
+    url: page,
+    kind: "video",
+    title: data.title ?? data.id ?? page,
+    author: data.uploader ?? data.channel ?? data.playlist_uploader ?? "",
+    blurb: typeof data.description === "string" ? data.description.slice(0, MAX_BLURB) : "",
+    cover: thumbnailOf(data) ?? thumbnailOf(entries[0] ?? {}),
+    duration: durations.every(Boolean) ? durations.reduce((sum, value) => sum + value, 0) : null,
+    popularity: Number.isFinite(data.view_count) ? { count: data.view_count, label: "plays" } : null,
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    meta: [{ key: "site", label: "Site", value: site }],
+    episodes: entries.map((entry, index) => ({ number: index + 1, title: entry.title ?? "" })),
+    qualities: qualityChoices(data._type === "playlist" ? null : data.formats, maxHeight)
+  };
+}
+function formatArgs(quality, maxHeight) {
+  if (quality === AUDIO) return ["-f", "ba/b", "-S", "acodec:aac", "-x", "--audio-format", "m4a"];
+  const height = quality === AUTO || !isQuality(quality) ? maxHeight : Math.min(Number(quality), maxHeight);
+  return ["-f", "bv*+ba/b", "-S", `res:${height},vcodec:h264,acodec:aac`, "--merge-output-format", "mp4"];
+}
+function createLinkSource({ ytDlp, proxies, maxHeight, cwd, logger }) {
+  async function workDir() {
+    await mkdir2(cwd, { recursive: true });
+    return cwd;
+  }
+  async function ytdlp(url, args, options = {}) {
+    if (!isWebAddress(url)) throw linkError("invalid", "not a web address");
+    const proxy = await proxies.route(url);
+    return run([ytDlp, "--no-warnings", "--no-playlist", "--proxy", proxy, ...args, "--", url], { cwd: await workDir(), ...options });
+  }
+  return {
+    id: LINK_SOURCE,
+    label: "",
+    input: "url",
+    kinds: [{ id: "video", label: "", media: "video" }],
+    filters: [],
+    available: () => commandExists(ytDlp),
+    async info(url) {
+      const { code, stdout, stderr, oversized } = await ytdlp(String(url), ["-J", "--flat-playlist"], { timeoutMs: INFO_TIMEOUT_MS });
+      if (oversized) throw linkError("source_failed", "the page lists too much to read");
+      if (code !== 0) throw linkError("source_failed", lastLine(stderr).replace(/^ERROR:\s*/, "") || `yt-dlp exit ${code}`);
+      let data;
+      try {
+        data = JSON.parse(stdout);
+      } catch {
+        throw linkError("source_failed", "yt-dlp answered something that is not JSON");
+      }
+      const document2 = infoDocument(data, String(url), maxHeight);
+      if (document2.id.length > MAX_URL) throw linkError("invalid", "the address is too long");
+      if (document2.episodes.length === 0) throw linkError("empty", "there is no video at this address");
+      return { ...parseInfo(document2), qualities: document2.qualities };
+    },
+    /** The thumbnail, through the route of its own host or its page's. */
+    async cover(url, file, { page = "" } = {}) {
+      await proxies.download(url, file, { page, maxBytes: 2e6, timeoutMs: COVER_TIMEOUT_MS2 });
+    },
+    /** Episodes `from`..`to` into `dir`, one file each, named by number; yt-dlp skips the ones already there. */
+    async download({ id, dir, from: from2 = 1, to = from2, quality = AUTO, signal, onEpisode, onStart }) {
+      await mkdir2(dir, { recursive: true });
+      const onLine = (line) => {
+        const event = parseLine(line);
+        if (!Number.isInteger(event?.number)) return;
+        if (event.event === "start") onStart?.(event.number);
+        onEpisode?.();
+      };
+      const number = "%(playlist_index|1)";
+      const args = [
+        ...formatArgs(quality, maxHeight),
+        "-i",
+        "--no-mtime",
+        "--no-progress",
+        "-P",
+        `home:${dir}`,
+        "-P",
+        `temp:${join3(dir, ".incoming")}`,
+        "-o",
+        `${number}03d %(title).100B.%(ext)s`,
+        "--playlist-items",
+        `${from2}:${to}`,
+        "--print",
+        `before_dl:{"event":"start","number":${number}s}`,
+        "--print",
+        `after_move:{"event":"done","number":${number}s}`
+      ];
+      const { code, stderr } = await ytdlp(String(id), args, { signal, onStdoutLine: onLine });
+      onEpisode?.();
+      if (signal?.aborted) return { failed: [] };
+      const have = new Set((await readdir(dir)).map(episodeNumber).filter((n) => n !== null));
+      const failed = [];
+      for (let n = from2; n <= to; n++) if (!have.has(n)) failed.push(String(n));
+      if (failed.length > 0) logger.warn("link download %s ended with %s: %s", id, code, lastLine(stderr));
+      if (code !== 0 && failed.length === to - from2 + 1) throw linkError("source_failed", lastLine(stderr).replace(/^ERROR:\s*/, "") || `yt-dlp exit ${code}`);
+      return { failed };
+    }
+  };
+}
+
+// src/sources/index.js
 var EPISODE_BYTES = Object.freeze({ drama: 15e6, audio: 8e6 });
 var MEDIA = Object.freeze(["video", "audio", "book"]);
 var ALL_SOURCES = "all";
-var RESERVED_IDS = Object.freeze(["local", "youtube", ALL_SOURCES]);
-function createSources(definitions, { stateDir, logger }) {
+var RESERVED_IDS = Object.freeze(["local", LINK_SOURCE, ALL_SOURCES]);
+function createSources(definitions, { stateDir, logger, link }) {
   const seen = /* @__PURE__ */ new Set();
   for (const { id, kinds } of definitions) {
     if (kinds.length === 0) throw new Error(`source ${id} lists no kinds`);
@@ -4990,27 +11071,30 @@ function createSources(definitions, { stateDir, logger }) {
     if (seen.has(id)) throw new Error(`source id ${id} is listed twice`);
     seen.add(id);
   }
-  return definitions.map((definition) => createCommandSource(definition, { logger, cwd: join2(stateDir, definition.id) }));
+  return [
+    ...definitions.map((definition) => createCommandSource(definition, { logger, cwd: join4(stateDir, definition.id) })),
+    createLinkSource({ ...link, logger, cwd: join4(stateDir, LINK_SOURCE) })
+  ];
 }
 async function describeSources(sources) {
   const out = [];
   for (const source of sources) {
-    if (await source.available()) out.push({ id: source.id, label: source.label, kinds: source.kinds.map((kind) => ({ ...kind, media: kind.media ?? "video" })), filters: source.filters });
+    if (await source.available()) out.push({ id: source.id, label: source.label, input: source.input ?? "search", kinds: source.kinds.map((kind) => ({ ...kind, media: kind.media ?? "video" })), filters: source.filters });
   }
   return out;
 }
 
 // src/config.js
-var DSH_HOME = process.env.DSH_HOME || join3(homedir(), ".dsh");
+var DSH_HOME = process.env.DSH_HOME || join5(homedir(), ".dsh");
 function defaultStateDir(home = DSH_HOME, exists2 = existsSync) {
-  const current = join3(home, "media-hub");
-  const earlier = join3(home, "videosync");
+  const current = join5(home, "media-hub");
+  const earlier = join5(home, "videosync");
   return !exists2(current) && exists2(earlier) ? earlier : current;
 }
 var DEFAULT_STATE_DIR = defaultStateDir();
 var Label = Schema.union([Schema.string(), Schema.dict(Schema.string())]);
 var SourceConfig = Schema.object({
-  id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("Stable id, lowercase letters, digits, - and _. Names the source in URLs and saved downloads, and the folder the command runs in (stateDir/<id>). Not local or youtube."),
+  id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("Stable id, lowercase letters, digits, - and _. Names the source in URLs and saved downloads, and the folder the command runs in (stateDir/<id>). Not local, link or all."),
   label: Label.default("").description("Name on the source's tab: a string, or { <tag>: text } per language. Empty uses the page's own words for this source id (source.name.<id> in locale/), else the id."),
   kinds: Schema.array(Schema.object({
     id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("What the command's search --kind takes."),
@@ -5020,6 +11104,11 @@ var SourceConfig = Schema.object({
   filters: Schema.array(Schema.union(FILTERS.map((filter) => Schema.const(filter)))).default([]).description("Search filters the command understands (docs/source-protocol.md). The hub filters the answers by language, format, year and size itself as well."),
   command: Schema.array(Schema.string()).min(1).description("The command and its fixed arguments, one entry per word; the plugin adds the protocol verbs after them."),
   env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command.")
+});
+var ProxyRule = Schema.object({
+  url: Schema.string().pattern(PROXY_URL).description("The proxy: socks5h://host:port (names resolved by the proxy), socks5://, socks4://, http:// or https://."),
+  hosts: Schema.array(Schema.string()).default([]).description("Hosts it carries: example.com (that host and every host under it), .example (every host ending so), * (every host)."),
+  hostsFile: Schema.string().default("").description("A file with more such patterns, one per line, # starting a comment; read again when it changes. While it cannot be read, requests fail instead of going direct.")
 });
 var DEFAULT_SOURCES = Object.freeze([
   {
@@ -5058,13 +11147,14 @@ var Config = Schema.object({
   notifyCommand: Schema.array(Schema.string()).default([]).description("A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run."),
   ffmpeg: Schema.string().default("ffmpeg").description("ffmpeg command."),
   ffprobe: Schema.string().default("ffprobe").description("ffprobe command."),
-  ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command, used to list the videos of a YouTube playlist.")
+  ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file (cookies, for example) applies."),
+  proxies: Schema.array(ProxyRule).default([]).description("Which proxy each outbound request takes, by host: the first rule naming the host wins, any other host goes direct. Applies to every yt-dlp call (by the page's host) and every picture the hub fetches itself. Sources' commands keep their own network setup.")
 });
 
 // src/http.js
 import { createReadStream as createReadStream2, existsSync as existsSync2 } from "node:fs";
-import { readFile as readFile2, stat as stat2 } from "node:fs/promises";
-import { dirname, extname, isAbsolute as isAbsolute2, relative, resolve as resolve2, sep } from "node:path";
+import { readFile as readFile3, stat as stat3 } from "node:fs/promises";
+import { dirname, extname as extname2, isAbsolute as isAbsolute2, relative, resolve as resolve2, sep } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -5111,10 +11201,10 @@ function interleave(lists) {
 }
 
 // src/locales.js
-import { readdir, readFile } from "node:fs/promises";
-import { join as join4 } from "node:path";
+import { readdir as readdir2, readFile as readFile2 } from "node:fs/promises";
+import { join as join6 } from "node:path";
 async function readLocales(dir, logger) {
-  const names = (await readdir(dir).catch(() => [])).filter((name2) => name2.endsWith(".json")).sort();
+  const names = (await readdir2(dir).catch(() => [])).filter((name2) => name2.endsWith(".json")).sort();
   const locales = {};
   for (const name2 of names) {
     const tag = name2.slice(0, -".json".length);
@@ -5123,7 +11213,7 @@ async function readLocales(dir, logger) {
       continue;
     }
     try {
-      const { ui } = JSON.parse(await readFile(join4(dir, name2), "utf8"));
+      const { ui } = JSON.parse(await readFile2(join6(dir, name2), "utf8"));
       if (ui === null || typeof ui !== "object" || Array.isArray(ui)) throw new Error('no "ui" table');
       locales[tag] = Object.fromEntries(Object.entries(ui).filter(([, text2]) => typeof text2 === "string"));
     } catch (error) {
@@ -5162,7 +11252,6 @@ var WEB_DIR = resolve2(here, "../web");
 var LOCALE_DIR = resolve2(here, "../locale");
 var MODULES = Object.freeze({
   "sync.js": resolve2(here, "../src/sync.js"),
-  "youtube-url.js": resolve2(here, "../src/youtube-url.js"),
   "formats.js": resolve2(here, "../src/formats.js"),
   "i18n.js": resolve2(here, "../src/i18n.js")
 });
@@ -5196,10 +11285,10 @@ function resolveRange(header, size) {
   if (start >= size || end < start) return { kind: "unsatisfiable" };
   return { kind: "window", start, end };
 }
-async function sendFile(req, res, path, type = MEDIA_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream") {
+async function sendFile(req, res, path, type = MEDIA_TYPES[extname2(path).toLowerCase()] ?? "application/octet-stream") {
   let info;
   try {
-    info = await stat2(path);
+    info = await stat3(path);
   } catch {
     return sendText(res, 404, "Not found.");
   }
@@ -5270,14 +11359,10 @@ function createHandler({ connection, service, label = () => "", localeDir = LOCA
     try {
       if (parts[0] === "web" && parts.length === 2 && req.method === "GET") {
         const file = webFile(parts[1]);
-        const body2 = file === void 0 ? null : await readFile2(file).catch(() => null);
+        const body2 = file === void 0 ? null : await readFile3(file).catch(() => null);
         if (body2 === null) return sendText(res, 404, "Not found.");
-        res.writeHead(200, { ...SECURITY_HEADERS, "content-type": WEB_TYPES[extname(file)], "content-length": body2.length }).end(body2);
+        res.writeHead(200, { ...SECURITY_HEADERS, "content-type": WEB_TYPES[extname2(file)], "content-length": body2.length }).end(body2);
         return;
-      }
-      if (parts[0] === "thumbs" && parts.length === 2 && req.method === "GET") {
-        const file = hub.thumbFile(parts[1]);
-        return file === null ? sendText(res, 404, "Not found.") : sendFile(req, res, file);
       }
       if (parts[0] === "covers" && parts.length === 2 && req.method === "GET") {
         const cover = await hub.coverFile(parts[1]);
@@ -5303,7 +11388,7 @@ function createHandler({ connection, service, label = () => "", localeDir = LOCA
         const query = (name2) => url.searchParams.get(name2) ?? "";
         if (route === "GET rooms") return sendJson(res, 200, { rooms: await hub.listRooms() });
         if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "work") return sendJson(res, 200, hub.roomWork(parts[2]));
-        if (route === "POST rooms") return sendJson(res, 200, await hub.createRoom({ ...pick3(await readJson(req), ["source", "path", "urls", "title", "by", "start"]), fromPanel: true }));
+        if (route === "POST rooms") return sendJson(res, 200, await hub.createRoom({ ...pick3(await readJson(req), ["path", "title", "by", "start"]), fromPanel: true }));
         if (req.method === "DELETE" && parts[1] === "rooms" && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]));
         if (route === "GET library") return sendJson(res, 200, await hub.library());
         if (route === "GET library/episodes") return sendJson(res, 200, { episodes: await hub.episodes(query("path")) });
@@ -5337,7 +11422,7 @@ function createHandler({ connection, service, label = () => "", localeDir = LOCA
         if (route === "GET sources") return sendJson(res, 200, { sources: await hub.sources() });
         if (route === "GET search") return sendJson(res, 200, await hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query)));
         if (route === "GET info") return sendJson(res, 200, await hub.info(query("source"), query("id")));
-        if (route === "POST fetch") return sendJson(res, 200, await hub.fetch(pick3(await readJson(req), ["source", "id", "watch", "all", "by"])));
+        if (route === "POST fetch") return sendJson(res, 200, await hub.fetch(pick3(await readJson(req), ["source", "id", "watch", "all", "quality", "by"])));
       }
       return sendText(res, 404, "Not found.");
     } catch (error) {
@@ -5358,8 +11443,8 @@ Content-Length: 0\r
 
 // src/media.js
 import { spawn as spawn4 } from "node:child_process";
-import { statfs as statfs2, stat as stat8 } from "node:fs/promises";
-import { join as join12, resolve as resolve5 } from "node:path";
+import { statfs as statfs2, stat as stat9 } from "node:fs/promises";
+import { join as join14, resolve as resolve5 } from "node:path";
 
 // src/window.js
 function windowOf(focus, total, { ahead, behind }) {
@@ -5438,7 +11523,7 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
       await library.dropEpisodes(path, plan.trim, { reason: "watched" });
       await rooms.syncShow(path);
     }
-    await downloads.want({ source: info.source.source, item: { id: info.source.id, title: info.source.title ?? "", kind: info.source.kind, episodes: info.total }, dir: path }, plan.want, { priority: hasRoom, retry });
+    await downloads.want({ source: info.source.source, item: { id: info.source.id, title: info.source.title ?? "", kind: info.source.kind, episodes: info.total, quality: info.source.quality ?? "" }, dir: path }, plan.want, { priority: hasRoom, retry });
   }
   async function enforceCap() {
     if (!(size.capBytes > 0)) return;
@@ -5474,8 +11559,8 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
 // src/books.js
 import { spawn as spawn2 } from "node:child_process";
 import { createHash as createHash2, randomUUID } from "node:crypto";
-import { mkdir as mkdir2, readFile as readFile3, readdir as readdir2, rename, rm as rm2, stat as stat3, writeFile } from "node:fs/promises";
-import { extname as extname2, join as join5 } from "node:path";
+import { mkdir as mkdir3, readFile as readFile4, readdir as readdir3, rename, rm as rm2, stat as stat4, writeFile } from "node:fs/promises";
+import { extname as extname3, join as join7 } from "node:path";
 
 // src/formats.js
 var CONVERT_TARGETS = Object.freeze(["epub", "azw3", "mobi", "pdf", "txt", "docx", "fb2"]);
@@ -5511,7 +11596,7 @@ function attachment(name2) {
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name2)}`;
 }
 function sha256Of2(path) {
-  return readFile3(path).then((body2) => createHash2("sha256").update(body2).digest("hex"));
+  return readFile4(path).then((body2) => createHash2("sha256").update(body2).digest("hex"));
 }
 function runConverter(command, input, output) {
   return new Promise((resolve7, reject) => {
@@ -5546,10 +11631,10 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
   let disposed = false;
   const save = () => {
     saving = saving.then(async () => {
-      await mkdir2(dir, { recursive: true });
-      const temporary = join5(dir, `.${STATE_FILE}.${process.pid}.tmp`);
+      await mkdir3(dir, { recursive: true });
+      const temporary = join7(dir, `.${STATE_FILE}.${process.pid}.tmp`);
       await writeFile(temporary, JSON.stringify(state));
-      await rename(temporary, join5(dir, STATE_FILE));
+      await rename(temporary, join7(dir, STATE_FILE));
     }).catch((error) => logger.warn("books: could not save the shelves: %s", error.message));
     return saving;
   };
@@ -5564,7 +11649,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
       format: entry.format,
       title: entry.title,
       author: entry.author,
-      cover: entry.cover ? covers.register(entry.source, entry.cover) : null,
+      cover: entry.cover ? covers.ofSource(entry.source, entry.cover) : null,
       addedAt: entry.addedAt,
       state: file?.state ?? "removed",
       error: file?.error ?? null,
@@ -5582,7 +11667,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
     const ready = Object.entries(state.files).filter(([key, file]) => file.state === "ready" && !running.has(key)).sort(([, a], [, b]) => a.usedAt - b.usedAt);
     for (const [key, file] of ready) {
       if (total <= capBytes) break;
-      await rm2(join5(dir, "files", key), { recursive: true, force: true });
+      await rm2(join7(dir, "files", key), { recursive: true, force: true });
       total -= file.bytes ?? 0;
       state.files[key] = { ...file, state: "removed", name: null };
     }
@@ -5591,9 +11676,9 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
     const source = sources.get(sourceId);
     const work = await source.info(id);
     const native = (work.formats ?? []).some((entry) => entry.format === format) || (work.formats ?? []).length === 0;
-    const scratch = join5(dir, "tmp", key);
+    const scratch = join7(dir, "tmp", key);
     await rm2(scratch, { recursive: true, force: true });
-    await mkdir2(scratch, { recursive: true });
+    await mkdir3(scratch, { recursive: true });
     try {
       let name2;
       let converted = false;
@@ -5603,17 +11688,17 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
         const base = convertBase(work.formats);
         if (base === null || !await converter.available()) throw booksError("unsupported", `${work.title || id} is not offered as ${format}`);
         const downloaded = (await source.downloadFile({ id, format: base, dir: scratch, signal })).name;
-        name2 = `${downloaded.slice(0, downloaded.length - extname2(downloaded).length)}.${format}`;
-        await runConverter(converter.command, join5(scratch, downloaded), join5(scratch, name2));
-        await rm2(join5(scratch, downloaded), { force: true });
+        name2 = `${downloaded.slice(0, downloaded.length - extname3(downloaded).length)}.${format}`;
+        await runConverter(converter.command, join7(scratch, downloaded), join7(scratch, name2));
+        await rm2(join7(scratch, downloaded), { force: true });
         converted = true;
       }
-      const target = join5(dir, "files", key);
+      const target = join7(dir, "files", key);
       await rm2(target, { recursive: true, force: true });
-      await mkdir2(join5(dir, "files"), { recursive: true });
+      await mkdir3(join7(dir, "files"), { recursive: true });
       await rename(scratch, target);
-      const path = join5(target, name2);
-      return { name: name2, bytes: (await stat3(path)).size, sha256: await sha256Of2(path), converted, title: work.title, author: work.author, cover: work.cover };
+      const path = join7(target, name2);
+      return { name: name2, bytes: (await stat4(path)).size, sha256: await sha256Of2(path), converted, title: work.title, author: work.author, cover: work.cover };
     } finally {
       await rm2(scratch, { recursive: true, force: true });
     }
@@ -5656,22 +11741,22 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
   return {
     async load() {
       try {
-        const loaded = JSON.parse(await readFile3(join5(dir, STATE_FILE), "utf8"));
+        const loaded = JSON.parse(await readFile4(join7(dir, STATE_FILE), "utf8"));
         if (loaded && typeof loaded.files === "object" && typeof loaded.shelves === "object") state = loaded;
       } catch (error) {
         if (error.code !== "ENOENT") logger.warn("books: could not read the shelves: %s", error.message);
       }
       for (const [key, file] of Object.entries(state.files)) {
         if (file.state === "fetching") start(key, file);
-        else if (file.state === "ready" && !await stat3(join5(dir, "files", key, file.name ?? "")).then((info) => info.isFile(), () => false)) state.files[key] = { ...file, state: "removed", name: null };
+        else if (file.state === "ready" && !await stat4(join7(dir, "files", key, file.name ?? "")).then((info) => info.isFile(), () => false)) state.files[key] = { ...file, state: "removed", name: null };
       }
-      await rm2(join5(dir, "tmp"), { recursive: true, force: true });
+      await rm2(join7(dir, "tmp"), { recursive: true, force: true });
       await this.sweep();
     },
     /** Folders under files/ that no record names (a crash between a rename and a save) are deleted. */
     async sweep() {
-      for (const name2 of await readdir2(join5(dir, "files")).catch(() => [])) {
-        if (state.files[name2] === void 0) await rm2(join5(dir, "files", name2), { recursive: true, force: true });
+      for (const name2 of await readdir3(join7(dir, "files")).catch(() => [])) {
+        if (state.files[name2] === void 0) await rm2(join7(dir, "files", name2), { recursive: true, force: true });
       }
     },
     async list(person) {
@@ -5724,7 +11809,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
         const queued = waiting.findIndex((job) => job.key === entry.file);
         if (queued !== -1) waiting.splice(queued, 1);
         delete state.files[entry.file];
-        await rm2(join5(dir, "files", entry.file), { recursive: true, force: true });
+        await rm2(join7(dir, "files", entry.file), { recursive: true, force: true });
       }
       await save();
       return { removed: entryId };
@@ -5737,7 +11822,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
       if (file?.state !== "ready" || !file.name) return null;
       state.files[entry.file] = { ...file, usedAt: now() };
       save();
-      return { path: join5(dir, "files", entry.file, file.name), name: file.name, type: BOOK_TYPES[entry.format] ?? "application/octet-stream" };
+      return { path: join7(dir, "files", entry.file, file.name), name: file.name, type: BOOK_TYPES[entry.format] ?? "application/octet-stream" };
     },
     async dispose() {
       disposed = true;
@@ -5749,12 +11834,298 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
 }
 
 // src/covers.js
+import { createHash as createHash4 } from "node:crypto";
+import { mkdir as mkdir5, open as open2, readdir as readdir6, rename as rename3, rm as rm4, stat as stat7, utimes } from "node:fs/promises";
+import { join as join10 } from "node:path";
+
+// src/library.js
+import { open, readdir as readdir4, stat as stat5 } from "node:fs/promises";
+import { basename as basename4, dirname as dirname2, extname as extname4, join as join8 } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+var run2 = promisify(execFile);
+var VIDEO_EXTENSIONS = Object.freeze([".mp4", ".m4v", ".mov", ".webm", ".mkv", ".ts", ".avi", ".flv", ".m3u8"]);
+var AUDIO_EXTENSIONS = Object.freeze([".m4a", ".mp3", ".aac"]);
+var SUBTITLE_EXTENSIONS = Object.freeze([".vtt", ".srt", ".ass", ".ssa"]);
+var BROWSER_VIDEO = /* @__PURE__ */ new Set(["h264", "vp8", "vp9", "av1"]);
+var BROWSER_AUDIO = /* @__PURE__ */ new Set(["aac", "mp3", "opus", "vorbis"]);
+var DIRECT_CONTAINERS = /* @__PURE__ */ new Set([".mp4", ".m4v", ".mov", ".webm"]);
+var collator = new Intl.Collator(void 0, { numeric: true, sensitivity: "base" });
+var extOf = (name2) => extname4(name2).toLowerCase();
+var isVideo = (name2) => VIDEO_EXTENSIONS.includes(extOf(name2));
+var isAudio = (name2) => AUDIO_EXTENSIONS.includes(extOf(name2));
+var isMedia = (name2) => !name2.startsWith(".") && (isVideo(name2) || isAudio(name2));
+var isSubtitle = (name2) => SUBTITLE_EXTENSIONS.includes(extOf(name2));
+function naturalSort(names) {
+  return [...names].sort(collator.compare);
+}
+function matchSubtitles(video, names) {
+  const stem = basename4(video, extname4(video));
+  const found = [];
+  for (const name2 of naturalSort(names)) {
+    if (!isSubtitle(name2)) continue;
+    const subStem = basename4(name2, extname4(name2));
+    if (subStem === stem) found.push({ name: name2, label: "" });
+    else if (subStem.startsWith(`${stem}.`)) found.push({ name: name2, label: subStem.slice(stem.length + 1) });
+  }
+  return found;
+}
+var titleOf2 = (file) => basename4(file, extname4(file));
+async function scanSource(path) {
+  const info = await stat5(path);
+  const folder = info.isDirectory() ? path : dirname2(path);
+  const names = await readdir4(folder);
+  const videos = info.isDirectory() ? naturalSort(names.filter(isMedia)) : [basename4(path)];
+  if (videos.length === 0) throw Object.assign(new Error(`no video or audio files in ${path}`), { code: "empty" });
+  return videos.map((name2) => ({
+    title: titleOf2(name2),
+    path: join8(folder, name2),
+    subtitles: matchSubtitles(name2, names).map((sub) => ({ path: join8(folder, sub.name), label: sub.label }))
+  }));
+}
+async function probe(path, { ffprobe = "ffprobe" } = {}) {
+  const { stdout } = await run2(ffprobe, ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path], { maxBuffer: 8 * 1024 * 1024 });
+  const data = JSON.parse(stdout);
+  const streams = data.streams ?? [];
+  const video = streams.find((s) => s.codec_type === "video" && s.disposition?.attached_pic !== 1);
+  const audio = streams.find((s) => s.codec_type === "audio");
+  const duration = Number.parseFloat(data.format?.duration);
+  return {
+    duration: Number.isFinite(duration) ? duration : null,
+    video: video?.codec_name ?? null,
+    audio: audio?.codec_name ?? null,
+    height: video?.height ?? null,
+    subtitles: streams.filter((s) => s.codec_type === "subtitle").map((s, n) => ({ index: n, codec: s.codec_name, language: s.tags?.language ?? "", title: s.tags?.title ?? "" }))
+  };
+}
+var TEXT_SUBTITLES = /* @__PURE__ */ new Set(["subrip", "ass", "ssa", "webvtt", "mov_text", "text"]);
+var isTextSubtitle = (codec) => TEXT_SUBTITLES.has(codec);
+async function isFastStart(path) {
+  const handle = await open(path, "r");
+  try {
+    const header = Buffer.alloc(16);
+    let offset = 0;
+    const { size } = await handle.stat();
+    while (offset + 8 <= size) {
+      const { bytesRead } = await handle.read(header, 0, 16, offset);
+      if (bytesRead < 8) return false;
+      let length = header.readUInt32BE(0);
+      const type = header.toString("latin1", 4, 8);
+      if (type === "moov") return true;
+      if (type === "mdat") return false;
+      if (length === 1) length = Number(header.readBigUInt64BE(8));
+      else if (length === 0) return false;
+      if (length < 8) return false;
+      offset += length;
+    }
+    return false;
+  } finally {
+    await handle.close();
+  }
+}
+function planVideo(path, info, { fastStart, maxHeight }) {
+  const ext = extOf(path);
+  if (ext === ".m3u8") return "direct";
+  if (info.video === null && info.audio !== null) {
+    if (!BROWSER_AUDIO.has(info.audio)) return "transcode";
+    if (ext === ".mp3" || ext === ".aac") return "direct";
+    return fastStart ? "direct" : "remux";
+  }
+  const videoOk = info.video !== null && BROWSER_VIDEO.has(info.video);
+  const audioOk = info.audio === null || BROWSER_AUDIO.has(info.audio);
+  if (!videoOk || !audioOk || (info.height ?? 0) > maxHeight) return "transcode";
+  if (ext === ".webm") return "direct";
+  if (!DIRECT_CONTAINERS.has(ext)) return info.video === "h264" ? "remux" : "transcode";
+  if (info.video !== "h264" && info.video !== "av1" && info.video !== "vp9") return "transcode";
+  return fastStart ? "direct" : "remux";
+}
+
+// src/prepare.js
+import { spawn as spawn3 } from "node:child_process";
 import { createHash as createHash3 } from "node:crypto";
-import { mkdir as mkdir3, open, readdir as readdir3, rename as rename2, rm as rm3, stat as stat4, utimes } from "node:fs/promises";
-import { join as join6 } from "node:path";
+import { mkdir as mkdir4, readFile as readFile5, readdir as readdir5, rename as rename2, rm as rm3, stat as stat6, writeFile as writeFile2 } from "node:fs/promises";
+import { extname as extname5, join as join9 } from "node:path";
+
+// src/subtitles.js
+var LEGACY_ENCODINGS = Object.freeze(["gb18030", "big5", "shift_jis", "euc-kr"]);
+function decodeText(bytes) {
+  if (bytes[0] === 255 && bytes[1] === 254) return new TextDecoder("utf-16le").decode(bytes.subarray(2));
+  if (bytes[0] === 254 && bytes[1] === 255) return new TextDecoder("utf-16be").decode(bytes.subarray(2));
+  for (const encoding of ["utf-8", ...LEGACY_ENCODINGS]) {
+    try {
+      return new TextDecoder(encoding, { fatal: true, ignoreBOM: false }).decode(bytes);
+    } catch {
+    }
+  }
+  return new TextDecoder("utf-8").decode(bytes);
+}
+var SRT_TIME = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/g;
+function srtToVtt(srt) {
+  const body2 = srt.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean).map((block) => {
+    const lines = block.split("\n");
+    const timing = lines.findIndex((line) => line.includes("-->"));
+    if (timing < 0) return null;
+    const time = lines[timing].replace(SRT_TIME, (_, h, m, s, ms) => `${h.padStart(2, "0")}:${m}:${s}.${ms.padEnd(3, "0")}`);
+    return [time, ...lines.slice(timing + 1)].join("\n");
+  }).filter(Boolean).join("\n\n");
+  return `WEBVTT
+
+${body2}
+`;
+}
+var isVtt = (text2) => /^\uFEFF?WEBVTT/.test(text2);
+
+// src/prepare.js
+async function cacheKey(path) {
+  const info = await stat6(path);
+  return createHash3("sha256").update(`${path}\0${info.size}\0${info.mtimeMs}`).digest("hex").slice(0, 20);
+}
+async function preparedBytes(cacheDir, path) {
+  const key = await cacheKey(path).catch(() => null);
+  if (key === null) return 0;
+  let total = 0;
+  for (const name2 of await readdir5(join9(cacheDir, key)).catch(() => [])) total += (await stat6(join9(cacheDir, key, name2)).catch(() => null))?.size ?? 0;
+  return total;
+}
+async function dropPrepared(cacheDir, path) {
+  const key = await cacheKey(path).catch(() => null);
+  if (key !== null) await rm3(join9(cacheDir, key), { recursive: true, force: true });
+}
+function createQueue() {
+  let tail = Promise.resolve();
+  return (job) => {
+    const result = tail.then(job, job);
+    tail = result.catch(() => {
+    });
+    return result;
+  };
+}
+function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
+  return new Promise((resolve7, reject) => {
+    const child = spawn3("nice", ["-n", "10", ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-progress", "pipe:1", ...args], { stdio: ["ignore", "pipe", "pipe"], signal });
+    let errors = "";
+    child.stderr.on("data", (chunk) => {
+      errors = (errors + chunk).slice(-4e3);
+    });
+    child.stdout.on("data", (chunk) => {
+      const match = /out_time_us=(\d+)/.exec(String(chunk));
+      if (match && duration && onProgress) onProgress(Math.min(1, Number(match[1]) / 1e6 / duration));
+    });
+    child.on("error", reject);
+    child.on("close", (code) => code === 0 ? resolve7() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
+  });
+}
+function videoArgs(plan, input, output, { maxHeight = 1080, threads = 2 } = {}) {
+  const common = ["-y", "-i", input, "-map", "0:V:0?", "-map", "0:a:0?", "-sn", "-dn"];
+  const tail = ["-movflags", "+faststart", "-f", "mp4", output];
+  if (plan === "remux") return [...common, "-c", "copy", ...tail];
+  return [
+    ...common,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "22",
+    "-pix_fmt",
+    "yuv420p",
+    "-vf",
+    `scale=-2:'min(ih,${maxHeight})'`,
+    "-c:a",
+    "aac",
+    "-b:a",
+    "160k",
+    "-ac",
+    "2",
+    "-threads",
+    String(threads),
+    ...tail
+  ];
+}
+async function writeAtomic(path, data) {
+  await writeFile2(`${path}.part`, data);
+  await rename2(`${path}.part`, path);
+}
+var exists = (path) => stat6(path).then(() => true, () => false);
+async function convertSubtitle(source, dir, name2, { ffmpeg = "ffmpeg" } = {}) {
+  const out = join9(dir, `${name2}.vtt`);
+  if (await exists(out)) return out;
+  const text2 = decodeText(await readFile5(source));
+  const ext = extname5(source).toLowerCase();
+  if (ext === ".srt") await writeAtomic(out, srtToVtt(text2));
+  else if (ext === ".vtt" || isVtt(text2)) await writeAtomic(out, text2);
+  else {
+    const utf8 = join9(dir, `${name2}.utf8${ext}`);
+    await writeFile2(utf8, text2);
+    try {
+      await runFfmpeg(["-y", "-i", utf8, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
+      await rename2(`${out}.part`, out);
+    } finally {
+      await rm3(utf8, { force: true });
+    }
+  }
+  return out;
+}
+async function prepareEpisode(episode, options) {
+  const { cacheDir, ffmpeg = "ffmpeg", ffprobe = "ffprobe", maxHeight = 1080, threads = 2, onProgress } = options;
+  if (extname5(episode.path).toLowerCase() === ".m3u8") {
+    return { file: episode.path, kind: "hls", duration: null, plan: "direct", subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) };
+  }
+  const dir = join9(cacheDir, await cacheKey(episode.path));
+  await mkdir4(dir, { recursive: true });
+  const info = await probe(episode.path, { ffprobe });
+  const mp4Family = [".mp4", ".m4v", ".mov", ".m4a"].includes(extname5(episode.path).toLowerCase());
+  const plan = planVideo(episode.path, info, { fastStart: mp4Family ? await isFastStart(episode.path) : null, maxHeight });
+  let file = episode.path;
+  if (plan !== "direct") {
+    file = join9(dir, "video.mp4");
+    if (!await exists(file)) {
+      await runFfmpeg(videoArgs(plan, episode.path, `${file}.part`, { maxHeight, threads }), { ffmpeg, duration: info.duration, onProgress });
+      await rename2(`${file}.part`, file);
+    }
+  }
+  const subtitles = await externalSubtitles(episode, dir, ffmpeg, cacheDir);
+  for (const stream of info.subtitles.filter((s) => isTextSubtitle(s.codec))) {
+    const out = join9(dir, `embedded-${stream.index}.vtt`);
+    if (!await exists(out)) {
+      try {
+        await runFfmpeg(["-y", "-i", episode.path, "-map", `0:s:${stream.index}`, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
+        await rename2(`${out}.part`, out);
+      } catch {
+        continue;
+      }
+    }
+    subtitles.push({ file: out, label: stream.title || stream.language || `Track ${stream.index + 1}` });
+  }
+  return { file, kind: "file", duration: info.duration, plan, subtitles };
+}
+async function externalSubtitles(episode, dir, ffmpeg, cacheDir) {
+  if (episode.subtitles.length === 0) return [];
+  const target = dir ?? join9(cacheDir, await cacheKey(episode.path));
+  await mkdir4(target, { recursive: true });
+  const out = [];
+  for (const [n, sub] of episode.subtitles.entries()) {
+    try {
+      out.push({ file: await convertSubtitle(sub.path, target, `external-${n}`, { ffmpeg }), label: sub.label || "Subtitles" });
+    } catch {
+    }
+  }
+  return out;
+}
+async function pruneCache(cacheDir, used, days, now = Date.now()) {
+  const keep = new Set(used.filter((file) => typeof file === "string" && file.startsWith(`${cacheDir}/`)).map((file) => file.slice(cacheDir.length + 1).split("/")[0]));
+  for (const name2 of await readdir5(cacheDir).catch(() => [])) {
+    if (keep.has(name2)) continue;
+    const info = await stat6(join9(cacheDir, name2)).catch(() => null);
+    if (info !== null && now - info.mtimeMs > days * 864e5) await rm3(join9(cacheDir, name2), { recursive: true, force: true });
+  }
+}
+
+// src/covers.js
 var KEY = /^[0-9a-f]{32}$/;
 var FAILED_FOR_MS = 5 * 6e4;
 var MAX_REMEMBERED = 5e3;
+var FRAME_HEIGHT = 180;
 function imageType(head) {
   if (head.length >= 3 && head[0] === 255 && head[1] === 216 && head[2] === 255) return "image/jpeg";
   if (head.length >= 8 && head.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return "image/png";
@@ -5762,18 +12133,41 @@ function imageType(head) {
   if (head.length >= 12 && head.subarray(0, 4).toString("latin1") === "RIFF" && head.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
   return null;
 }
-var coverKey = (sourceId, url) => createHash3("sha256").update(`${sourceId}
-${url}`).digest("hex").slice(0, 32);
-function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3, logger, now = Date.now }, sourceOf) {
+var keyOf2 = (...parts) => createHash4("sha256").update(parts.join("\n")).digest("hex").slice(0, 32);
+var coverKey = (sourceId, url) => keyOf2(sourceId, url);
+async function grabFrame(input, output, at, { ffmpeg }) {
+  const frame = ["-map", "0:V:0", "-frames:v", "1", "-vf", `scale=-2:${FRAME_HEIGHT}`, "-q:v", "5", "-f", "image2", "-c:v", "mjpeg", output];
+  const attempts = isAudio(input) ? [["-y", "-i", input, ...frame]] : [["-y", "-ss", String(at), "-i", input, ...frame], ["-y", "-i", input, ...frame]];
+  let failure2;
+  for (const args of attempts) {
+    try {
+      await runFfmpeg(args, { ffmpeg, duration: null });
+      return;
+    } catch (error) {
+      failure2 = error;
+    }
+  }
+  throw failure2;
+}
+function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3, ffmpeg = "ffmpeg", logger, now = Date.now }, sourceOf) {
   const known = /* @__PURE__ */ new Map();
   const inFlight = /* @__PURE__ */ new Map();
   const failed = /* @__PURE__ */ new Map();
   const waiting = [];
   let running = 0;
+  const makers = {
+    async source({ sourceId, url, page }, file) {
+      const source = sourceOf(sourceId);
+      if (typeof source?.cover !== "function") throw new Error(`${sourceId} has no pictures`);
+      await source.cover(url, file, { page });
+    },
+    frame: ({ file: input, at }, file) => grabFrame(input, file, at, { ffmpeg })
+  };
   const remember = (key, entry) => {
     known.delete(key);
     known.set(key, entry);
     if (known.size > MAX_REMEMBERED) known.delete(known.keys().next().value);
+    return `covers/${key}`;
   };
   const pump = () => {
     while (running < concurrency && waiting.length > 0) {
@@ -5791,28 +12185,26 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
   async function trim() {
     if (!(capBytes > 0)) return;
     const files = [];
-    for (const name2 of await readdir3(dir).catch(() => [])) {
+    for (const name2 of await readdir6(dir).catch(() => [])) {
       if (!name2.endsWith(".img")) continue;
-      const info = await stat4(join6(dir, name2)).catch(() => null);
+      const info = await stat7(join10(dir, name2)).catch(() => null);
       if (info !== null) files.push({ name: name2, size: info.size, used: info.mtimeMs });
     }
     let total = files.reduce((sum, file) => sum + file.size, 0);
     for (const file of files.sort((a, b) => a.used - b.used)) {
       if (total <= capBytes) break;
-      await rm3(join6(dir, file.name), { force: true });
+      await rm4(join10(dir, file.name), { force: true });
       total -= file.size;
     }
   }
-  async function fetchOne(key, { sourceId, url }) {
-    const source = sourceOf(sourceId);
-    if (typeof source?.cover !== "function") return false;
-    await mkdir3(dir, { recursive: true });
-    const partial = join6(dir, `.${key}.part`);
+  async function make(key, entry) {
+    await mkdir5(dir, { recursive: true });
+    const partial = join10(dir, `.${key}.part`);
     try {
-      await source.cover(url, partial);
-      const info = await stat4(partial);
+      await makers[entry.by](entry, partial);
+      const info = await stat7(partial);
       if (info.size === 0 || info.size > maxFileBytes) throw new Error(`the picture is ${info.size} bytes`);
-      const handle = await open(partial, "r");
+      const handle = await open2(partial, "r");
       const head = Buffer.alloc(12);
       try {
         await handle.read(head, 0, 12, 0);
@@ -5820,33 +12212,37 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
         await handle.close();
       }
       if (imageType(head) === null) throw new Error("the file is not a picture a browser shows");
-      await rename2(partial, join6(dir, `${key}.img`));
+      await rename3(partial, join10(dir, `${key}.img`));
       await trim();
       return true;
     } catch (error) {
-      logger.warn("cover %s from %s: %s", key, sourceId, error.message);
+      logger.warn("picture %s (%s): %s", key, entry.by === "source" ? entry.sourceId : entry.file, error.message);
       return false;
     } finally {
-      await rm3(partial, { force: true });
+      await rm4(partial, { force: true });
     }
   }
   return {
-    /** The route a result's cover is served under; the URL itself stays here. */
-    register(sourceId, url) {
+    /** The route of a picture a source names by `url` (`page`: the work's own address, for the route a fetch takes); the URL itself stays here. */
+    ofSource(sourceId, url, page = null) {
       if (typeof url !== "string" || url === "") return null;
-      const key = coverKey(sourceId, url);
-      remember(key, { sourceId, url });
-      return `covers/${key}`;
+      return remember(coverKey(sourceId, url), { by: "source", sourceId, url, page: page ?? "" });
+    },
+    /** The route of a still of the media file `file`, `at` seconds in; a changed file gets a new one. */
+    async ofFrame(file, at = 3) {
+      const info = await stat7(file).catch(() => null);
+      if (info === null || !info.isFile()) return null;
+      return remember(keyOf2("frame", file, info.size, info.mtimeMs, at), { by: "frame", file, at });
     },
     /**
-     * The cached picture for a key (fetching it first when needed), or null.
+     * The cached picture for a key (making it first when needed), or null.
      * @returns {Promise<{ file: string, type: string } | null>}
      */
     async file(key) {
       if (!KEY.test(key)) return null;
-      const file = join6(dir, `${key}.img`);
+      const file = join10(dir, `${key}.img`);
       const cached = async () => {
-        const handle = await open(file, "r").catch(() => null);
+        const handle = await open2(file, "r").catch(() => null);
         if (handle === null) return null;
         try {
           const head = Buffer.alloc(12);
@@ -5866,7 +12262,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
       const entry = known.get(key);
       if (entry === void 0 || (failed.get(key) ?? 0) > now()) return null;
       if (!inFlight.has(key)) {
-        inFlight.set(key, queued(() => fetchOne(key, entry)).finally(() => inFlight.delete(key)));
+        inFlight.set(key, queued(() => make(key, entry)).finally(() => inFlight.delete(key)));
       }
       if (!await inFlight.get(key)) {
         failed.set(key, now() + FAILED_FOR_MS);
@@ -5874,22 +12270,24 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
       }
       return cached();
     },
-    /** Replace each result's cover URL (and those of its related works) with a route. */
+    /** Replace a work's cover URL (and those of its related works) with a route. */
     decorate(sourceId, work) {
-      const covered = { ...work, cover: this.register(sourceId, work.cover) };
+      const covered = { ...work, cover: this.ofSource(sourceId, work.cover, work.url) };
       if (Array.isArray(work.related)) covered.related = work.related.map((other) => this.decorate(sourceId, other));
       return covered;
-    }
+    },
+    /** Wait for the pictures being made, so nothing writes into the state folder after shutdown. */
+    settle: () => Promise.allSettled([...inFlight.values()])
   };
 }
 
 // src/downloads.js
-import { readFile as readFile4, rename as rename3, writeFile as writeFile2 } from "node:fs/promises";
-import { join as join7 } from "node:path";
+import { readFile as readFile6, rename as rename4, writeFile as writeFile3 } from "node:fs/promises";
+import { join as join11 } from "node:path";
 var ACTIVE = /* @__PURE__ */ new Set(["queued", "running"]);
-var sourceError2 = (code, message) => Object.assign(new Error(message), { code });
+var sourceError3 = (code, message) => Object.assign(new Error(message), { code });
 function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, logger, now = Date.now }) {
-  const file = join7(stateDir, "downloads.json");
+  const file = join11(stateDir, "downloads.json");
   const jobs = /* @__PURE__ */ new Map();
   let running = null;
   let disposed = false;
@@ -5898,8 +12296,8 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
   function save() {
     const body2 = JSON.stringify({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) }, null, 1);
     saving = saving.then(async () => {
-      await writeFile2(`${file}.part`, body2);
-      await rename3(`${file}.part`, file);
+      await writeFile3(`${file}.part`, body2);
+      await rename4(`${file}.part`, file);
     }).catch((error) => logger.warn("could not save downloads: %s", error.message));
     return saving;
   }
@@ -5920,9 +12318,9 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
       if (candidate.priority && !running.priority) running.controller.abort("yield");
       return;
     }
-    run4(candidate);
+    run3(candidate);
   }
-  async function run4(job) {
+  async function run3(job) {
     const source = sources.get(job.source);
     running = job;
     job.status = "running";
@@ -5932,21 +12330,21 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
     const { signal } = job.controller;
     save();
     try {
-      if (source === void 0) throw sourceError2("unavailable", `source ${job.source} is not available`);
+      if (source === void 0) throw sourceError3("unavailable", `source ${job.source} is not available`);
       for (; ; ) {
         const range = nextRun(job.want, await have(job.dir));
         if (range === null || signal.aborted) break;
-        if (!await hasSpace()) throw sourceError2("no_space", "the library disk is almost full; delete something first");
+        if (!await hasSpace()) throw sourceError3("no_space", "the library disk is almost full; delete something first");
         job.current = range;
         job.at = range[0];
-        const result = await source.download({ id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => {
+        const result = await source.download({ id: job.id, dir: job.dir, from: range[0], to: range[1], quality: job.quality ?? "", signal, onStart: (n) => {
           job.at = n;
         }, onEpisode: () => notify(job) });
         await notify(job);
         if (signal.aborted) break;
         if (result.failed.length > 0) {
           job.failed = result.failed;
-          throw sourceError2("source_failed", `${result.failed.length} episodes could not be downloaded`);
+          throw sourceError3("source_failed", `${result.failed.length} episodes could not be downloaded`);
         }
       }
       if (signal.aborted) {
@@ -5973,7 +12371,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
     async load() {
       let data = { jobs: [] };
       try {
-        data = JSON.parse(await readFile4(file, "utf8"));
+        data = JSON.parse(await readFile6(file, "utf8"));
       } catch (error) {
         if (error.code !== "ENOENT") logger.warn("could not read %s: %s", file, error.message);
       }
@@ -5984,7 +12382,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
      * Say which episodes of a show to have on disk, in the order to fetch
      * them (replacing any earlier list). A job that failed stays failed
      * unless `retry` is set: someone asked for an episode again.
-     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null }, dir: string }} show
+     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null, quality?: string }, dir: string }} show
      * @param {number[]} want
      * @param {{ priority?: boolean, retry?: boolean }} [options] - priority: a room is open on this show
      */
@@ -5992,7 +12390,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
       let job = jobs.get(dir);
       if (job === void 0) {
         if (want.length === 0) return null;
-        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, status: "queued", error: null, failed: [], priority, want, createdAt: now() };
+        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, quality: item.quality ?? "", status: "queued", error: null, failed: [], priority, want, createdAt: now() };
         jobs.set(dir, job);
       }
       job.want = want;
@@ -6056,8 +12454,8 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
 
 // src/hub.js
 import { randomBytes } from "node:crypto";
-import { mkdir as mkdir5, readFile as readFile6, rename as rename5, writeFile as writeFile4 } from "node:fs/promises";
-import { isAbsolute as isAbsolute3, join as join10, resolve as resolve3 } from "node:path";
+import { mkdir as mkdir6, readFile as readFile7, rename as rename5, writeFile as writeFile4 } from "node:fs/promises";
+import { isAbsolute as isAbsolute3, join as join12, resolve as resolve3 } from "node:path";
 
 // src/sync.js
 var DRIFT = Object.freeze({
@@ -6068,9 +12466,7 @@ var DRIFT = Object.freeze({
   /** A player already catching up by rate keeps at it until this close. */
   settle: 0.1,
   /** Rate change while catching up, as a fraction of the room's rate. */
-  nudge: 0.05,
-  /** For players without fine rate control: seek once drift passes this. */
-  coarseSeek: 1
+  nudge: 0.05
 });
 function expectedPosition(state, serverNow) {
   let position = state.position;
@@ -6087,11 +12483,10 @@ var STALL_BACK_S = 10;
 var START_LEAD = Object.freeze({ extra: 250, min: 300, max: 2e3 });
 var RATE_LIMITS = Object.freeze({ min: 0.25, max: 2 });
 var OPS = Object.freeze(["play", "pause", "seek", "rate", "select", "ended", "stall", "ready", "skip", "duration", "nextready"]);
-function createRoom({ id, title, source, items, createdBy, now }) {
+function createRoom({ id, title, items, createdBy, now }) {
   const room = {
     id,
     title,
-    source,
     items,
     index: 0,
     playing: false,
@@ -6249,362 +12644,6 @@ function updateItems(room, items) {
   return { ...room, items, seq: room.seq + 1 };
 }
 
-// src/library.js
-import { open as open2, readdir as readdir4, stat as stat5 } from "node:fs/promises";
-import { basename as basename3, dirname as dirname2, extname as extname3, join as join8 } from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-var run2 = promisify(execFile);
-var VIDEO_EXTENSIONS = Object.freeze([".mp4", ".m4v", ".mov", ".webm", ".mkv", ".ts", ".avi", ".flv", ".m3u8"]);
-var AUDIO_EXTENSIONS = Object.freeze([".m4a", ".mp3", ".aac"]);
-var SUBTITLE_EXTENSIONS = Object.freeze([".vtt", ".srt", ".ass", ".ssa"]);
-var BROWSER_VIDEO = /* @__PURE__ */ new Set(["h264", "vp8", "vp9", "av1"]);
-var BROWSER_AUDIO = /* @__PURE__ */ new Set(["aac", "mp3", "opus", "vorbis"]);
-var DIRECT_CONTAINERS = /* @__PURE__ */ new Set([".mp4", ".m4v", ".mov", ".webm"]);
-var collator = new Intl.Collator(void 0, { numeric: true, sensitivity: "base" });
-var extOf = (name2) => extname3(name2).toLowerCase();
-var isVideo = (name2) => VIDEO_EXTENSIONS.includes(extOf(name2));
-var isAudio = (name2) => AUDIO_EXTENSIONS.includes(extOf(name2));
-var isMedia = (name2) => !name2.startsWith(".") && (isVideo(name2) || isAudio(name2));
-var isSubtitle = (name2) => SUBTITLE_EXTENSIONS.includes(extOf(name2));
-function naturalSort(names) {
-  return [...names].sort(collator.compare);
-}
-function matchSubtitles(video, names) {
-  const stem = basename3(video, extname3(video));
-  const found = [];
-  for (const name2 of naturalSort(names)) {
-    if (!isSubtitle(name2)) continue;
-    const subStem = basename3(name2, extname3(name2));
-    if (subStem === stem) found.push({ name: name2, label: "" });
-    else if (subStem.startsWith(`${stem}.`)) found.push({ name: name2, label: subStem.slice(stem.length + 1) });
-  }
-  return found;
-}
-var titleOf = (file) => basename3(file, extname3(file));
-async function scanSource(path) {
-  const info = await stat5(path);
-  const folder = info.isDirectory() ? path : dirname2(path);
-  const names = await readdir4(folder);
-  const videos = info.isDirectory() ? naturalSort(names.filter(isMedia)) : [basename3(path)];
-  if (videos.length === 0) throw Object.assign(new Error(`no video or audio files in ${path}`), { code: "empty" });
-  return videos.map((name2) => ({
-    title: titleOf(name2),
-    path: join8(folder, name2),
-    subtitles: matchSubtitles(name2, names).map((sub) => ({ path: join8(folder, sub.name), label: sub.label }))
-  }));
-}
-async function probe(path, { ffprobe = "ffprobe" } = {}) {
-  const { stdout } = await run2(ffprobe, ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path], { maxBuffer: 8 * 1024 * 1024 });
-  const data = JSON.parse(stdout);
-  const streams = data.streams ?? [];
-  const video = streams.find((s) => s.codec_type === "video" && s.disposition?.attached_pic !== 1);
-  const audio = streams.find((s) => s.codec_type === "audio");
-  const duration = Number.parseFloat(data.format?.duration);
-  return {
-    duration: Number.isFinite(duration) ? duration : null,
-    video: video?.codec_name ?? null,
-    audio: audio?.codec_name ?? null,
-    height: video?.height ?? null,
-    subtitles: streams.filter((s) => s.codec_type === "subtitle").map((s, n) => ({ index: n, codec: s.codec_name, language: s.tags?.language ?? "", title: s.tags?.title ?? "" }))
-  };
-}
-var TEXT_SUBTITLES = /* @__PURE__ */ new Set(["subrip", "ass", "ssa", "webvtt", "mov_text", "text"]);
-var isTextSubtitle = (codec) => TEXT_SUBTITLES.has(codec);
-async function isFastStart(path) {
-  const handle = await open2(path, "r");
-  try {
-    const header = Buffer.alloc(16);
-    let offset = 0;
-    const { size } = await handle.stat();
-    while (offset + 8 <= size) {
-      const { bytesRead } = await handle.read(header, 0, 16, offset);
-      if (bytesRead < 8) return false;
-      let length = header.readUInt32BE(0);
-      const type = header.toString("latin1", 4, 8);
-      if (type === "moov") return true;
-      if (type === "mdat") return false;
-      if (length === 1) length = Number(header.readBigUInt64BE(8));
-      else if (length === 0) return false;
-      if (length < 8) return false;
-      offset += length;
-    }
-    return false;
-  } finally {
-    await handle.close();
-  }
-}
-function planVideo(path, info, { fastStart, maxHeight }) {
-  const ext = extOf(path);
-  if (ext === ".m3u8") return "direct";
-  if (info.video === null && info.audio !== null) {
-    if (!BROWSER_AUDIO.has(info.audio)) return "transcode";
-    if (ext === ".mp3" || ext === ".aac") return "direct";
-    return fastStart ? "direct" : "remux";
-  }
-  const videoOk = info.video !== null && BROWSER_VIDEO.has(info.video);
-  const audioOk = info.audio === null || BROWSER_AUDIO.has(info.audio);
-  if (!videoOk || !audioOk || (info.height ?? 0) > maxHeight) return "transcode";
-  if (ext === ".webm") return "direct";
-  if (!DIRECT_CONTAINERS.has(ext)) return info.video === "h264" ? "remux" : "transcode";
-  if (info.video !== "h264" && info.video !== "av1" && info.video !== "vp9") return "transcode";
-  return fastStart ? "direct" : "remux";
-}
-
-// src/prepare.js
-import { spawn as spawn3 } from "node:child_process";
-import { createHash as createHash4 } from "node:crypto";
-import { mkdir as mkdir4, readFile as readFile5, readdir as readdir5, rename as rename4, rm as rm4, stat as stat6, writeFile as writeFile3 } from "node:fs/promises";
-import { extname as extname4, join as join9 } from "node:path";
-
-// src/subtitles.js
-var LEGACY_ENCODINGS = Object.freeze(["gb18030", "big5", "shift_jis", "euc-kr"]);
-function decodeText(bytes) {
-  if (bytes[0] === 255 && bytes[1] === 254) return new TextDecoder("utf-16le").decode(bytes.subarray(2));
-  if (bytes[0] === 254 && bytes[1] === 255) return new TextDecoder("utf-16be").decode(bytes.subarray(2));
-  for (const encoding of ["utf-8", ...LEGACY_ENCODINGS]) {
-    try {
-      return new TextDecoder(encoding, { fatal: true, ignoreBOM: false }).decode(bytes);
-    } catch {
-    }
-  }
-  return new TextDecoder("utf-8").decode(bytes);
-}
-var SRT_TIME = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/g;
-function srtToVtt(srt) {
-  const body2 = srt.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean).map((block) => {
-    const lines = block.split("\n");
-    const timing = lines.findIndex((line) => line.includes("-->"));
-    if (timing < 0) return null;
-    const time = lines[timing].replace(SRT_TIME, (_, h, m, s, ms) => `${h.padStart(2, "0")}:${m}:${s}.${ms.padEnd(3, "0")}`);
-    return [time, ...lines.slice(timing + 1)].join("\n");
-  }).filter(Boolean).join("\n\n");
-  return `WEBVTT
-
-${body2}
-`;
-}
-var isVtt = (text2) => /^\uFEFF?WEBVTT/.test(text2);
-
-// src/prepare.js
-async function cacheKey(path) {
-  const info = await stat6(path);
-  return createHash4("sha256").update(`${path}\0${info.size}\0${info.mtimeMs}`).digest("hex").slice(0, 20);
-}
-async function preparedBytes(cacheDir, path) {
-  const key = await cacheKey(path).catch(() => null);
-  if (key === null) return 0;
-  let total = 0;
-  for (const name2 of await readdir5(join9(cacheDir, key)).catch(() => [])) total += (await stat6(join9(cacheDir, key, name2)).catch(() => null))?.size ?? 0;
-  return total;
-}
-async function dropPrepared(cacheDir, path) {
-  const key = await cacheKey(path).catch(() => null);
-  if (key !== null) await rm4(join9(cacheDir, key), { recursive: true, force: true });
-}
-function createQueue() {
-  let tail = Promise.resolve();
-  return (job) => {
-    const result = tail.then(job, job);
-    tail = result.catch(() => {
-    });
-    return result;
-  };
-}
-function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
-  return new Promise((resolve7, reject) => {
-    const child = spawn3("nice", ["-n", "10", ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-progress", "pipe:1", ...args], { stdio: ["ignore", "pipe", "pipe"], signal });
-    let errors = "";
-    child.stderr.on("data", (chunk) => {
-      errors = (errors + chunk).slice(-4e3);
-    });
-    child.stdout.on("data", (chunk) => {
-      const match = /out_time_us=(\d+)/.exec(String(chunk));
-      if (match && duration && onProgress) onProgress(Math.min(1, Number(match[1]) / 1e6 / duration));
-    });
-    child.on("error", reject);
-    child.on("close", (code) => code === 0 ? resolve7() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
-  });
-}
-function videoArgs(plan, input, output, { maxHeight = 1080, threads = 2 } = {}) {
-  const common = ["-y", "-i", input, "-map", "0:V:0?", "-map", "0:a:0?", "-sn", "-dn"];
-  const tail = ["-movflags", "+faststart", "-f", "mp4", output];
-  if (plan === "remux") return [...common, "-c", "copy", ...tail];
-  return [
-    ...common,
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-crf",
-    "22",
-    "-pix_fmt",
-    "yuv420p",
-    "-vf",
-    `scale=-2:'min(ih,${maxHeight})'`,
-    "-c:a",
-    "aac",
-    "-b:a",
-    "160k",
-    "-ac",
-    "2",
-    "-threads",
-    String(threads),
-    ...tail
-  ];
-}
-async function writeAtomic(path, data) {
-  await writeFile3(`${path}.part`, data);
-  await rename4(`${path}.part`, path);
-}
-var exists = (path) => stat6(path).then(() => true, () => false);
-async function convertSubtitle(source, dir, name2, { ffmpeg = "ffmpeg" } = {}) {
-  const out = join9(dir, `${name2}.vtt`);
-  if (await exists(out)) return out;
-  const text2 = decodeText(await readFile5(source));
-  const ext = extname4(source).toLowerCase();
-  if (ext === ".srt") await writeAtomic(out, srtToVtt(text2));
-  else if (ext === ".vtt" || isVtt(text2)) await writeAtomic(out, text2);
-  else {
-    const utf8 = join9(dir, `${name2}.utf8${ext}`);
-    await writeFile3(utf8, text2);
-    try {
-      await runFfmpeg(["-y", "-i", utf8, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
-      await rename4(`${out}.part`, out);
-    } finally {
-      await rm4(utf8, { force: true });
-    }
-  }
-  return out;
-}
-async function prepareEpisode(episode, options) {
-  const { cacheDir, ffmpeg = "ffmpeg", ffprobe = "ffprobe", maxHeight = 1080, threads = 2, onProgress } = options;
-  if (extname4(episode.path).toLowerCase() === ".m3u8") {
-    return { file: episode.path, kind: "hls", duration: null, plan: "direct", subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) };
-  }
-  const dir = join9(cacheDir, await cacheKey(episode.path));
-  await mkdir4(dir, { recursive: true });
-  const info = await probe(episode.path, { ffprobe });
-  const mp4Family = [".mp4", ".m4v", ".mov", ".m4a"].includes(extname4(episode.path).toLowerCase());
-  const plan = planVideo(episode.path, info, { fastStart: mp4Family ? await isFastStart(episode.path) : null, maxHeight });
-  let file = episode.path;
-  if (plan !== "direct") {
-    file = join9(dir, "video.mp4");
-    if (!await exists(file)) {
-      await runFfmpeg(videoArgs(plan, episode.path, `${file}.part`, { maxHeight, threads }), { ffmpeg, duration: info.duration, onProgress });
-      await rename4(`${file}.part`, file);
-    }
-  }
-  const subtitles = await externalSubtitles(episode, dir, ffmpeg, cacheDir);
-  for (const stream of info.subtitles.filter((s) => isTextSubtitle(s.codec))) {
-    const out = join9(dir, `embedded-${stream.index}.vtt`);
-    if (!await exists(out)) {
-      try {
-        await runFfmpeg(["-y", "-i", episode.path, "-map", `0:s:${stream.index}`, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
-        await rename4(`${out}.part`, out);
-      } catch {
-        continue;
-      }
-    }
-    subtitles.push({ file: out, label: stream.title || stream.language || `Track ${stream.index + 1}` });
-  }
-  return { file, kind: "file", duration: info.duration, plan, subtitles };
-}
-async function externalSubtitles(episode, dir, ffmpeg, cacheDir) {
-  if (episode.subtitles.length === 0) return [];
-  const target = dir ?? join9(cacheDir, await cacheKey(episode.path));
-  await mkdir4(target, { recursive: true });
-  const out = [];
-  for (const [n, sub] of episode.subtitles.entries()) {
-    try {
-      out.push({ file: await convertSubtitle(sub.path, target, `external-${n}`, { ffmpeg }), label: sub.label || "Subtitles" });
-    } catch {
-    }
-  }
-  return out;
-}
-async function pruneCache(cacheDir, used, days, now = Date.now()) {
-  const keep = new Set(used.filter((file) => typeof file === "string" && file.startsWith(`${cacheDir}/`)).map((file) => file.slice(cacheDir.length + 1).split("/")[0]));
-  for (const name2 of await readdir5(cacheDir).catch(() => [])) {
-    if (keep.has(name2)) continue;
-    const info = await stat6(join9(cacheDir, name2)).catch(() => null);
-    if (info !== null && now - info.mtimeMs > days * 864e5) await rm4(join9(cacheDir, name2), { recursive: true, force: true });
-  }
-}
-
-// src/youtube-items.js
-import { execFile as execFile2 } from "node:child_process";
-import { promisify as promisify2 } from "node:util";
-
-// src/youtube-url.js
-var VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
-var LIST_ID = /^[A-Za-z0-9_-]{10,64}$/;
-var HOSTS = /* @__PURE__ */ new Set(["youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "www.youtube-nocookie.com", "youtube-nocookie.com"]);
-function parseYouTube(text2) {
-  const value = String(text2 ?? "").trim();
-  if (VIDEO_ID.test(value)) return { videoId: value, listId: null };
-  let url;
-  try {
-    url = new URL(value);
-  } catch {
-    return null;
-  }
-  if (!HOSTS.has(url.hostname)) return null;
-  const listParam = url.searchParams.get("list");
-  const listId = listParam !== null && LIST_ID.test(listParam) ? listParam : null;
-  let videoId = null;
-  if (url.hostname === "youtu.be") videoId = url.pathname.slice(1).split("/")[0];
-  else if (url.pathname === "/watch") videoId = url.searchParams.get("v");
-  else {
-    const match = /^\/(?:embed|shorts|live|v)\/([^/?#]+)/.exec(url.pathname);
-    if (match) videoId = match[1];
-  }
-  if (videoId !== null && !VIDEO_ID.test(videoId)) videoId = null;
-  if (videoId === null && listId === null) return null;
-  return { videoId, listId: videoId === null ? listId : null };
-}
-
-// src/youtube-items.js
-var run3 = promisify2(execFile2);
-var serviceError = (code, message) => Object.assign(new Error(message), { code });
-async function youtubeItems(urls, { ytDlp, fetchTitle = youtubeTitle }) {
-  const list = (Array.isArray(urls) ? urls : [urls]).filter((url) => typeof url === "string" && url.trim() !== "");
-  if (list.length === 0) throw serviceError("invalid", "give at least one YouTube URL");
-  const items = [];
-  for (const url of list) {
-    const parsed = parseYouTube(url);
-    if (parsed === null) throw serviceError("invalid", `not a YouTube video or playlist URL: ${url}`);
-    if (parsed.videoId === null) {
-      for (const entry of await playlistEntries(parsed.listId, ytDlp)) items.push({ title: entry.title, kind: "youtube", status: "ready", videoId: entry.id });
-    } else {
-      items.push({ title: await fetchTitle(parsed.videoId) ?? `YouTube ${parsed.videoId}`, kind: "youtube", status: "ready", videoId: parsed.videoId });
-    }
-  }
-  return items;
-}
-async function playlistEntries(listId, ytDlp) {
-  let stdout;
-  try {
-    ({ stdout } = await run3(ytDlp, ["--flat-playlist", "-J", "--no-warnings", `https://www.youtube.com/playlist?list=${listId}`], { maxBuffer: 32 * 1024 * 1024, timeout: 6e4 }));
-  } catch (error) {
-    throw serviceError("invalid", `could not read the playlist (${error.code === "ENOENT" ? "yt-dlp is not installed" : error.message.split("\n")[0]})`);
-  }
-  const entries = (JSON.parse(stdout).entries ?? []).filter((entry) => typeof entry.id === "string");
-  if (entries.length === 0) throw serviceError("empty", "the playlist has no videos");
-  return entries.map((entry) => ({ id: entry.id, title: entry.title ?? `YouTube ${entry.id}` }));
-}
-async function youtubeTitle(videoId) {
-  try {
-    const url = `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(5e3), headers: { "user-agent": "dsh-media-hub" } });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return typeof data.title === "string" ? data.title : null;
-  } catch {
-    return null;
-  }
-}
-
 // src/hub.js
 var PING_MS = 2e4;
 var SAVE_DELAY_MS = 1e3;
@@ -6614,7 +12653,7 @@ var MAX_NAME = 40;
 var localItem = (episode) => ({ title: episode.title, kind: "file", status: "preparing", sourcePath: episode.path, sourceSubtitles: episode.subtitles });
 var slotItem = (entry, status) => ({ title: entry.title, kind: "file", slot: entry.n, status: entry.path === null ? status : "preparing", sourcePath: entry.path, sourceSubtitles: [] });
 var itemKey = (item) => item.slot ?? item.sourcePath;
-var serviceError2 = (code, message) => Object.assign(new Error(message), { code });
+var serviceError = (code, message) => Object.assign(new Error(message), { code });
 var cleanText = (value, max) => typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max) : "";
 function createRoomService(options) {
   const { stateDir, libraryRoots, delivery, tools, lifetime, logger, now = Date.now } = options;
@@ -6625,9 +12664,8 @@ function createRoomService(options) {
       logger.warn("watch log: %s", error.message);
     }
   };
-  const fetchTitle = options.fetchTitle ?? youtubeTitle;
-  const cacheDir = join10(stateDir, "cache");
-  const file = join10(stateDir, "rooms.json");
+  const cacheDir = join12(stateDir, "cache");
+  const file = join12(stateDir, "rooms.json");
   const rooms = /* @__PURE__ */ new Map();
   const peers = /* @__PURE__ */ new Map();
   const waiters = /* @__PURE__ */ new Map();
@@ -6637,12 +12675,12 @@ function createRoomService(options) {
   const sweepTimer = setInterval(() => sweep(), SWEEP_MS);
   const progressTimer = setInterval(() => progress(), PROGRESS_MS);
   async function load() {
-    await mkdir5(stateDir, { recursive: true });
-    for (const root of libraryRoots) await mkdir5(root, { recursive: true }).catch(() => {
+    await mkdir6(stateDir, { recursive: true });
+    for (const root of libraryRoots) await mkdir6(root, { recursive: true }).catch(() => {
     });
     let data = { rooms: [] };
     try {
-      data = JSON.parse(await readFile6(file, "utf8"));
+      data = JSON.parse(await readFile7(file, "utf8"));
     } catch (error) {
       if (error.code !== "ENOENT") logger.warn("could not read %s: %s", file, error.message);
     }
@@ -6683,9 +12721,8 @@ function createRoomService(options) {
       progress: item.progress ?? null,
       error: item.error ?? null,
       duration: item.duration ?? null,
-      videoId: item.videoId ?? null,
       watch: options.watchOf?.(item, room.showPath) ?? null,
-      src: ready && item.kind !== "youtube" ? delivery.mediaUrl(roomId, index, item) : null,
+      src: ready ? delivery.mediaUrl(roomId, index, item) : null,
       subtitles: ready ? (item.subtitles ?? []).map((sub, n) => ({ label: sub.label, src: delivery.subtitleUrl(roomId, index, n) })) : []
     };
   }
@@ -6693,7 +12730,6 @@ function createRoomService(options) {
     return {
       id: room.id,
       title: room.title,
-      source: room.source,
       index: room.index,
       seq: room.seq,
       last: room.last,
@@ -6714,7 +12750,6 @@ function createRoomService(options) {
       emptySince: room.emptySince ?? null,
       id: room.id,
       title: room.title,
-      source: room.source,
       show: room.showPath ?? null,
       episodes: room.items.length,
       index: room.index,
@@ -6912,10 +12947,10 @@ function createRoomService(options) {
     });
   }
   async function localItems(path, fromPanel) {
-    if (typeof path !== "string" || !isAbsolute3(path)) throw serviceError2("invalid", "path must be an absolute path");
+    if (typeof path !== "string" || !isAbsolute3(path)) throw serviceError("invalid", "path must be an absolute path");
     const target = resolve3(path);
     if (fromPanel && !libraryRoots.some((root) => target === root || target.startsWith(`${root}/`))) {
-      throw serviceError2("outside", "the panel can only open files from the library folders");
+      throw serviceError("outside", "the panel can only open files from the library folders");
     }
     const entries = await options.directory?.(target);
     if (entries) return entries.map((entry) => slotItem(entry, "remote"));
@@ -6923,7 +12958,7 @@ function createRoomService(options) {
     try {
       episodes = await scanSource(target);
     } catch (error) {
-      if (error.code === "ENOENT") throw serviceError2("not_found", `${path} does not exist`);
+      if (error.code === "ENOENT") throw serviceError("not_found", `${path} does not exist`);
       throw error;
     }
     return episodes.map(localItem);
@@ -6960,21 +12995,19 @@ function createRoomService(options) {
   return {
     load,
     /**
-     * Create a room.
-     * @param {{ source: 'local' | 'youtube', path?: string, urls?: string[] | string, title?: string, by?: string, fromPanel?: boolean, start?: { index: number, position: number } | null }} input
+     * Create a room on a local file or folder of episodes.
+     * @param {{ path: string, title?: string, by?: string, fromPanel?: boolean, start?: { index: number, position: number } | null }} input
      */
     async createRoom(input) {
-      const source = input.source;
-      if (source !== "local" && source !== "youtube") throw serviceError2("invalid", 'source must be "local" or "youtube"');
-      if (source === "local" && !delivery.available) throw serviceError2("unsupported", delivery.reason);
-      const items = source === "local" ? await localItems(input.path, input.fromPanel === true) : await youtubeItems(input.urls, { ytDlp: tools.ytDlp, fetchTitle });
+      if (!delivery.available) throw serviceError("unsupported", delivery.reason);
+      const items = await localItems(input.path, input.fromPanel === true);
       const id = randomBytes(9).toString("base64url");
-      const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : source === "local" ? input.path.split("/").filter(Boolean).pop() : items[0].title);
-      const created = createRoom({ id, title, source, items, createdBy: cleanText(input.by, MAX_NAME), now: now() });
+      const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : input.path.split("/").filter(Boolean).pop());
+      const created = createRoom({ id, title, items, createdBy: cleanText(input.by, MAX_NAME), now: now() });
       const start = input.start;
       const room = {
         ...created,
-        ...source === "local" ? { showPath: resolve3(input.path) } : {},
+        showPath: resolve3(input.path),
         ...Number.isInteger(start?.index) && start.index >= 0 && start.index < items.length ? { index: start.index, position: Math.max(0, Number(start.position) || 0) } : {}
       };
       commit(wanting(room));
@@ -7007,7 +13040,7 @@ function createRoomService(options) {
       return [...rooms.values()].sort((a, b) => Number(occupied(b)) - Number(occupied(a)) || (b.touchedAt ?? b.createdAt) - (a.touchedAt ?? a.createdAt)).map(summary);
     },
     closeRoom(id) {
-      if (!close(id)) throw serviceError2("not_found", "no such room");
+      if (!close(id)) throw serviceError("not_found", "no such room");
       return { closed: id };
     },
     sweep,
@@ -7038,7 +13071,7 @@ function createRoomService(options) {
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {
       const item = rooms.get(roomId)?.items[index];
-      return item?.status === "ready" && item.kind !== "youtube" ? { file: item.file, kind: item.kind } : void 0;
+      return item?.status === "ready" ? { file: item.file, kind: item.kind } : void 0;
     },
     subtitleFile(roomId, index, n) {
       const item = rooms.get(roomId)?.items[index];
@@ -7065,7 +13098,7 @@ function createRoomService(options) {
 }
 
 // src/watchlog.js
-import { appendFile, readFile as readFile7 } from "node:fs/promises";
+import { appendFile, readFile as readFile8 } from "node:fs/promises";
 var LOG_NAME = "watch-log.jsonl";
 function isNearEnd(position, duration) {
   if (!(duration > 0) || !(position >= 0)) return false;
@@ -7083,7 +13116,7 @@ function createWatchLog({ file, now = Date.now, logger }) {
     await tail;
     let text2 = "";
     try {
-      text2 = await readFile7(file, "utf8");
+      text2 = await readFile8(file, "utf8");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -7158,7 +13191,7 @@ function createJournal({ log, library, now = Date.now }) {
   return (type, detail) => {
     const { room } = detail;
     if (type === "opened") {
-      log.append("room.opened", { ...base(room), source: room.source, by: room.createdBy || null });
+      log.append("room.opened", { ...base(room), by: room.createdBy || null });
     } else if (type === "closed") {
       position(room, room.index, detail.position, detail.viewers);
       log.append("room.closed", base(room));
@@ -7191,66 +13224,8 @@ function createJournal({ log, library, now = Date.now }) {
 }
 
 // src/shows.js
-import { createHash as createHash5 } from "node:crypto";
-import { mkdir as mkdir6, readFile as readFile8, readdir as readdir6, rename as rename6, rm as rm5, stat as stat7, statfs, writeFile as writeFile5 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname3, extname as extname6, join as join11, resolve as resolve4 } from "node:path";
-
-// src/episodes.js
-import { basename as basename4, extname as extname5 } from "node:path";
-
-// src/work.js
-var RELATED_FIELDS = ["id", "title", "kind", "relation", "author", "score", "cover", "popularity", "episodes", "status", "tags"];
-function snapshotOf(info, at) {
-  const related = (info.related ?? []).map((work) => Object.fromEntries(RELATED_FIELDS.map((field) => [field, work[field] ?? null])));
-  return {
-    title: info.title,
-    kind: info.kind,
-    author: info.author,
-    score: info.score ?? null,
-    blurb: info.blurb ?? "",
-    cover: info.cover ?? null,
-    popularity: info.popularity ?? null,
-    episodes: info.episodes ?? null,
-    status: info.status ?? "",
-    tags: info.tags ?? [],
-    latest: info.latest ?? "",
-    meta: info.meta ?? [],
-    related: related.map((work) => ({ ...work, tags: work.tags ?? [] })),
-    episodeTitles: info.episodeTitles ?? [],
-    at
-  };
-}
-var episodeTitle = (work, n) => work?.episodeTitles?.[n - 1] || null;
-
-// src/episodes.js
-var titleOf2 = (name2) => basename4(name2, extname5(name2));
-function episodeNumber(name2) {
-  const match = /^\s*0*(\d+)(?!\d)/.exec(basename4(name2));
-  return match === null ? null : Number(match[1]);
-}
-var isSourced = (entry) => entry?.source?.episodes > 0;
-var numbersOf = (names) => new Set(names.map(episodeNumber).filter((n) => n !== null));
-function slotsOf(entry, files) {
-  if (!isSourced(entry)) return files.map((file, index) => ({ key: file.name, n: index + 1, title: titleOf2(file.name), file }));
-  const byNumber = /* @__PURE__ */ new Map();
-  for (const file of files) {
-    const n = episodeNumber(file.name);
-    if (n !== null && !byNumber.has(n)) byNumber.set(n, file);
-  }
-  const numbers = new Set(byNumber.keys());
-  for (let n = 1; n <= entry.source.episodes; n++) numbers.add(n);
-  return [...numbers].sort((a, b) => a - b).map((n) => ({ key: n, n, title: episodeTitle(entry.work, n) ?? (byNumber.has(n) ? titleOf2(byNumber.get(n).name) : null), file: byNumber.get(n) ?? null }));
-}
-var keyOf = (entry, name2) => isSourced(entry) ? episodeNumber(name2) : name2;
-function noteFor(entry, notes, name2) {
-  if (notes === void 0) return void 0;
-  if (!isSourced(entry)) return notes[name2];
-  const n = episodeNumber(name2);
-  const found = Object.entries(notes).find(([saved]) => episodeNumber(saved) === n);
-  return found?.[1];
-}
-
-// src/shows.js
+import { mkdir as mkdir7, readFile as readFile9, readdir as readdir7, rename as rename6, rm as rm5, stat as stat8, statfs, writeFile as writeFile5 } from "node:fs/promises";
+import { basename as basename5, dirname as dirname3, extname as extname6, join as join13, resolve as resolve4 } from "node:path";
 var DAY_MS = 864e5;
 var STOP_DIFF_S = 30;
 var REFINISH_MS = 36e5;
@@ -7284,20 +13259,18 @@ function groupSeasons(shows) {
   shows.splice(0, shows.length, ...ordered);
 }
 function createLibrary(options) {
-  const { roots, stateDir, tools, inUse, download, forget, logger, now = Date.now } = options;
-  const metaFile = join11(stateDir, "shows.json");
-  const thumbDir = join11(stateDir, "thumbs");
-  const cacheDir = join11(stateDir, "cache");
+  const { roots, stateDir, covers, inUse, download, forget, logger, now = Date.now } = options;
+  const metaFile = join13(stateDir, "shows.json");
+  const cacheDir = join13(stateDir, "cache");
   let meta = {};
   let saving = Promise.resolve();
-  const thumbJobs = /* @__PURE__ */ new Map();
   const listeners = /* @__PURE__ */ new Set();
   const changed = (show) => {
     for (const listener of listeners) listener(show);
   };
   async function load() {
     try {
-      meta = JSON.parse(await readFile8(metaFile, "utf8")).shows ?? {};
+      meta = JSON.parse(await readFile9(metaFile, "utf8")).shows ?? {};
     } catch (error) {
       if (error.code !== "ENOENT") logger.warn("could not read %s: %s", metaFile, error.message);
     }
@@ -7330,28 +13303,28 @@ function createLibrary(options) {
     return showPath(episodePath) ?? showPath(dirname3(episodePath));
   }
   async function episodeFiles(path) {
-    const info = await stat7(path).catch(() => null);
+    const info = await stat8(path).catch(() => null);
     if (info === null) return null;
     if (info.isFile()) return isMedia(basename5(path)) ? [{ name: basename5(path), size: info.size, mtimeMs: info.mtimeMs }] : null;
     const files = [];
-    for (const name2 of naturalSort(await readdir6(path).catch(() => []))) {
+    for (const name2 of naturalSort(await readdir7(path).catch(() => []))) {
       if (!isMedia(name2)) continue;
-      const file = await stat7(join11(path, name2)).catch(() => null);
+      const file = await stat8(join13(path, name2)).catch(() => null);
       if (file?.isFile()) files.push({ name: name2, size: file.size, mtimeMs: file.mtimeMs });
     }
     return files;
   }
   async function folderBytes(path) {
-    const info = await stat7(path).catch(() => null);
+    const info = await stat8(path).catch(() => null);
     if (info === null) return 0;
     if (info.isFile()) return info.size;
     let total = 0;
-    for (const name2 of await readdir6(path).catch(() => [])) total += (await stat7(join11(path, name2)).catch(() => null))?.size ?? 0;
+    for (const name2 of await readdir7(path).catch(() => [])) total += (await stat8(join13(path, name2)).catch(() => null))?.size ?? 0;
     return total;
   }
   async function forgetSum(show, file) {
-    const sums = join11(show, SUMS);
-    const text2 = await readFile8(sums, "utf8").catch(() => null);
+    const sums = join13(show, SUMS);
+    const text2 = await readFile9(sums, "utf8").catch(() => null);
     if (text2 !== null) await writeFile5(sums, text2.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
   }
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename5(path), ...fields });
@@ -7383,60 +13356,30 @@ function createLibrary(options) {
     const entry = record(path);
     const shared = entry.resume;
     const indexOf = (file) => slots.findIndex((slot) => slot.key === keyOf(entry, file));
-    return Object.entries(entry.stops ?? {}).filter(([, stop]) => indexOf(stop.file) >= 0 && (shared === void 0 || stop.file !== shared.file || Math.abs(stop.position - shared.position) > STOP_DIFF_S)).map(([viewer, stop]) => ({ viewer, index: indexOf(stop.file), title: titleOf2(stop.file), position: stop.position }));
+    return Object.entries(entry.stops ?? {}).filter(([, stop]) => indexOf(stop.file) >= 0 && (shared === void 0 || stop.file !== shared.file || Math.abs(stop.position - shared.position) > STOP_DIFF_S)).map(([viewer, stop]) => ({ viewer, index: indexOf(stop.file), title: titleOf(stop.file), position: stop.position }));
   }
   function resumeFrom(path, slots) {
     const entry = record(path);
-    const resume = entry.resume;
-    if (!resume) return null;
-    const index = slots.findIndex((slot) => slot.key === keyOf(entry, resume.file));
+    const resume2 = entry.resume;
+    if (!resume2) return null;
+    const index = slots.findIndex((slot) => slot.key === keyOf(entry, resume2.file));
     if (index < 0) return null;
-    if (isNearEnd(resume.position, resume.duration)) {
+    if (isNearEnd(resume2.position, resume2.duration)) {
       return index + 1 < slots.length ? { index: index + 1, position: 0, title: slots[index + 1].title ?? "" } : null;
     }
-    return resume.position > 5 || index > 0 ? { index, position: resume.position, title: slots[index].title ?? titleOf2(resume.file) } : null;
+    return resume2.position > 5 || index > 0 ? { index, position: resume2.position, title: slots[index].title ?? titleOf(resume2.file) } : null;
   }
   function focusOf(path, slots) {
     const entry = record(path);
-    const resume = entry.resume;
-    if (!resume) return 1;
-    const index = slots.findIndex((slot) => slot.key === keyOf(entry, resume.file));
+    const resume2 = entry.resume;
+    if (!resume2) return 1;
+    const index = slots.findIndex((slot) => slot.key === keyOf(entry, resume2.file));
     if (index < 0) return 1;
-    if (isNearEnd(resume.position, resume.duration)) return index + 1 < slots.length ? slots[index + 1].n : null;
+    if (isNearEnd(resume2.position, resume2.duration)) return index + 1 < slots.length ? slots[index + 1].n : null;
     return slots[index].n;
   }
-  function thumbKey(path, first) {
-    return createHash5("sha256").update(`${join11(path, first.name)}\0${first.size}\0${first.mtimeMs}`).digest("hex").slice(0, 20);
-  }
-  async function thumbnail(path, files, isFile) {
-    const first = files[0];
-    if (first === void 0) return null;
-    const source = isFile ? path : join11(path, first.name);
-    const key = thumbKey(isFile ? dirname3(path) : path, first);
-    const out = join11(thumbDir, `${key}.jpg`);
-    if (await stat7(out).then(() => true, () => false)) return `${key}.jpg`;
-    if (thumbJobs.has(key) || await stat7(`${out}.none`).then(() => true, () => false)) return null;
-    thumbJobs.set(key, makeThumb(source, out).finally(() => thumbJobs.delete(key)));
-    return null;
-  }
-  async function makeThumb(source, out, seek = 3) {
-    if (await mkdir6(thumbDir, { recursive: true }).then(() => false, () => true)) return;
-    const frame = ["-map", "0:V:0", "-frames:v", "1", "-vf", "scale=-2:180", "-q:v", "5", "-f", "image2", `${out}.part`];
-    const attempts = isAudio(source) ? [["-y", "-i", source, ...frame]] : [["-y", "-ss", String(seek), "-i", source, ...frame], ["-y", "-i", source, ...frame]];
-    for (const args of attempts) {
-      try {
-        await runFfmpeg(args, { ffmpeg: tools.ffmpeg, duration: null });
-        await rename6(`${out}.part`, out);
-        return;
-      } catch {
-        await rm5(`${out}.part`, { force: true });
-      }
-    }
-    await writeFile5(`${out}.none`, "").catch(() => {
-    });
-  }
   async function describe(path) {
-    const info = await stat7(path).catch(() => null);
+    const info = await stat8(path).catch(() => null);
     if (info === null) return null;
     const files = await episodeFiles(path);
     const state = download(path);
@@ -7455,7 +13398,7 @@ function createLibrary(options) {
       pinned: entry.pinned === true,
       total: entry.source?.episodes ?? null,
       size: await folderBytes(path),
-      thumb: files === null ? null : await thumbnail(path, files, info.isFile()),
+      frame: files === null || files.length === 0 ? null : await covers.ofFrame(info.isFile() ? path : join13(path, files[0].name)),
       source: entry.source ?? null,
       keep: entry.keep === true,
       watchedAt: entry.watchedAt ?? null,
@@ -7492,9 +13435,9 @@ function createLibrary(options) {
     async list() {
       const shows = [];
       for (const root of roots) {
-        for (const name2 of await readdir6(root).catch(() => [])) {
+        for (const name2 of await readdir7(root).catch(() => [])) {
           if (name2.startsWith(".")) continue;
-          const show = await describe(join11(root, name2));
+          const show = await describe(join13(root, name2));
           if (show !== null) shows.push(show);
         }
       }
@@ -7517,7 +13460,7 @@ function createLibrary(options) {
         title: slot.title,
         size: slot.file?.size ?? 0,
         cached: slot.file !== null,
-        watch: watchOfItem(target, { slot: isSourced(record(target)) ? slot.n : void 0, sourcePath: slot.file ? join11(target, slot.file.name) : null })
+        watch: watchOfItem(target, { slot: isSourced(record(target)) ? slot.n : void 0, sourcePath: slot.file ? join13(target, slot.file.name) : null })
       }));
     },
     /**
@@ -7527,7 +13470,7 @@ function createLibrary(options) {
     async directory(path) {
       const target = showPath(path);
       if (target === null || !isSourced(record(target))) return null;
-      return slotsOf(record(target), await episodeFiles(target) ?? []).map((slot) => ({ n: slot.n, title: slot.title, path: slot.file ? join11(target, slot.file.name) : null }));
+      return slotsOf(record(target), await episodeFiles(target) ?? []).map((slot) => ({ n: slot.n, title: slot.title, path: slot.file ? join13(target, slot.file.name) : null }));
     },
     /** Paths of the shows that came from a source. */
     async sourcedShows() {
@@ -7568,7 +13511,7 @@ function createLibrary(options) {
           const n = episodeNumber(file.name);
           if (n === null) continue;
           const watchedAt = noteFor(entry, entry.progress, file.name)?.at ?? 0;
-          out.push({ key: `${path}\0${n}`, show: path, n, bytes: file.size + await preparedBytes(cacheDir, join11(path, file.name)), lastAt: Math.max(watchedAt, file.mtimeMs) });
+          out.push({ key: `${path}\0${n}`, show: path, n, bytes: file.size + await preparedBytes(cacheDir, join13(path, file.name)), lastAt: Math.max(watchedAt, file.mtimeMs) });
         }
       }
       return out;
@@ -7580,7 +13523,7 @@ function createLibrary(options) {
       for (const file of await episodeFiles(target) ?? []) {
         const n = episodeNumber(file.name);
         if (n === null || !numbers.includes(n)) continue;
-        const full = join11(target, file.name);
+        const full = join13(target, file.name);
         await dropPrepared(cacheDir, full);
         await rm5(full, { force: true });
         await forgetSum(target, file.name);
@@ -7597,25 +13540,6 @@ function createLibrary(options) {
       note(pinned ? "library.pinned" : "library.unpinned", target, { by });
       return { path: target, pinned };
     },
-    /**
-     * A frame of one episode, about a tenth of the way in (3 s when its length is not known), made once in the background;
-     * its file name under /thumbs once it exists, else null.
-     */
-    async frame(path, file, duration = null) {
-      const target = showPath(path) ?? showPath(dirname3(path));
-      if (target === null || typeof file !== "string" || dirname3(file) !== target && file !== target) return null;
-      const info = await stat7(file).catch(() => null);
-      if (info === null || !info.isFile()) return null;
-      const key = createHash5("sha256").update(`frame\0${file}\0${info.size}\0${info.mtimeMs}`).digest("hex").slice(0, 20);
-      const out = join11(thumbDir, `${key}.jpg`);
-      if (await stat7(out).then(() => true, () => false)) return `${key}.jpg`;
-      if (thumbJobs.has(key) || await stat7(`${out}.none`).then(() => true, () => false)) return null;
-      thumbJobs.set(key, makeThumb(file, out, duration > 30 ? Math.round(duration / 10) : 3).finally(() => thumbJobs.delete(key)));
-      return null;
-    },
-    /** Wait for the poster frames being made, so nothing writes into the state folder after shutdown. */
-    settleThumbs: () => Promise.allSettled([...thumbJobs.values()]),
-    thumbFile: (name2) => /^[0-9a-f]{20}\.jpg$/.test(name2) ? join11(thumbDir, name2) : null,
     /** Followed shows with when they were last checked and are next due. */
     follows: () => Object.entries(meta).filter(([, entry]) => entry.follow && isSourced(entry)).map(([path, entry]) => ({ path, follow: entry.follow, source: entry.source, group: entry.group ?? null })),
     /** Follow a show, or stop (null). `follow` is `{ since, seen, checkedAt, nextAt }`. */
@@ -7644,7 +13568,7 @@ function createLibrary(options) {
     noteWorkFailed: (path) => update(path, { workTriedAt: now() }),
     /** Note a show coming from a source, before its files arrive. */
     async adopt(path, source, { pinned = false } = {}) {
-      await mkdir6(path, { recursive: true });
+      await mkdir7(path, { recursive: true });
       update(path, { source, addedAt: record(path).addedAt ?? now(), ...pinned ? { pinned: true } : {} });
     },
     async remove(path, { by = null, reason = "by hand" } = {}) {
@@ -7659,29 +13583,29 @@ function createLibrary(options) {
     },
     async removeEpisode(path, name2, { by = null } = {}) {
       const target = requireShow(path);
-      if ((await stat7(target)).isFile()) return this.remove(target, { by });
+      if ((await stat8(target)).isFile()) return this.remove(target, { by });
       if (inUse(target)) throw libraryError("in_use", "a room is playing this show; close the room first");
       const file = cleanName(name2);
       if (!isMedia(file)) throw libraryError("invalid", "not an episode");
-      await dropPrepared(cacheDir, join11(target, file));
-      await rm5(join11(target, file), { force: true });
+      await dropPrepared(cacheDir, join13(target, file));
+      await rm5(join13(target, file), { force: true });
       await forgetSum(target, file);
-      note("library.episodeDeleted", target, { episode: titleOf2(file), by });
+      note("library.episodeDeleted", target, { episode: titleOf(file), by });
       const entry = record(target);
       if (isSourced(entry) && episodeNumber(file) !== null) update(target, { skip: [.../* @__PURE__ */ new Set([...entry.skip ?? [], episodeNumber(file)])] });
       const left = await episodeFiles(target);
       if (!isSourced(entry) && left !== null && left.length === 0 && download(target) === null) return this.remove(target, { by });
-      return { removed: join11(target, file) };
+      return { removed: join13(target, file) };
     },
     async rename(path, name2, { by = null } = {}) {
       const target = requireShow(path);
       if (inUse(target)) throw libraryError("in_use", "a room is playing this show; close the room first");
       if (download(target)?.active) throw libraryError("in_use", "this show is still downloading");
-      const isFile = (await stat7(target)).isFile();
+      const isFile = (await stat8(target)).isFile();
       const clean = cleanName(name2);
-      const next = join11(dirname3(target), isFile && extname6(clean) === "" ? `${clean}${extname6(target)}` : clean);
+      const next = join13(dirname3(target), isFile && extname6(clean) === "" ? `${clean}${extname6(target)}` : clean);
       if (next === target) return { path: target };
-      if (await stat7(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
+      if (await stat8(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
       await rename6(target, next);
       if (meta[target] !== void 0) {
         meta[next] = meta[target];
@@ -7746,7 +13670,7 @@ function createLibrary(options) {
       for (const path of Object.keys(meta)) {
         const due = deletesAt(path);
         if (due === null || due > now() || inUse(path) || download(path)?.active) continue;
-        if (!await stat7(path).then(() => true, () => false)) {
+        if (!await stat8(path).then(() => true, () => false)) {
           delete meta[path];
           save();
           continue;
@@ -7847,9 +13771,9 @@ function createMediaHub(options) {
   const { stateDir, libraryRoots, logger, now = Date.now } = options;
   const backfillPause = options.backfillPauseMs ?? BACKFILL_PAUSE_MS;
   const sources = new Map(options.sources.map((source2) => [source2.id, source2]));
-  const covers = createCovers({ dir: join12(stateDir, "covers"), capBytes: options.coverCacheBytes, logger }, (id) => sources.get(id));
-  const log = createWatchLog({ file: join12(stateDir, LOG_NAME), now, logger });
-  const books = createBooks({ dir: join12(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
+  const covers = createCovers({ dir: join14(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
+  const log = createWatchLog({ file: join14(stateDir, LOG_NAME), now, logger });
+  const books = createBooks({ dir: join14(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
   let rooms;
   let cache;
   const downloads = createDownloads({
@@ -7868,7 +13792,7 @@ function createMediaHub(options) {
     roots: libraryRoots,
     stateDir,
     autoDeleteDays: options.autoDeleteDays,
-    tools: options.tools,
+    covers,
     inUse: (path) => rooms.usesPath(path),
     download: (path) => downloads.state(path),
     forget: (path) => downloads.cancel(path),
@@ -7973,8 +13897,8 @@ function createMediaHub(options) {
   async function folderFor(sourceId, item) {
     const name2 = cleanName(item.title);
     for (const candidate of [name2, `${name2} (${item.id})`]) {
-      const path = join12(libraryRoots[0], candidate);
-      const exists2 = await stat8(path).then(() => true, () => false);
+      const path = join14(libraryRoots[0], candidate);
+      const exists2 = await stat9(path).then(() => true, () => false);
       const shows = (await library.list()).shows;
       const owner = shows.find((show) => show.path === path);
       if (!exists2 || owner?.source?.source === sourceId && owner.source.id === item.id) return path;
@@ -8013,7 +13937,7 @@ function createMediaHub(options) {
     async listRooms() {
       return Promise.all(rooms.listRooms().map(async ({ file, ...room }) => {
         const show = room.show === null ? null : withCovers({ source: library.workSource(room.show), work: library.workOf(room.show) });
-        return { ...room, cover: show?.work?.cover ?? null, frame: file === null ? null : await library.frame(room.show ?? file, file, room.duration) };
+        return { ...room, cover: show?.work?.cover ?? null, frame: file === null ? null : await covers.ofFrame(file, room.duration > 30 ? Math.round(room.duration / 10) : 3) };
       }));
     },
     closeRoom: (id) => rooms.closeRoom(id),
@@ -8048,7 +13972,6 @@ function createMediaHub(options) {
     renameShow: (path, name2, by) => library.rename(path, name2, { by }),
     keepShow: (path, by) => library.keep(path, { by }),
     countdownShow: (path, by) => library.countdown(path, { by }),
-    thumbFile: (name2) => library.thumbFile(name2),
     sweepLibrary: () => library.sweep(),
     // ---------------------------------------------------------- shelves
     /** Each person's books (src/books.js); the shelf routes key them by person. */
@@ -8067,7 +13990,7 @@ function createMediaHub(options) {
       if (sourceId !== ALL_SOURCES) return ask(source(sourceId));
       const candidates = [];
       for (const one of sources.values()) {
-        if (one.kinds.some((entry) => entry.id === kind) && await one.available()) candidates.push(one);
+        if (typeof one.search === "function" && one.kinds.some((entry) => entry.id === kind) && await one.available()) candidates.push(one);
       }
       const answers = await Promise.allSettled(candidates.map((one) => ask(one)));
       const failed = answers.flatMap((answer, index) => answer.status === "rejected" ? [{ source: candidates[index].id, message: answer.reason?.message ?? String(answer.reason) }] : []);
@@ -8080,16 +14003,16 @@ function createMediaHub(options) {
      * Put a work from a source into the library. `watch` opens a room on it
      * at once (its episode shows as preparing until it is fetched); either
      * way only the rolling cache's window is downloaded, unless `all` keeps
-     * the whole show offline.
-     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, by?: string }} input
+     * the whole show offline. `quality` is kept with the show for a source that offers a choice (Link).
+     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, all = false, by = "" }) {
+    async fetch({ source: sourceId, id, watch = false, all = false, quality = "", by = "" }) {
       const item = await source(sourceId).info(id);
       if (!(item.episodes > 0)) throw hubError("empty", `${item.title || id} has no episodes`);
       const disk = await statfs2(libraryRoots[0]).catch(() => null);
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError("no_space", "the library disk is almost full; delete something first");
       const dir = await folderFor(sourceId, item);
-      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title }, { pinned: all });
+      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...isQuality(quality) ? { quality } : {} }, { pinned: all });
       library.setWork(dir, snapshotOf(item, now()));
       let room = null;
       if (watch) room = (await rooms.createRoom({ source: "local", path: dir, title: item.title, by, start: await library.resumeFrom(dir) })).room;
@@ -8156,7 +14079,7 @@ function createMediaHub(options) {
       await books.dispose();
       await downloads.dispose();
       await rooms.dispose();
-      await library.settleThumbs();
+      await covers.settle();
       await library.flush();
       await log.flush();
     }
@@ -8165,16 +14088,16 @@ function createMediaHub(options) {
 
 // src/shelf-routes.js
 import { createReadStream as createReadStream3 } from "node:fs";
-import { stat as stat9 } from "node:fs/promises";
+import { stat as stat10 } from "node:fs/promises";
 import { Readable } from "node:stream";
 
 // src/people.js
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash5 } from "node:crypto";
 var OWNER = "owner";
 function personOf(identityService) {
   const identity = typeof identityService?.current === "function" ? identityService.current() : null;
   if (identity === null || typeof identity?.id !== "string" || identity.id === "") return { key: OWNER, name: "", verified: false };
-  const key = createHash6("sha256").update(`${identity.issuer ?? ""}
+  const key = createHash5("sha256").update(`${identity.issuer ?? ""}
 ${identity.id}`).digest("hex").slice(0, 20);
   return { key, name: typeof identity.name === "string" ? identity.name.slice(0, 80) : "", verified: true };
 }
@@ -8194,7 +14117,7 @@ async function body(request) {
   }
 }
 async function fileResponse(request, { path, name: name2, type }) {
-  const info = await stat9(path).catch(() => null);
+  const info = await stat10(path).catch(() => null);
   if (info === null || !info.isFile()) return json(404, { error: { code: "not_found", message: "the file is gone" } });
   const range = resolveRange(request.headers.get("range"), info.size);
   const headers = { ...HEADERS, "content-type": type, "content-disposition": attachment(name2), "accept-ranges": "bytes" };
@@ -8255,13 +14178,13 @@ function apply(ctx, config) {
     const stateDir = resolve6(config.stateDir);
     const service = createMediaHub({
       stateDir,
-      libraryRoots: [join13(stateDir, "library"), ...config.libraryRoots.map((root) => resolve6(root))],
+      libraryRoots: [join15(stateDir, "library"), ...config.libraryRoots.map((root) => resolve6(root))],
       delivery: createDelivery({ mode: config.delivery }),
-      tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, ytDlp: config.ytDlp, maxHeight: config.maxHeight, threads: config.threads },
+      tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, maxHeight: config.maxHeight, threads: config.threads },
       webUrl: () => ctx.get("webApp")?.getAdvertisedUrl(),
       lifetime: { emptyMinutes: config.emptyMinutes, unopenedHours: config.unopenedHours },
       autoDeleteDays: config.autoDeleteDays,
-      sources: createSources(config.sources, { stateDir, logger }),
+      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, proxies: createProxies(config.proxies), maxHeight: config.maxHeight } }),
       coverCacheBytes: config.coverCacheMb * 1e6,
       books: {
         capBytes: config.bookCacheGb * 1e9,

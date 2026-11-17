@@ -21,7 +21,7 @@ function setup(t, overrides = {}) {
     roots: [root],
     stateDir: dir,
     autoDeleteDays: 7,
-    tools: { ffmpeg: 'false' },
+    covers: { ofFrame: async file => `covers/frame-of-${file.split('/').pop()}` },
     inUse: path => state.used.has(path),
     download: () => null,
     forget: async () => {},

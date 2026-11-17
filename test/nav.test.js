@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { clearNav, hasNavParams, LINK_SOURCE, pickKind, pickSource, readMemory, readNav, remember, withAll, withLink, writeNav } from '../web/nav.js'
+import { clearNav, hasNavParams, pickKind, pickSource, readMemory, readNav, remember, takesUrl, withAll, writeNav } from '../web/nav.js'
 
 const fanqie = { id: 'fanqie', label: 'Fanqie', kinds: [{ id: 'drama', label: 'Short dramas' }, { id: 'audio', label: 'Audiobooks' }] }
 const other = { id: 'tube', label: 'Tube', kinds: [{ id: 'video', label: 'Videos' }] }
+const link = { id: 'link', label: 'Link', input: 'url', kinds: [{ id: 'video', label: '' }] }
 
 function storage() {
   const items = new Map()
@@ -20,7 +21,7 @@ test('writing keeps other parameters, leaves out the default tab, and only Disco
   assert.equal(writeNav('?other=1&vs-tab=library', { tab: 'watching', source: 'fanqie', kind: 'drama' }), '?other=1')
   assert.equal(writeNav('', { tab: 'library', source: 'fanqie', kind: 'drama' }), '?vs-tab=library')
   assert.equal(writeNav('?x=1', { tab: 'discover', source: 'fanqie', kind: 'audio' }), '?x=1&vs-tab=discover&vs-source=fanqie&vs-kind=audio')
-  assert.equal(writeNav('', { tab: 'discover', source: LINK_SOURCE, kind: null }), '?vs-tab=discover&vs-source=youtube')
+  assert.equal(writeNav('', { tab: 'discover', source: 'link', kind: null }), '?vs-tab=discover&vs-source=link')
   assert.equal(writeNav('', { tab: 'watching', source: null, kind: null }), '')
   assert.equal(writeNav('', { tab: 'discover', source: 'fanqie', kind: 'drama', work: '77' }), '?vs-tab=discover&vs-source=fanqie&vs-kind=drama&vs-work=77')
   assert.equal(writeNav('', { tab: 'library', source: 'fanqie', kind: 'drama', work: '77' }), '?vs-tab=library', 'a work belongs to Discover')
@@ -35,15 +36,16 @@ test('writing then reading gives the place back; leaving the page clears only it
   assert.equal(hasNavParams('?media-room=abc&vs-kind=audio'), true)
 })
 
-test('the picker lists every configured source, then Link', () => {
-  const sources = withLink([fanqie, other], 'Link')
-  assert.deepEqual(sources.map(s => s.id), ['fanqie', 'tube', 'youtube'])
-  assert.deepEqual(withLink([], '链接').map(s => s.label), ['链接'])
-  assert.deepEqual(sources.at(-1).kinds, [])
+test('All sources leads with the categories of the searchable sources; Link takes an address and is not searched', () => {
+  const sources = withAll([fanqie, other, link], 'All')
+  assert.deepEqual(sources.map(s => s.id), ['all', 'fanqie', 'tube', 'link'])
+  assert.deepEqual(sources[0].kinds.map(k => k.id), ['drama', 'audio', 'video'])
+  assert.deepEqual(withAll([fanqie, link], 'All').map(s => s.id), ['fanqie', 'link'], 'one searchable source needs no All')
+  assert.ok(takesUrl(link) && !takesUrl(fanqie))
 })
 
 test('the source: the URL first, then the one used last, then the first; a source that is gone is skipped', () => {
-  const sources = withLink([fanqie, other], 'Link')
+  const sources = [fanqie, other, link]
   assert.equal(pickSource(sources, 'tube', 'fanqie').id, 'tube')
   assert.equal(pickSource(sources, null, 'tube').id, 'tube')
   assert.equal(pickSource(sources, 'gone', 'also-gone').id, 'fanqie')
@@ -54,7 +56,7 @@ test('the category: the URL first, then the one used last for that source, then 
   assert.equal(pickKind(fanqie, 'audio', 'drama'), 'audio')
   assert.equal(pickKind(fanqie, null, 'audio'), 'audio')
   assert.equal(pickKind(fanqie, 'nope', 'nope'), 'drama')
-  assert.equal(pickKind(withLink([], 'Link')[0], 'audio', 'audio'), null)
+  assert.equal(pickKind(link, 'video', 'video'), null)
   assert.equal(pickKind(null, null, null), null)
 })
 
@@ -63,8 +65,8 @@ test('the last source and category are remembered per browser, a category per so
   assert.deepEqual(readMemory(store), { source: null, kinds: {} })
   remember(store, { source: 'fanqie', kind: 'audio' })
   remember(store, { source: 'tube', kind: 'video' })
-  remember(store, { source: LINK_SOURCE, kind: null })
-  assert.deepEqual(readMemory(store), { source: 'youtube', kinds: { fanqie: 'audio', tube: 'video' } })
+  remember(store, { source: 'link', kind: null })
+  assert.deepEqual(readMemory(store), { source: 'link', kinds: { fanqie: 'audio', tube: 'video' } })
 })
 
 test('memory survives broken storage', () => {
