@@ -1,0 +1,571 @@
+/**
+ * The room service: open rooms, their viewers' sockets, preparing local
+ * episodes, and saving rooms so they survive a DSH restart.
+ *
+ * Wire protocol on /media-hub/ws?room=<id> (JSON text frames):
+ *   viewer → server  { t: 'hello', clientId, name }
+ *                    { t: 'ping', id, client }                  client = viewer clock, ms
+ *                    { t: 'op', op, position?, rate?, index?, from?, duration?, gate?, rtt? }
+ *   server → viewer  { t: 'state', room, clock, members, serverTime }   after every change;
+ *                    room.gate is the open ready gate, each member's `wait` its part in it
+ *                    { t: 'pong', id, client, server }
+ *                    { t: 'error', message }
+ * A viewer that reconnects says hello again and follows the next state.
+ */
+import { randomBytes } from 'node:crypto'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { isAbsolute, join, resolve } from 'node:path'
+import { SKIP_AFTER_MS, advance, advanceOf, applyOp, clockOf, createRoom, hold, positionAt, settle, updateItems } from './room.js'
+import { scanSource } from './library.js'
+import { createQueue, prepareEpisode, pruneCache } from './prepare.js'
+import { youtubeItems, youtubeTitle } from './youtube-items.js'
+
+/** Keep-alive ping on each socket; a tunnel drops idle sockets after about 100 s. */
+const PING_MS = 20_000
+const SAVE_DELAY_MS = 1000
+/** How often empty rooms are checked for closing. */
+const SWEEP_MS = 60_000
+/** How often a playing room's position goes to the watch log. */
+const PROGRESS_MS = 120_000
+const MAX_NAME = 40
+
+/** A room item for a local episode, waiting to be prepared. */
+const localItem = episode => ({ title: episode.title, kind: 'file', status: 'preparing', sourcePath: episode.path, sourceSubtitles: episode.subtitles })
+/** A room item for one episode of a show from a source: `slot` is its number, `sourcePath` null while it is not on disk (status `remote`, or `preparing` while it is being fetched). */
+const slotItem = (entry, status) => ({ title: entry.title, kind: 'file', slot: entry.n, status: entry.path === null ? status : 'preparing', sourcePath: entry.path, sourceSubtitles: [] })
+/** What identifies an item across its states: its episode number, or its file. */
+const itemKey = item => item.slot ?? item.sourcePath
+const serviceError = (code, message) => Object.assign(new Error(message), { code })
+const cleanText = (value, max) => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '')
+
+/**
+ * @param {object} options
+ * @param {string} options.stateDir - rooms.json and the prepared-media cache live here
+ * @param {string[]} options.libraryRoots - folders the panel may start rooms from
+ * @param {import('./delivery.js').Delivery} options.delivery
+ * @param {{ ffmpeg: string, ffprobe: string, ytDlp: string, maxHeight: number, threads: number }} options.tools
+ * @param {() => string | undefined} options.webUrl - the Web UI's advertised root URL, for links
+ * @param {{ emptyMinutes: number, unopenedHours: number }} options.lifetime - a room closes this long after its last viewer left, or after it was created when nobody opened it
+ * @param {{ info: Function, warn: Function }} options.logger
+ * @param {(url: string) => Promise<string | null>} [options.fetchTitle] - title of a YouTube video
+ * @param {(item: object, show: string | undefined) => object | null} [options.watchOf] - how far an episode was watched, shown in the room's episode list
+ * @param {(path: string) => Promise<{ n: number, title: string | null, path: string | null }[] | null>} [options.directory] - every episode of a show from a source (null for other folders), on disk or not
+ * @param {(showPath: string, change: { retry: boolean }) => void} [options.focus] - told when a room on a show goes to another episode, or opens
+ * @param {(type: string, detail: object) => void} [options.observe] - told what happens in rooms:
+ *   opened { room }, closed { room, position }, joined { room, viewer }, left { room, viewer, position },
+ *   op { before, after, op, viewers }, progress { room, position, viewers }
+ * @param {() => number} [options.now]
+ */
+export function createRoomService(options) {
+  const { stateDir, libraryRoots, delivery, tools, lifetime, logger, now = Date.now } = options
+  const observe = (type, detail) => {
+    try {
+      options.observe?.(type, detail)
+    } catch (error) {
+      logger.warn('watch log: %s', error.message)
+    }
+  }
+  const fetchTitle = options.fetchTitle ?? youtubeTitle
+  const cacheDir = join(stateDir, 'cache')
+  const file = join(stateDir, 'rooms.json')
+  const rooms = new Map()
+  const peers = new Map()
+  const waiters = new Map()
+  const queue = createQueue()
+  let saveTimer = null
+  let disposed = false
+  const sweepTimer = setInterval(() => sweep(), SWEEP_MS)
+  const progressTimer = setInterval(() => progress(), PROGRESS_MS)
+
+  // ---------------------------------------------------------------- state
+
+  async function load() {
+    await mkdir(stateDir, { recursive: true })
+    for (const root of libraryRoots) await mkdir(root, { recursive: true }).catch(() => {})
+    let data = { rooms: [] }
+    try {
+      data = JSON.parse(await readFile(file, 'utf8'))
+    } catch (error) {
+      if (error.code !== 'ENOENT') logger.warn('could not read %s: %s', file, error.message)
+    }
+    // Nobody is connected right after a start; viewers who were reconnect within seconds and start together again.
+    for (const { holds, ...room } of data.rooms ?? []) rooms.set(room.id, { ...hold({ gate: null, gates: 0, startedAt: null, ...room }, now()), cooldown: {}, nextReady: null, emptySince: room.emptySince ?? (room.opened ? now() : null) })
+    sweep()
+    for (const room of rooms.values()) {
+      room.items.forEach((item, index) => { if (item.status === 'preparing') schedulePrepare(room.id, index) })
+    }
+    for (const path of new Set([...rooms.values()].map(room => room.showPath).filter(Boolean))) await syncShow(path)
+  }
+
+  function save() {
+    if (saveTimer !== null || disposed) return
+    saveTimer = setTimeout(() => {
+      saveTimer = null
+      flush().catch(error => logger.warn('could not save rooms: %s', error.message))
+    }, SAVE_DELAY_MS)
+  }
+
+  async function flush() {
+    const body = JSON.stringify({ rooms: [...rooms.values()] }, null, 1)
+    await writeFile(`${file}.part`, body)
+    await rename(`${file}.part`, file)
+  }
+
+  /** Store a changed room, tell its viewers, save. */
+  function commit(room) {
+    rooms.set(room.id, { ...room, touchedAt: now() })
+    broadcast(room.id)
+    save()
+  }
+
+  // ---------------------------------------------------------------- views
+
+  function publicItem(room, item, index) {
+    const roomId = room.id
+    const ready = item.status === 'ready'
+    return {
+      title: item.title ?? null,
+      kind: item.kind,
+      status: item.status,
+      cached: item.slot === undefined || typeof item.sourcePath === 'string',
+      progress: item.progress ?? null,
+      error: item.error ?? null,
+      duration: item.duration ?? null,
+      videoId: item.videoId ?? null,
+      watch: options.watchOf?.(item, room.showPath) ?? null,
+      src: ready && item.kind !== 'youtube' ? delivery.mediaUrl(roomId, index, item) : null,
+      subtitles: ready ? (item.subtitles ?? []).map((sub, n) => ({ label: sub.label, src: delivery.subtitleUrl(roomId, index, n) })) : [],
+    }
+  }
+
+  function publicRoom(room) {
+    return {
+      id: room.id,
+      title: room.title,
+      source: room.source,
+      index: room.index,
+      seq: room.seq,
+      last: room.last,
+      playing: room.playing,
+      gate: room.gate === null ? null : { id: room.gate.id, reason: room.gate.reason, since: room.gate.since, skipAt: room.gate.since + SKIP_AFTER_MS, by: room.gate.by },
+      items: room.items.map((item, index) => publicItem(room, item, index)),
+    }
+  }
+
+  /** Each viewer once (a tab reconnecting may briefly have two sockets), with its part in an open gate: loading, ready or skipped. */
+  function members(roomId) {
+    const gate = rooms.get(roomId)?.gate ?? null
+    const wait = clientId => (gate === null ? null : gate.ready.includes(clientId) ? 'ready' : gate.skipped.includes(clientId) ? 'skipped' : 'loading')
+    return [...present(roomId)].map(([clientId, name]) => ({ clientId, name, wait: wait(clientId) }))
+  }
+
+  /** Names of the people in a room, each once. */
+  const viewers = roomId => [...new Set(members(roomId).map(member => member.name))]
+
+  function summary(room) {
+    return {
+      opened: room.opened === true,
+      emptySince: room.emptySince ?? null,
+      id: room.id,
+      title: room.title,
+      source: room.source,
+      show: room.showPath ?? null,
+      episodes: room.items.length,
+      index: room.index,
+      current: room.items[room.index]?.title ?? '',
+      file: room.items[room.index]?.sourcePath ?? null,
+      position: positionAt(room, now()),
+      duration: room.items[room.index]?.duration ?? null,
+      preparing: room.items.filter(item => item.status === 'preparing').length,
+      members: viewers(room.id),
+      createdBy: room.createdBy,
+      createdAt: room.createdAt,
+      link: linkFor(room.id),
+    }
+  }
+
+  /** The Web UI's URL opening a room; relative when DSH advertises no URL. */
+  function linkFor(id) {
+    const root = options.webUrl?.()
+    const query = `?media-room=${id}`
+    return root ? new URL(query, root).href : query
+  }
+
+  // ---------------------------------------------------------------- sockets
+
+  function send(peer, message) {
+    if (peer.ws.readyState === 1) peer.ws.send(JSON.stringify(message))
+  }
+
+  function stateMessage(roomId) {
+    const room = rooms.get(roomId)
+    return { t: 'state', room: publicRoom(room), clock: { ...clockOf(room), advance: advanceOf(room, present(roomId).keys()) }, members: members(roomId), serverTime: now() }
+  }
+
+  /** One timer per room for the switch to the next episode that is scheduled ahead (src/room.js `advanceOf`). */
+  const advanceTimers = new Map()
+  function scheduleAdvance(roomId) {
+    const room = rooms.get(roomId)
+    const due = room === undefined ? null : advanceOf(room, present(roomId).keys())
+    const timer = advanceTimers.get(roomId)
+    if (due === null || (timer !== undefined && timer.at === due.at && timer.to === due.to)) {
+      if (due === null && timer !== undefined) { clearTimeout(timer.id); advanceTimers.delete(roomId) }
+      return
+    }
+    if (timer !== undefined) clearTimeout(timer.id)
+    const id = setTimeout(() => {
+      advanceTimers.delete(roomId)
+      const current = rooms.get(roomId)
+      const again = current === undefined ? null : advanceOf(current, present(roomId).keys())
+      if (again === null || again.to !== due.to) return
+      const after = advance(current, again.to, again.at)
+      commit(after)
+      observe('op', { before: current, after, op: 'ended', viewers: viewers(roomId), now: now() })
+    }, Math.max(0, due.at - now()))
+    id.unref?.()
+    advanceTimers.set(roomId, { id, at: due.at, to: due.to })
+  }
+
+  function broadcast(roomId) {
+    if (!rooms.has(roomId)) return
+    scheduleAdvance(roomId)
+    const message = stateMessage(roomId)
+    for (const peer of peers.get(roomId) ?? []) if (peer.clientId !== null) send(peer, message)
+  }
+
+  /** The viewers connected to a room: client id to name. */
+  function present(roomId) {
+    const map = new Map()
+    for (const peer of peers.get(roomId) ?? []) if (peer.clientId !== null) map.set(peer.clientId, peer.name)
+    return map
+  }
+
+  /**
+   * Take over one admitted WebSocket for a room.
+   * @param {import('ws').WebSocket} ws
+   * @param {string} roomId
+   */
+  function attach(ws, roomId) {
+    if (!rooms.has(roomId)) {
+      ws.close(4404, 'no such room')
+      return
+    }
+    const peer = { ws, clientId: null, name: 'Guest' }
+    if (!peers.has(roomId)) peers.set(roomId, new Set())
+    peers.get(roomId).add(peer)
+    let alive = true
+    const ping = setInterval(() => {
+      if (!alive) return ws.terminate()
+      alive = false
+      ws.ping()
+    }, PING_MS)
+    ws.on('pong', () => { alive = true })
+    ws.on('message', (data) => {
+      alive = true
+      let message
+      try {
+        message = JSON.parse(String(data))
+      } catch {
+        return send(peer, { t: 'error', message: 'not JSON' })
+      }
+      handle(peer, roomId, message)
+    })
+    ws.on('close', () => {
+      clearInterval(ping)
+      peers.get(roomId)?.delete(peer)
+      let room = rooms.get(roomId)
+      if (room === undefined) return
+      if (peer.clientId !== null && !viewers(roomId).includes(peer.name)) observe('left', { room, viewer: peer.name, position: positionAt(room, now()) })
+      if (present(roomId).size === 0) {
+        // Nobody left to watch: the clock stops until people are back and ready.
+        if (room.opened) commit({ ...hold(room, now()), emptySince: now() })
+        return
+      }
+      // A viewer who left is no longer waited for.
+      const result = settle(room, present(roomId), now())
+      if (result.changed) commit(result.room)
+      else broadcast(roomId)
+    })
+  }
+
+  function handle(peer, roomId, message) {
+    const room = rooms.get(roomId)
+    if (room === undefined) return peer.ws.close(4404, 'room closed')
+    if (message.t === 'ping') return send(peer, { t: 'pong', id: message.id, client: message.client, server: now() })
+    if (message.t === 'hello') {
+      const known = viewers(roomId)
+      peer.clientId = cleanText(message.clientId, 64) || randomBytes(8).toString('base64url')
+      peer.name = cleanText(message.name, MAX_NAME) || 'Guest'
+      if (!known.includes(peer.name)) observe('joined', { room, viewer: peer.name })
+      rooms.set(roomId, { ...room, opened: true, emptySince: null, touchedAt: now() })
+      broadcast(roomId)
+      save()
+      return undefined
+    }
+    if (message.t !== 'op' || peer.clientId === null) return send(peer, { t: 'error', message: 'say hello first' })
+    const result = applyOp(room, message, { by: peer.name, clientId: peer.clientId, now: now(), present: present(roomId) })
+    if (result.error) return send(peer, { t: 'error', message: result.error })
+    if (!result.changed) return undefined
+    const moved = result.room.index !== room.index && result.room.showPath !== undefined
+    const after = moved ? wanting(result.room) : result.room
+    commit(after)
+    observe('op', { before: room, after, op: message.op, viewers: viewers(roomId), now: now() })
+    // Going to an episode that is missing, or whose fetch failed, asks for it again.
+    if (moved) options.focus?.(after.showPath, { retry: after !== result.room || result.room.items[result.room.index]?.status === 'failed' })
+    return undefined
+  }
+
+  /** Close rooms nobody is in any more: empty too long, or never opened. */
+  function sweep() {
+    for (const room of [...rooms.values()]) {
+      if (present(room.id).size > 0) continue
+      const age = room.opened ? now() - (room.emptySince ?? now()) : now() - room.createdAt
+      const limit = room.opened ? lifetime.emptyMinutes * 60_000 : lifetime.unopenedHours * 3_600_000
+      if (age >= limit) close(room.id)
+    }
+  }
+
+  /** Tell the watch log where playing rooms are. */
+  function progress() {
+    for (const room of rooms.values()) {
+      if (room.playing && present(room.id).size > 0) observe('progress', { room, position: positionAt(room, now()), viewers: viewers(room.id) })
+    }
+  }
+
+  function close(id) {
+    const room = rooms.get(id)
+    if (room === undefined) return false
+    observe('closed', { room, position: positionAt(room, now()), viewers: viewers(id) })
+    rooms.delete(id)
+    clearTimeout(advanceTimers.get(id)?.id)
+    advanceTimers.delete(id)
+    for (const peer of peers.get(id) ?? []) peer.ws.close(4410, 'room closed')
+    peers.delete(id)
+    save()
+    return true
+  }
+
+  // ---------------------------------------------------------------- items
+
+  /** Change one item, found by its key (episode number or source file). */
+  function setItem(roomId, key, patch) {
+    const room = rooms.get(roomId)
+    if (room === undefined) return
+    const items = room.items.map(item => (itemKey(item) === key ? { ...item, ...patch } : item))
+    commit(updateItems(room, items))
+    if (patch.status !== undefined && patch.status !== 'preparing') {
+      for (const resolveWaiter of waiters.get(`${roomId}/${key}`) ?? []) resolveWaiter()
+      waiters.delete(`${roomId}/${key}`)
+    }
+  }
+
+  /** A room standing on an episode that is not on disk shows it as preparing while the cache fetches it. */
+  function wanting(room) {
+    const item = room.items[room.index]
+    if (item === undefined || item.slot === undefined || typeof item.sourcePath === 'string' || item.status === 'preparing') return room
+    return { ...room, items: room.items.map((entry, n) => (n === room.index ? { ...entry, status: 'preparing', error: null } : entry)) }
+  }
+
+  function schedulePrepare(roomId, index) {
+    const key = itemKey(rooms.get(roomId)?.items[index] ?? {})
+    if (typeof rooms.get(roomId)?.items[index]?.sourcePath !== 'string') return
+    queue(async () => {
+      const item = rooms.get(roomId)?.items.find(entry => itemKey(entry) === key)
+      if (item === undefined || disposed || typeof item.sourcePath !== 'string') return
+      let last = 0
+      try {
+        const prepared = await prepareEpisode({ title: item.title, path: item.sourcePath, subtitles: item.sourceSubtitles ?? [] }, {
+          cacheDir,
+          ffmpeg: tools.ffmpeg,
+          ffprobe: tools.ffprobe,
+          maxHeight: tools.maxHeight,
+          threads: tools.threads,
+          onProgress: (fraction) => {
+            if (fraction - last < 0.05) return
+            last = fraction
+            setItem(roomId, key, { progress: Math.round(fraction * 100) / 100 })
+          },
+        })
+        setItem(roomId, key, { status: 'ready', progress: null, ...prepared })
+      } catch (error) {
+        logger.warn('could not prepare %s: %s', item.sourcePath, error.message)
+        setItem(roomId, key, { status: 'failed', progress: null, error: error.message })
+      }
+    })
+  }
+
+  async function localItems(path, fromPanel) {
+    if (typeof path !== 'string' || !isAbsolute(path)) throw serviceError('invalid', 'path must be an absolute path')
+    const target = resolve(path)
+    if (fromPanel && !libraryRoots.some(root => target === root || target.startsWith(`${root}/`))) {
+      throw serviceError('outside', 'the panel can only open files from the library folders')
+    }
+    const entries = await options.directory?.(target)
+    if (entries) return entries.map(entry => slotItem(entry, 'remote'))
+    let episodes
+    try {
+      episodes = await scanSource(target)
+    } catch (error) {
+      if (error.code === 'ENOENT') throw serviceError('not_found', `${path} does not exist`)
+      throw error
+    }
+    return episodes.map(localItem)
+  }
+
+  /**
+   * Bring the rooms on a show from a source in line with the files on disk:
+   * an episode that landed starts preparing, one that was dropped goes back
+   * to not cached. Rooms from before episodes were numbered are rebuilt.
+   */
+  async function syncShow(path) {
+    const target = resolve(path)
+    const entries = await options.directory?.(target)
+    if (!entries) return
+    for (const room of [...rooms.values()]) {
+      if (room.showPath !== target) continue
+      const current = rooms.get(room.id)
+      if (current === undefined) continue
+      const legacy = current.items.some(item => item.slot === undefined)
+      const before = new Map(current.items.map(item => [legacy ? item.sourcePath : item.slot, item]))
+      const fresh = []
+      const items = entries.map((entry) => {
+        const prev = before.get(legacy ? entry.path : entry.n)
+        if (entry.path === null) {
+          const waiting = prev !== undefined && prev.sourcePath === null && (prev.status === 'preparing' || prev.status === 'failed')
+          return waiting ? { ...prev, title: entry.title } : slotItem(entry, 'remote')
+        }
+        if (prev !== undefined && prev.sourcePath === entry.path) return { ...prev, title: entry.title, slot: entry.n }
+        fresh.push(entry.n)
+        return slotItem(entry, 'remote')
+      })
+      const playing = current.items[current.index]
+      const index = legacy ? Math.max(0, entries.findIndex(entry => entry.path !== null && entry.path === playing?.sourcePath)) : Math.min(current.index, items.length - 1)
+      commit(wanting({ ...updateItems(current, items), index }))
+      items.forEach((item, at) => { if (fresh.includes(item.slot)) schedulePrepare(room.id, at) })
+    }
+  }
+
+  // ---------------------------------------------------------------- operations
+
+  return {
+    load,
+
+    /**
+     * Create a room.
+     * @param {{ source: 'local' | 'youtube', path?: string, urls?: string[] | string, title?: string, by?: string, fromPanel?: boolean, start?: { index: number, position: number } | null }} input
+     */
+    async createRoom(input) {
+      const source = input.source
+      if (source !== 'local' && source !== 'youtube') throw serviceError('invalid', 'source must be "local" or "youtube"')
+      if (source === 'local' && !delivery.available) throw serviceError('unsupported', delivery.reason)
+      const items = source === 'local' ? await localItems(input.path, input.fromPanel === true) : await youtubeItems(input.urls, { ytDlp: tools.ytDlp, fetchTitle })
+      const id = randomBytes(9).toString('base64url')
+      const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : (source === 'local' ? input.path.split('/').filter(Boolean).pop() : items[0].title))
+      const created = createRoom({ id, title, source, items, createdBy: cleanText(input.by, MAX_NAME), now: now() })
+      const start = input.start
+      const room = {
+        ...created,
+        ...(source === 'local' ? { showPath: resolve(input.path) } : {}),
+        ...(Number.isInteger(start?.index) && start.index >= 0 && start.index < items.length ? { index: start.index, position: Math.max(0, Number(start.position) || 0) } : {}),
+      }
+      commit(wanting(room))
+      observe('opened', { room })
+      // The episode the room starts on first, then the rest in order.
+      const order = room.items.map((_, n) => (n + room.index) % room.items.length)
+      for (const index of order) if (room.items[index].status === 'preparing') schedulePrepare(id, index)
+      if (room.showPath !== undefined) options.focus?.(room.showPath, { retry: true })
+      return { room: summary(rooms.get(id)) }
+    },
+
+    /** Resolves once an item is no longer preparing, or after `timeoutMs`. */
+    waitReady(roomId, index, timeoutMs) {
+      const item = rooms.get(roomId)?.items[index]
+      if (item === undefined || item.status !== 'preparing') return Promise.resolve()
+      return new Promise((resolveWait) => {
+        const key = `${roomId}/${itemKey(item)}`
+        const timer = setTimeout(resolveWait, timeoutMs)
+        if (!waiters.has(key)) waiters.set(key, [])
+        waiters.get(key).push(() => { clearTimeout(timer); resolveWait() })
+      })
+    },
+
+    room(id) {
+      const room = rooms.get(id)
+      return room === undefined ? undefined : { ...summary(room), items: room.items.map(item => ({ title: item.title, status: item.status, error: item.error ?? null })) }
+    },
+
+    listRooms() {
+      const occupied = room => present(room.id).size > 0
+      return [...rooms.values()]
+        .sort((a, b) => Number(occupied(b)) - Number(occupied(a)) || (b.touchedAt ?? b.createdAt) - (a.touchedAt ?? a.createdAt))
+        .map(summary)
+    },
+
+    closeRoom(id) {
+      if (!close(id)) throw serviceError('not_found', 'no such room')
+      return { closed: id }
+    },
+
+    sweep,
+
+    /** Tell the viewers of rooms on a show its new watch progress. */
+    refreshShow(path) {
+      for (const room of rooms.values()) if (room.showPath === path) broadcast(room.id)
+    },
+
+    /** Whether an open room plays anything from `path` (a show folder or file). */
+    usesPath(path) {
+      const target = resolve(path)
+      return [...rooms.values()].some(room => room.showPath === target || room.items.some(item => typeof item.sourcePath === 'string' && (item.sourcePath === target || item.sourcePath.startsWith(`${target}/`))))
+    },
+
+    /** The episode numbers rooms on a show are on, one per room; empty when no room has it open. */
+    focusesOf(path) {
+      const target = resolve(path)
+      return [...rooms.values()].filter(room => room.showPath === target).map(room => room.items[room.index]?.slot).filter(n => n !== undefined)
+    },
+
+    syncShow,
+
+    /** Episodes someone waits on that could not be fetched: show them as failed, so a click on one tries again. */
+    failWaiting(path, message) {
+      const target = resolve(path)
+      for (const room of [...rooms.values()]) {
+        if (room.showPath !== target) continue
+        const items = room.items.map(item => (item.slot !== undefined && item.sourcePath === null && item.status === 'preparing' ? { ...item, status: 'failed', error: message } : item))
+        if (items.some((item, n) => item !== room.items[n])) commit(updateItems(rooms.get(room.id), items))
+      }
+    },
+
+    /** The prepared file of a ready local item. */
+    mediaFile(roomId, index) {
+      const item = rooms.get(roomId)?.items[index]
+      return item?.status === 'ready' && item.kind !== 'youtube' ? { file: item.file, kind: item.kind } : undefined
+    },
+
+    subtitleFile(roomId, index, n) {
+      const item = rooms.get(roomId)?.items[index]
+      return item?.status === 'ready' ? item.subtitles?.[n]?.file : undefined
+    },
+
+    attach,
+    linkFor,
+
+    /** Remove prepared media no open room uses, older than `days`. */
+    pruneCache: days => pruneCache(cacheDir, [...rooms.values()].flatMap(room => room.items.map(item => item.file)), days, now()),
+
+    async dispose() {
+      disposed = true
+      for (const timer of advanceTimers.values()) clearTimeout(timer.id)
+      clearInterval(sweepTimer)
+      clearInterval(progressTimer)
+      for (const set of peers.values()) for (const peer of set) peer.ws.close(1001, 'stopping')
+      peers.clear()
+      if (saveTimer !== null) {
+        clearTimeout(saveTimer)
+        saveTimer = null
+      }
+      await flush().catch(error => logger.warn('could not save rooms: %s', error.message))
+    },
+  }
+}

@@ -1,0 +1,11 @@
+# Bundle layer for dsh-media-hub. The hub row serves the page (search,
+# library, shelves, rooms) and the room sync channel; the tools row gives
+# agents the videosync tool for watch-together rooms. Disable it, or mount
+# `@soffits/dsh-media-hub/tools` in one agent preset instead, to limit who
+# gets the tool.
+- insert:
+    - id: media-hub
+      name: '@soffits/dsh-media-hub'
+      config: {}
+    - id: media-hub-tools
+      name: '@soffits/dsh-media-hub/tools'

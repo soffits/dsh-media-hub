@@ -1,0 +1,308 @@
+/**
+ * Shelves: the books each person fetched, as files they can download again.
+ *
+ * A book is one file per (source, work, format), kept under
+ * `<dir>/files/<key>/` and shared by every shelf that holds it. A shelf entry
+ * is one person's record of it (title, author, cover, when). Files are a
+ * cache under `capBytes`: past it the least recently used go (never one
+ * being fetched), and their entries stay on the shelf as `removed`, to be
+ * fetched again with one tap. Deleting an entry deletes the file once no
+ * shelf holds it.
+ *
+ * A format the source does not have is made with the converter (Calibre's
+ * `ebook-convert`) from the best format it does have, when the converter is
+ * installed; otherwise only the source's own formats are offered.
+ *
+ * `books.json` keeps the shelves and files; it is written whole, through a
+ * temporary file, after every change.
+ */
+import { spawn } from 'node:child_process'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { extname, join } from 'node:path'
+import { convertBase } from './formats.js'
+
+export const BOOK_TYPES = Object.freeze({
+  epub: 'application/epub+zip',
+  pdf: 'application/pdf',
+  txt: 'text/plain; charset=utf-8',
+  azw3: 'application/vnd.amazon.ebook',
+  mobi: 'application/x-mobipocket-ebook',
+  fb2: 'application/x-fictionbook+xml',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  cbz: 'application/vnd.comicbook+zip',
+  djvu: 'image/vnd.djvu',
+})
+
+const STATE_FILE = 'books.json'
+const MAX_ENTRIES = 2000
+const CONVERT_TIMEOUT_MS = 10 * 60_000
+const CONCURRENCY = 2
+const ENTRY = /^[0-9a-f-]{36}$/
+
+const booksError = (code, message) => Object.assign(new Error(message), { code })
+export const fileKey = (source, id, format) => createHash('sha256').update(`${source}\n${id}\n${format}`).digest('hex').slice(0, 24)
+
+/** A `Content-Disposition` that keeps the full name (any script) and gives older clients a plain fallback. */
+export function attachment(name) {
+  const fallback = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_') || 'book'
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name)}`
+}
+
+function sha256Of(path) {
+  return readFile(path).then(body => createHash('sha256').update(body).digest('hex'))
+}
+
+function runConverter(command, input, output) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, [input, output], { stdio: ['ignore', 'ignore', 'pipe'], detached: true })
+    let stderr = ''
+    const timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGTERM') } catch { /* gone */ } }, CONVERT_TIMEOUT_MS)
+    child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-4000) })
+    child.on('error', (error) => { clearTimeout(timer); reject(error) })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      if (code === 0) resolve()
+      else reject(booksError('convert_failed', `conversion failed: ${stderr.trim().split('\n').pop() || `exit ${code}`}`))
+    })
+  })
+}
+
+/**
+ * @param {object} options
+ * @param {string} options.dir - `<stateDir>/books`
+ * @param {Map<string, object>} options.sources - by id; book downloads use `info` and `downloadFile`
+ * @param {number} options.capBytes - the most disk book files may use; 0 for no limit
+ * @param {{ command: string, available: () => Promise<boolean> }} options.converter
+ * @param {{ register: (sourceId: string, url: string) => string | null }} options.covers
+ * @param {{ warn: Function }} options.logger
+ */
+export function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, now = Date.now }) {
+  let state = { files: {}, shelves: {} }
+  let saving = Promise.resolve()
+  const running = new Map()
+  const waiting = []
+  let active = 0
+  let disposed = false
+
+  const save = () => {
+    saving = saving.then(async () => {
+      await mkdir(dir, { recursive: true })
+      const temporary = join(dir, `.${STATE_FILE}.${process.pid}.tmp`)
+      await writeFile(temporary, JSON.stringify(state))
+      await rename(temporary, join(dir, STATE_FILE))
+    }).catch(error => logger.warn('books: could not save the shelves: %s', error.message))
+    return saving
+  }
+
+  const shelf = person => (state.shelves[person] ??= [])
+  const holders = key => Object.values(state.shelves).some(entries => entries.some(entry => entry.file === key))
+
+  function describe(entry) {
+    const file = state.files[entry.file]
+    return {
+      entry: entry.entry,
+      source: entry.source,
+      id: entry.id,
+      format: entry.format,
+      title: entry.title,
+      author: entry.author,
+      cover: entry.cover ? covers.register(entry.source, entry.cover) : null,
+      addedAt: entry.addedAt,
+      state: file?.state ?? 'removed',
+      error: file?.error ?? null,
+      name: file?.name ?? null,
+      bytes: file?.bytes ?? null,
+      converted: file?.converted ?? false,
+    }
+  }
+
+  async function usedBytes() {
+    return Object.values(state.files).filter(file => file.state === 'ready').reduce((sum, file) => sum + (file.bytes ?? 0), 0)
+  }
+
+  /** Remove the least recently used ready files until the cap holds. */
+  async function enforceCap() {
+    if (!(capBytes > 0)) return
+    let total = await usedBytes()
+    const ready = Object.entries(state.files).filter(([key, file]) => file.state === 'ready' && !running.has(key)).sort(([, a], [, b]) => a.usedAt - b.usedAt)
+    for (const [key, file] of ready) {
+      if (total <= capBytes) break
+      await rm(join(dir, 'files', key), { recursive: true, force: true })
+      total -= file.bytes ?? 0
+      state.files[key] = { ...file, state: 'removed', name: null }
+    }
+  }
+
+  /** Fetch one file (download, convert when needed) into `files/<key>/`. */
+  async function fetchFile(key, { source: sourceId, id, format }, signal) {
+    const source = sources.get(sourceId)
+    const work = await source.info(id)
+    const native = (work.formats ?? []).some(entry => entry.format === format) || (work.formats ?? []).length === 0
+    const scratch = join(dir, 'tmp', key)
+    await rm(scratch, { recursive: true, force: true })
+    await mkdir(scratch, { recursive: true })
+    try {
+      let name
+      let converted = false
+      if (native) {
+        name = (await source.downloadFile({ id, format, dir: scratch, signal })).name
+      } else {
+        const base = convertBase(work.formats)
+        if (base === null || !await converter.available()) throw booksError('unsupported', `${work.title || id} is not offered as ${format}`)
+        const downloaded = (await source.downloadFile({ id, format: base, dir: scratch, signal })).name
+        name = `${downloaded.slice(0, downloaded.length - extname(downloaded).length)}.${format}`
+        await runConverter(converter.command, join(scratch, downloaded), join(scratch, name))
+        await rm(join(scratch, downloaded), { force: true })
+        converted = true
+      }
+      const target = join(dir, 'files', key)
+      await rm(target, { recursive: true, force: true })
+      await mkdir(join(dir, 'files'), { recursive: true })
+      await rename(scratch, target)
+      const path = join(target, name)
+      return { name, bytes: (await stat(path)).size, sha256: await sha256Of(path), converted, title: work.title, author: work.author, cover: work.cover }
+    } finally {
+      await rm(scratch, { recursive: true, force: true })
+    }
+  }
+
+  function pump() {
+    while (!disposed && active < CONCURRENCY && waiting.length > 0) {
+      const { key, request } = waiting.shift()
+      active += 1
+      const controller = new AbortController()
+      running.set(key, controller)
+      fetchFile(key, request, controller.signal).then((got) => {
+        state.files[key] = { ...state.files[key], state: 'ready', error: null, name: got.name, bytes: got.bytes, sha256: got.sha256, converted: got.converted, usedAt: now() }
+        for (const entries of Object.values(state.shelves)) {
+          for (const entry of entries) {
+            if (entry.file !== key) continue
+            entry.title ||= got.title ?? ''
+            entry.author ||= got.author ?? ''
+            entry.cover ||= got.cover ?? null
+          }
+        }
+        return enforceCap()
+      }, (error) => {
+        if (disposed) return
+        logger.warn('books: %s:%s as %s failed: %s', request.source, request.id, request.format, error.message)
+        state.files[key] = { ...state.files[key], state: 'failed', error: error.message }
+      }).finally(() => {
+        active -= 1
+        running.delete(key)
+        save()
+        pump()
+      })
+    }
+  }
+
+  function start(key, request) {
+    if (running.has(key) || waiting.some(job => job.key === key)) return
+    state.files[key] = { ...state.files[key], source: request.source, id: request.id, format: request.format, state: 'fetching', error: null }
+    waiting.push({ key, request })
+    pump()
+  }
+
+  return {
+    async load() {
+      try {
+        const loaded = JSON.parse(await readFile(join(dir, STATE_FILE), 'utf8'))
+        if (loaded && typeof loaded.files === 'object' && typeof loaded.shelves === 'object') state = loaded
+      } catch (error) {
+        if (error.code !== 'ENOENT') logger.warn('books: could not read the shelves: %s', error.message)
+      }
+      // A fetch cut by a restart starts again; a file that vanished from disk is marked removed.
+      for (const [key, file] of Object.entries(state.files)) {
+        if (file.state === 'fetching') start(key, file)
+        else if (file.state === 'ready' && !await stat(join(dir, 'files', key, file.name ?? '')).then(info => info.isFile(), () => false)) state.files[key] = { ...file, state: 'removed', name: null }
+      }
+      await rm(join(dir, 'tmp'), { recursive: true, force: true })
+      await this.sweep()
+    },
+
+    /** Folders under files/ that no record names (a crash between a rename and a save) are deleted. */
+    async sweep() {
+      for (const name of await readdir(join(dir, 'files')).catch(() => [])) {
+        if (state.files[name] === undefined) await rm(join(dir, 'files', name), { recursive: true, force: true })
+      }
+    },
+
+    async list(person) {
+      return {
+        entries: shelf(person).map(describe).reverse(),
+        usedBytes: await usedBytes(),
+        capBytes,
+        convert: await converter.available(),
+      }
+    },
+
+    /**
+     * Put a work on a person's shelf in `format` and fetch it unless the file is already here.
+     * @param {string} person
+     * @param {{ source: string, id: string, format: string, title?: string, author?: string, by?: string }} input
+     */
+    async add(person, { source: sourceId, id, format, title = '', author = '', by = '' }) {
+      const source = sources.get(sourceId)
+      if (source === undefined || typeof source.downloadFile !== 'function') throw booksError('not_found', `no source ${sourceId}`)
+      if (typeof id !== 'string' || !/^[^\s\0]{1,200}$/.test(id)) throw booksError('invalid', 'not a work id')
+      if (typeof format !== 'string' || !/^[a-z0-9]{1,8}$/.test(format)) throw booksError('invalid', 'not a format')
+      const key = fileKey(sourceId, id, format)
+      const entries = shelf(person)
+      let entry = entries.find(one => one.file === key)
+      if (entry === undefined) {
+        if (entries.length >= MAX_ENTRIES) throw booksError('invalid', 'this shelf is full; delete some books first')
+        entry = { entry: randomUUID(), file: key, source: sourceId, id, format, title: String(title).slice(0, 300), author: String(author).slice(0, 200), cover: null, addedAt: new Date(now()).toISOString(), by: String(by).slice(0, 80) }
+        entries.push(entry)
+      }
+      const file = state.files[key]
+      if (file?.state === 'ready') state.files[key] = { ...file, usedAt: now() }
+      else start(key, { source: sourceId, id, format })
+      await save()
+      return describe(entry)
+    },
+
+    /** Fetch an entry's file again (it failed, or was removed to save space). */
+    async retry(person, entryId) {
+      const entry = shelf(person).find(one => one.entry === entryId)
+      if (entry === undefined) throw booksError('not_found', 'not on this shelf')
+      if (state.files[entry.file]?.state !== 'ready') start(entry.file, entry)
+      await save()
+      return describe(entry)
+    },
+
+    async remove(person, entryId) {
+      const entries = shelf(person)
+      const index = entries.findIndex(one => one.entry === entryId)
+      if (index === -1) throw booksError('not_found', 'not on this shelf')
+      const [entry] = entries.splice(index, 1)
+      if (!holders(entry.file)) {
+        running.get(entry.file)?.abort()
+        const queued = waiting.findIndex(job => job.key === entry.file)
+        if (queued !== -1) waiting.splice(queued, 1)
+        delete state.files[entry.file]
+        await rm(join(dir, 'files', entry.file), { recursive: true, force: true })
+      }
+      await save()
+      return { removed: entryId }
+    },
+
+    /** The file behind a person's entry, when it is ready. */
+    async file(person, entryId) {
+      if (!ENTRY.test(String(entryId))) return null
+      const entry = shelf(person).find(one => one.entry === entryId)
+      const file = entry === undefined ? undefined : state.files[entry.file]
+      if (file?.state !== 'ready' || !file.name) return null
+      state.files[entry.file] = { ...file, usedAt: now() }
+      save()
+      return { path: join(dir, 'files', entry.file, file.name), name: file.name, type: BOOK_TYPES[entry.format] ?? 'application/octet-stream' }
+    },
+
+    async dispose() {
+      disposed = true
+      waiting.length = 0
+      for (const controller of running.values()) controller.abort()
+      await saving
+    },
+  }
+}

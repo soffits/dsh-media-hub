@@ -1,0 +1,6 @@
+node_modules
+*.tgz
+.tmp/
+test-results/
+.worktrees/
+fanqie_device_state.json

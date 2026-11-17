@@ -1,0 +1,20 @@
+# Queue
+
+- **`src/hub.js` and `src/shows.js` are past 500 lines**: views (public room, summary) and the episode listing could each move to their own module.
+- **Cache refill is not driven by free disk**: a downloads run stops when the disk has under 1 GB free, but the window is not shrunk to fit.
+- **Fanqie search paging and sorting**: the app's search request has an `offset` that, tried once, returned the same works; a working page parameter (or a sort one) would let fanqie-cli answer `next` and sort at the source.
+- **Bilibili by download**: a wrapper script implementing `docs/source-protocol.md` over yt-dlp (through a configurable proxy; a cookies file as a fixed argument in its `command`) and a `sources` entry; nothing to change in the plugin.
+- **Estimated size per kind**: `EPISODE_BYTES` (drama, audio) is keyed by kind names; a source with other kinds gets the drama estimate. A per-kind size in the config would fix it.
+- **HEVC as it is where the browser can**: Safari and Chrome on macOS/Windows decode HEVC; serving the original as a first `<source>` would skip the transcode (and its cache copy) for them, with the H.264 copy for the rest.
+- **Source-formatted words in `meta` values** ("126 min") are shown as the source wrote them; the protocol could carry numbers with a unit instead.
+- **Plex**: copy a library item out through Plex's API into the local pipeline rather than streaming Plex's HLS with a token.
+- **R2 delivery**: upload prepared episodes to an R2 bucket and hand out short-lived presigned URLs (SigV4 query signing); delete after the room closes. `src/delivery.js` has the slot.
+- **Watch beside a conversation**: a right-sidebar tab with the same room view, kept mounted, so playback continues while chatting. The main-column page unmounts (and leaves the room) when another page is opened.
+- **Agent watching along**: let the agent follow a room's state (what is playing, where) through the `mediaHub` service.
+- **YouTube ads** pause one viewer's embed while the other plays; the stall gate covers ads that buffer, an ad that plays (not buffering) is not seen as a stall and is corrected by a seek when it ends.
+- **YouTube readiness**: the embed reports no buffered range, so it counts as ready once loaded; its `videoLoadedFraction` could gate on real buffer.
+- **Hidden tabs**: browsers throttle timers in background tabs to about 1 s, so a viewer whose tab is hidden starts up to a second late and catches up by seek.
+- **Preparing progress for several episodes at once**: episodes prepare one after another, starting with the episode the room opens on; a jump to a late episode waits for the ones queued before it.
+- **A source's name per language**: `label` is one string, so Discover's picker shows it as configured ("Fanqie" or "番茄"); an optional `labels: { zh: "番茄" }` in the `sources` entry would follow the page language.
+- **Other people's pictures**: the avatar stack shows initials for everyone but the signed-in person (the sign-in plugin only tells a browser about itself); sending a picture URL with each viewer's name would need identity plumbing in the sync channel.
+- **Room card frames at the current position**: the preview frame is one per episode (a tenth in), not a frame near where people are.

@@ -1,0 +1,78 @@
+{
+  "name": "@soffits/dsh-media-hub",
+  "version": "0.2.0",
+  "description": "A media hub for DeepSeek Harness: search shows, novels, ebooks and papers across sources, watch together in sync, and download books in the format you want onto your own shelf.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Sakina",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/soffits/dsh-media-hub.git"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "watch-together",
+    "video",
+    "sync",
+    "ebooks",
+    "epub",
+    "novels",
+    "books"
+  ],
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./tools": "./dist/tools.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "client.js",
+    "web/*.js",
+    "web/*.css",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "dist/*",
+    "src/sync.js",
+    "src/youtube-url.js",
+    "src/formats.js"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "for f in index.js tools.js client.js scripts/*.mjs src/*.js src/sources/*.js web/*.js test/*.js test/fixtures/*.mjs; do node --check \"$f\" || exit 1; done",
+    "test": "node --test test/*.test.js",
+    "test:browsers": "node scripts/build.mjs && node test/browsers/run.js",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/schemastery": "^3.19.0",
+    "esbuild": "^0.28.2",
+    "hls.js": "^1.7.4",
+    "playwright-core": "^1.65.1",
+    "ws": "^8.23.0"
+  }
+}
