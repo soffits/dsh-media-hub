@@ -11128,7 +11128,7 @@ var DEFAULT_SOURCES = Object.freeze([
 ]);
 var Config = Schema.object({
   label: Label.default("").description("Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer's tag, then its primary subtag, then en). Empty uses the page's own name in the viewer's language."),
-  libraryRoots: Schema.array(Schema.string()).default([]).description('Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The agent tool can open any path.'),
+  libraryRoots: Schema.array(Schema.string()).default([]).description(`Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The assistant's tool can open any path.`),
   delivery: Schema.union(DELIVERY_MODES.map((mode) => Schema.const(mode))).default("origin").description("Where viewers load local media from. origin: DSH's own web server (through whatever sits in front of DSH). r2: object storage with signed links (not built yet)."),
   stateDir: Schema.string().default(DEFAULT_STATE_DIR).description("Folder for open rooms (rooms.json), the default library folder (library, where downloads go), prepared media (cache), the watch log (watch-log.jsonl) and library notes (shows.json, downloads.json)."),
   maxHeight: Schema.natural().min(240).default(1080).description("Videos taller than this, or in codecs browsers cannot play, are transcoded to H.264 at this height."),
@@ -14042,7 +14042,7 @@ ${item.id}`).digest("hex").slice(0, 8);
       library.setFollow(dir, followStart(info));
       return { path: dir, follow: true };
     },
-    /** The checks of followed works, for tests and for the agent: one show now, or whatever is due. */
+    /** The checks of followed works, for tests and for the assistant: one show now, or whatever is due. */
     checkFollow: (path) => follows.check(path),
     sweepFollows: () => follows.sweep(),
     followsDue: (at) => dueFollows(library.follows(), at),

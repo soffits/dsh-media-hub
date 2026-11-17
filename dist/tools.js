@@ -880,7 +880,7 @@ var HEIGHTS = Object.freeze([2160, 1440, 1080, 720, 480, 360]);
 var name = "dsh-media-hub-tools";
 var inject = ["tools"];
 var Config = Schema.object({
-  agentName: Schema.string().default("").description('Name shown as who opened rooms the agent starts. Empty shows "the agent".'),
+  agentName: Schema.string().default("").description(`Name shown as who opened rooms the assistant starts. Empty shows "the assistant" in the viewer's language.`),
   waitSeconds: Schema.natural().default(120).description("How long start waits for the first episode to be downloaded and prepared before it returns the link.")
 });
 var PARAMETERS = Object.freeze({

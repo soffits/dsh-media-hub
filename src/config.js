@@ -75,7 +75,7 @@ export const Config = z.object({
   label: Label.default('')
     .description('Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer\'s tag, then its primary subtag, then en). Empty uses the page\'s own name in the viewer\'s language.'),
   libraryRoots: z.array(z.string()).default([])
-    .description('Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The assistant's tool can open any path.'),
+    .description('Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The assistant\'s tool can open any path.'),
   delivery: z.union(DELIVERY_MODES.map(mode => z.const(mode))).default('origin')
     .description('Where viewers load local media from. origin: DSH\'s own web server (through whatever sits in front of DSH). r2: object storage with signed links (not built yet).'),
   stateDir: z.string().default(DEFAULT_STATE_DIR)
