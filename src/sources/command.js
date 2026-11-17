@@ -245,7 +245,8 @@ export function filterArgs({ language = '', format = '', yearFrom = null, yearTo
 export function createCommandSource(definition, { logger, cwd }) {
   const { id: sourceId, label, kinds, command, env = {}, filters: understood = [] } = definition
   const kindIds = new Set(kinds.map(kind => kind.id))
-  const name = () => label || sourceId
+  // Messages for logs and errors use one plain name; the page picks the viewer's language from `label` itself.
+  const name = () => (typeof label === 'string' ? label : (label?.en ?? Object.values(label ?? {})[0])) || sourceId
 
   async function workDir() {
     await mkdir(cwd, { recursive: true })
@@ -265,7 +266,7 @@ export function createCommandSource(definition, { logger, cwd }) {
 
   return {
     id: sourceId,
-    label: name(),
+    label: label || sourceId,
     kinds,
     filters: understood,
     available: () => commandExists(command[0]),

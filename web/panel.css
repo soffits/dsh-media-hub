@@ -278,3 +278,36 @@
 .vsync-shelf{margin-top:24px}
 @media (width<=767px){.vsync-filter{flex:1 1 40%}.vsync-filter .vsync-field,.vsync-year{width:100%}.vsync-book .vsync-actions{justify-content:flex-start}}
 @media (pointer:coarse){.vsync-filter .vsync-field,.vsync-formatPick{font-size:16px}}
+/* Covers fill the card's height, cropped from the top; on phones they stay small and fixed (below). */
+@media (width>640px){
+  .vsync-card{align-items:stretch}
+  .vsync-card>.vsync-cover{height:auto;min-height:112px;align-self:stretch;object-position:top}
+  .vsync-card>.vsync-coverSmall{min-height:54px}
+}
+.vsync-filterToggle{display:none}
+.vsync-ask svg{flex:none}
+@media (width<=640px){
+  .vsync-card .vsync-cover{width:64px;height:86px;align-self:start}
+  .vsync-card .vsync-coverSmall{width:48px;height:64px}
+  .vsync-card{grid-template-columns:64px minmax(0,1fr)}
+  .vsync-card .vsync-cardBody>.vsync-tags,.vsync-card .vsync-cardBody>.vsync-blurb{display:none}
+  .vsync-card .vsync-rowMeta{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vsync-card .vsync-rowMeta>span{display:inline}
+  .vsync-card .vsync-cardFoot{flex-direction:row;flex-wrap:wrap;align-items:center}
+  .vsync-card .vsync-cardFoot .vsync-actions{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px}
+  .vsync-card .vsync-cardFoot .vsync-actions>*{flex:1 1 auto}
+  .vsync-card .vsync-cardFoot .vsync-actions .vsync-ask{flex:0 0 40px;padding:0}
+  .vsync-askLabel{display:none}
+  .vsync-card .vsync-cardFoot .vsync-actions .vsync-formatPick{flex:1 1 40%;max-width:none}
+  .vsync-filterToggle{display:inline-flex;margin:0 0 8px}
+  .vsync-filterBox[data-open=false] .vsync-filters{display:none}
+  .vsync-filterBox[data-open=true] .vsync-filters{padding:10px;border-radius:12px;box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l3)}
+}
+/* Touch screens: every control at least 40 px tall. */
+@media (pointer:coarse){
+  .vsync-btn,.vsync-card .vsync-cardFoot .vsync-actions .vsync-btn{min-height:40px;height:auto}
+  .vsync-chip,.vsync-tab,.vsync-seg{min-height:40px;height:40px}
+  .vsync-navTab{height:44px}
+  .vsync-filter .vsync-field,.vsync-formatPick{height:40px}
+  .vsync-metaButton{min-height:40px}
+}

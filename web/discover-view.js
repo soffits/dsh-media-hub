@@ -17,14 +17,14 @@ import { LINK_SOURCE, browserStorage, pickKind, pickSource, readMemory, remember
 import { Result } from './result-card.js'
 import { sortModes, sortResults } from './sort.js'
 import { infoOf } from './details.js'
-import { Icon, Spinner, api, displayName, fill, h, post, query, React } from './ui.js'
+import { Icon, Spinner, api, displayName, fill, h, localized, post, query, React } from './ui.js'
 import { parseYouTube } from './youtube-url.js'
 
 /** A category's name: the page's own translation when it has one, else the label the source's configuration gives. */
 export function kindLabel(t, kind) {
   const key = `kind.${kind.id}`
   const text = t(key)
-  return text && text !== key ? text : kind.label
+  return text && text !== key ? text : localized(kind.label, t)
 }
 
 export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
@@ -44,8 +44,8 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
     return () => latest.current.controller?.abort()
   }, [])
 
-  const sources = React.useMemo(() => withLink(withAll(configured ?? [], t('source.all')), t('source.link')), [configured, t])
-  const sourceOf = id => (configured ?? []).find(one => one.id === id)
+  const sources = React.useMemo(() => withLink(withAll((configured ?? []).map(one => ({ ...one, label: localized(one.label, t) || one.id })), t('source.all')), t('source.link')), [configured, t])
+  const sourceOf = id => sources.find(one => one.id === id)
   const storage = browserStorage()
   const memory = readMemory(storage)
   const source = configured === null ? null : pickSource(sources, nav.source, memory.source)

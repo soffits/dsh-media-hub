@@ -75,6 +75,17 @@ export function profile() {
 
 export const displayName = fallback => profile().then(({ name }) => name || fallback)
 
+/**
+ * A configured name in the viewer's language: a string as it is, or from `{ en, zh, ... }` the viewer's
+ * language, else its primary subtag, else English, else the first one given.
+ */
+export function localized(value, t) {
+  if (typeof value === 'string') return value
+  if (value === null || typeof value !== 'object') return ''
+  const tag = String(t('time.locale') || 'en')
+  return value[tag] ?? value[tag.split('-')[0]] ?? value.en ?? Object.values(value)[0] ?? ''
+}
+
 export const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ''))
 
 export function clock(seconds) {

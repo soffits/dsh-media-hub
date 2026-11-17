@@ -35,6 +35,7 @@ window.__ModuleLoader__.load({
       'source.all': 'All sources',
       'search.sourceFailed': '{source} did not answer: {message}',
       'filter.label': 'Filters',
+      'filter.labelActive': 'Filters ({n})',
       'filter.any': 'Any',
       'filter.language': 'Language',
       'filter.format': 'Format',
@@ -255,6 +256,7 @@ window.__ModuleLoader__.load({
       'source.all': '全部来源',
       'search.sourceFailed': '{source} 没有回应：{message}',
       'filter.label': '筛选',
+      'filter.labelActive': '筛选（{n}）',
       'filter.any': '不限',
       'filter.language': '语言',
       'filter.format': '格式',
@@ -479,8 +481,17 @@ window.__ModuleLoader__.load({
 
     /** Set in apply: opens a new conversation with an editable draft, through the Web UI's workspace service. */
     let startChat = null
-    /** The `label` setting, once the Host answered; empty means the default name in the viewer's language. */
+    /** The `label` setting once the Host answered: a string, or one per language; empty means the default name in the viewer's language. */
     let customLabel = ''
+    /** DSH's locale store (set in apply), so the page renders again when the viewer switches language. */
+    let localeStore = null
+    const activeLanguage = () => localeStore?.getSnapshot().active ?? 'en'
+    const labelFor = (language) => {
+      if (typeof customLabel === 'string') return customLabel
+      return customLabel[language] ?? customLabel[language.split('-')[0]] ?? ''
+    }
+    // Called through the store, never detached: its methods read their own `this`.
+    const subscribeLocale = (listener) => localeStore ? localeStore.subscribe(listener) : () => {}
 
     /** The page's modules, loaded once and handed this page's React. */
     let pageModule
@@ -505,7 +516,10 @@ window.__ModuleLoader__.load({
       history.replaceState(history.state, '', `${location.pathname}${query ? `?${query}` : ''}${location.hash}`)
     }
 
-    function MediaHubPage({ translate: t }) {
+    function MediaHubPage({ translate }) {
+      const language = React.useSyncExternalStore(subscribeLocale, activeLanguage)
+      // A new function per language, so every view that keeps text derived from `t` builds it again.
+      const t = React.useMemo(() => (...args) => translate(...args), [translate, language])
       const [initialRoom] = useState(() => {
         const id = linkedRoom
         linkedRoom = null
@@ -534,13 +548,16 @@ window.__ModuleLoader__.load({
           return () => { for (const dispose of disposers) dispose() }
         }, 'media-hub: dictionaries')
         const t = ctx.locale.bind(NS)
+        localeStore = ctx.locale
         startChat = (prompt) => {
           const workspace = ctx.get('uiWorkspace')
           if (workspace === undefined) return undefined
           return workspace.startSession(undefined, { prompt, whenDraftExists: 'replace' })
         }
         fetch(new URL('media-hub/api/settings', document.baseURI)).then(r => (r.ok ? r.json() : null)).then((settings) => {
-          if (typeof settings?.label === 'string') customLabel = settings.label.trim()
+          const label = settings?.label
+          if (typeof label === 'string') customLabel = label.trim()
+          else if (label !== null && typeof label === 'object') customLabel = label
         }, () => {})
 
         ctx.effect(() => {
@@ -565,7 +582,7 @@ window.__ModuleLoader__.load({
           id: PANEL,
           order: 12,
           locale: NS,
-          label: () => customLabel || t('panel'),
+          label: () => labelFor(activeLanguage()) || t('panel'),
         }, SidebarIcon))
 
         // A link to a room, or to a tab, opens this panel once it is registered.
