@@ -17,7 +17,7 @@
  *   POST   /media-hub/api/library/seen         { path }: the news of a followed show (new season, new episodes) was seen
  *   POST   /media-hub/api/library/refresh      { path }: ask the show's source for its work's details again
  *   POST   /media-hub/api/library/pin           { path, pinned, by? }: keep the whole show offline, or back to the rolling cache
- *   GET    /media-hub/api/settings             { label }: the sidebar entry's configured name
+ *   GET    /media-hub/api/settings             { label, presence }: the sidebar entry's configured name, which parts of Watching show
  *   GET    /media-hub/api/locales              { <tag>: { <key>: text } }: the page's words, one table per locale/<tag>.json
  *   GET    /media-hub/api/sources              searchable sources, their kinds (with media) and filters
  *   GET    /media-hub/api/search?source=&q=&kind=[&offset=][&language=&format=&yearFrom=&yearTo=&maxMb=]   { results, next, failed? }; source `all` asks every source with the kind
@@ -208,7 +208,7 @@ export const errorBody = error => ({ error: { code: error?.code ?? 'error', ...(
  * The HTTP handler for everything under /media-hub.
  * @param {{ connection: object, service: () => object | undefined }} options - `service` answers the running room service
  */
-export function createHandler({ connection, service, label = () => '', localeDir = LOCALE_DIR, logger }) {
+export function createHandler({ connection, service, settings = () => ({ label: '', presence: {} }), localeDir = LOCALE_DIR, logger }) {
   /** Read once per start: the files ship with the plugin. */
   let locales
   return async (req, res) => {
@@ -267,7 +267,7 @@ export function createHandler({ connection, service, label = () => '', localeDir
         if (route === 'POST library/seen') return sendJson(res, 200, hub.dismissNews((await readJson(req)).path))
         if (route === 'POST library/refresh') return sendJson(res, 200, { work: await hub.refreshWork((await readJson(req)).path) })
         if (route === 'POST library/cancel') return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path))
-        if (route === 'GET settings') return sendJson(res, 200, { label: label() })
+        if (route === 'GET settings') return sendJson(res, 200, settings())
         if (route === 'GET locales') return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)))
         if (route === 'GET sources') return sendJson(res, 200, { sources: await hub.sources() })
         if (route === 'GET search') return sendJson(res, 200, await hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query)))

@@ -24,6 +24,7 @@ import { basename, dirname, extname, join, resolve } from 'node:path'
 import { episodeNumber, isSourced, keyOf, noteFor, numbersOf, slotsOf, titleOf } from './episodes.js'
 import { isAudio, isMedia, matchSubtitles, naturalSort } from './library.js'
 import { dropPrepared, preparedBytes } from './prepare.js'
+import { safeRecap } from './presence.js'
 import { isNearEnd } from './watchlog.js'
 
 const DAY_MS = 86_400_000
@@ -247,6 +248,8 @@ export function createLibrary(options) {
     const entry = record(path)
     const slots = slotsOf(entry, files ?? [])
     if (names.length === 0 && state === null && !isSourced(entry)) return null
+    const resume = resumeFrom(path, slots)
+    const finished = slots.filter(slot => (entry.finished ?? []).some(name => keyOf(entry, name) === slot.key)).length
     return {
       path,
       name: basename(path),
@@ -268,8 +271,12 @@ export function createLibrary(options) {
       newEpisodes: entry.newEpisodes ?? null,
       group: entry.group ?? null,
       deletesAt: deletesAt(path),
-      resume: resumeFrom(path, slots),
-      finished: slots.filter(slot => (entry.finished ?? []).some(name => keyOf(entry, name) === slot.key)).length,
+      resume,
+      finished,
+      // Written from outside (src/presence.js); the recap only once the viewers are past what it covers.
+      recap: safeRecap(entry.recap ?? null, resume ? resume.index : finished),
+      steps: entry.steps ?? null,
+      stepsStarted: entry.stepsStarted ?? {},
       stops: otherStops(path, slots),
       inUse: inUse(path),
       download: state,
@@ -423,6 +430,20 @@ export function createLibrary(options) {
     },
     /** What a check found: a new season (on the new show) or more episodes (on this one); cleared when someone looks. */
     mark: (path, patch) => update(path, patch),
+    /** Keep what the outside writes about a show (src/presence.js parseAnnotation); new steps start unpressed. */
+    annotate(path, annotation) {
+      const target = requireShow(path)
+      update(target, { ...annotation, ...(annotation.steps !== undefined ? { stepsStarted: {} } : {}) })
+      return target
+    },
+    /** A suggested step was started; returns false for a step the show doesn't have. */
+    stepStarted(path, id) {
+      const target = requireShow(path)
+      const entry = record(target)
+      if (!(entry.steps ?? []).some(step => step.id === id)) return false
+      update(target, { stepsStarted: { ...entry.stepsStarted, [id]: now() } })
+      return true
+    },
     dismiss: path => update(requireShow(path), { newSeason: null, newEpisodes: null }),
     /** More episodes in a show's work than it had: its total grows, the rolling cache takes it from there. */
     setEpisodes(path, episodes) {

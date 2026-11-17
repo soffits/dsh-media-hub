@@ -20,6 +20,7 @@ import { ALL_SOURCES, EPISODE_BYTES, describeSources } from './sources/index.js'
 import { isQuality } from './sources/link.js'
 import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
+import { createPicks, parseAnnotation, pendingRatings, ratingLine } from './presence.js'
 import { snapshotOf } from './work.js'
 
 const HOUR_MS = 3_600_000
@@ -41,6 +42,7 @@ const hubError = (code, message) => Object.assign(new Error(message), { code })
  * @param {{ pauseMs?: number, random?: () => number }} [options.follow] - pacing of the checks of followed works (tests)
  * @param {number} [options.backfillPauseMs] - pause between asking a source for the details of shows saved without them
  * @param {number} options.coverCacheBytes - the most disk cover pictures may use
+ * @param {{ command: string[], env?: object }} [options.recommender] - where picks come from (src/presence.js)
  * @param {{ ahead: number, behind: number, capBytes: number }} options.cache - the rolling cache's window (episodes ahead of and behind where people are) and its cap in bytes (0 for none)
  */
 export function createMediaHub(options) {
@@ -89,6 +91,15 @@ export function createMediaHub(options) {
   library.onChange((show) => {
     rooms.refreshShow(show)
     cache.refresh(show).catch(() => {})
+  })
+  const picks = createPicks({
+    command: options.recommender?.command ?? [],
+    env: options.recommender?.env ?? {},
+    cwd: stateDir,
+    hasSource: id => sources.has(id),
+    decorate: pick => ({ ...pick, work: covers.decorate(pick.work.source, pick.work) }),
+    logger,
+    now,
   })
   const sweepTimer = setInterval(() => {
     library.sweep().catch(() => {})
@@ -240,6 +251,30 @@ export function createMediaHub(options) {
     linkFor: id => rooms.linkFor(id),
     sweep: () => rooms.sweep(),
     pruneCache: days => rooms.pruneCache(days),
+
+    // ---------------------------------------------------------- presence (src/presence.js)
+
+    /** Finished or removed shows this person hasn't said how they found. */
+    async pendingRatings(person) {
+      const [list, events] = await Promise.all([library.list(), log.read()])
+      return pendingRatings({ shows: list.shows, events, person: person.key, now: now() })
+    },
+    async rate(input, person) {
+      await log.append('rating', ratingLine(input, person))
+      return { ok: true }
+    },
+    picks: person => picks.list(person),
+    /** Keep a recap or suggested steps with a show (the tool's annotate). */
+    annotate(path, input) {
+      const show = library.annotate(path, parseAnnotation(input))
+      return { ok: true, show }
+    },
+    async startStep(path, id, person) {
+      const show = library.showPath(path)
+      if (show === null || !library.stepStarted(show, id)) throw hubError('not_found', 'no such step')
+      await log.append('step.started', { show, title: library.workOf(show)?.title ?? '', step: id, person: person.key, by: person.name })
+      return { ok: true }
+    },
 
     // ---------------------------------------------------------- library
 

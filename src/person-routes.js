@@ -5,8 +5,12 @@
  * `cookies` setting), and a room they open uses it for everyone in it.
  *
  *   GET  /api/media-hub/info?source=&id=[&language=]   a work's details, with the account its site would be read with
- *   POST /api/media-hub/fetch   { source, id, watch, all, quality, language, by }: into the library (the rolling cache's window, or the whole show with `all`), or watch now
+ *   POST /api/media-hub/fetch   { source, id, watch, together, all, quality, language, by }: into the library (the rolling cache's window, or the whole show with `all`), or watch now (`together`: open to others at once)
  *   POST /api/media-hub/rooms   { path, title, by, start }: open a room on a library show
+ *   GET  /api/media-hub/ratings                { pending }: finished or removed shows to ask this person about
+ *   POST /api/media-hub/ratings  { show, title, rating }: their answer, into the watch log
+ *   GET  /api/media-hub/picks                  { picks }: the recommender's picks for this person
+ *   POST /api/media-hub/steps    { path, id }: a show's suggested step was started
  *
  * `language` is the viewer's, for choosing subtitles.
  */
@@ -62,7 +66,7 @@ export function createPersonRoutes({ hub, identity }) {
       requestBody: 'buffered',
       fetch: handle(async (request, current, person) => {
         const input = await body(request)
-        return current.fetch({ ...pick(input, ['source', 'id', 'watch', 'all', 'quality', 'by']), language: text(input.language), person: person.id })
+        return current.fetch({ ...pick(input, ['source', 'id', 'watch', 'together', 'all', 'quality', 'by']), language: text(input.language), person: person.id })
       }),
     },
     {
@@ -70,6 +74,29 @@ export function createPersonRoutes({ hub, identity }) {
       methods: ['POST'],
       requestBody: 'buffered',
       fetch: handle(async (request, current, person) => current.createRoom({ ...pick(await body(request), ['path', 'title', 'by', 'start']), fromPanel: true, person: person.id })),
+    },
+    {
+      path: `${PERSON_PATH}/ratings`,
+      methods: ['GET', 'POST'],
+      requestBody: 'buffered',
+      fetch: handle(async (request, current, person) => (request.method === 'GET'
+        ? { pending: await current.pendingRatings(person) }
+        : current.rate(await body(request), person))),
+    },
+    {
+      path: `${PERSON_PATH}/picks`,
+      methods: ['GET'],
+      requestBody: 'buffered',
+      fetch: handle(async (request, current, person) => ({ picks: await current.picks(person) })),
+    },
+    {
+      path: `${PERSON_PATH}/steps`,
+      methods: ['POST'],
+      requestBody: 'buffered',
+      fetch: handle(async (request, current, person) => {
+        const input = await body(request)
+        return current.startStep(text(input.path), text(input.id), person)
+      }),
     },
   ]
 }

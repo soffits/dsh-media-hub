@@ -70,11 +70,22 @@ window.__ModuleLoader__.load({
       import(web('i18n.js')),
     ])
 
-    /** The page's modules, loaded once and handed this page's React. */
+    /** DSH's own components, shared through the page's module table. */
+    const primitives = require('@deepseek-ai/dsh-client-ui-primitives')
+    /** The shared kit (ctx.uiKit), once it is there; the page waits for it. */
+    let kit = null
+    const kitListeners = new Set()
+    const kitStore = {
+      set(value) { kit = value; for (const listener of kitListeners) listener() },
+      subscribe(listener) { kitListeners.add(listener); return () => { kitListeners.delete(listener) } },
+      get: () => kit,
+    }
+
+    /** The page's modules, loaded once and handed this page's React, DSH's components and the kit. */
     let pageModule
     const loadPage = () => {
       pageModule ??= Promise.all([import(web('ui.js')), import(web('page.js'))]).then(([ui, page]) => {
-        ui.init(React)
+        ui.init(React, { primitives, kit })
         ui.setChat(chat)
         return page
       })
@@ -105,14 +116,16 @@ window.__ModuleLoader__.load({
       })
       const [page, setPage] = useState(null)
       const [error, setError] = useState(null)
+      const ready = React.useSyncExternalStore(kitStore.subscribe, kitStore.get) !== null
       useEffect(() => {
+        if (!ready) return undefined
         let live = true
         loadPage().then(module => { if (live) setPage(module) }, (reason) => {
           pageModule = undefined
           if (live) setError(reason.message)
         })
         return () => { live = false }
-      }, [])
+      }, [ready])
       return h('div', { className: 'vsync-page' },
         page !== null && h(page.Page, { t, initialRoom }),
         error && h('p', { className: 'vsync-error', role: 'alert', style: { padding: 24 } }, error))
@@ -124,6 +137,12 @@ window.__ModuleLoader__.load({
         const t = ctx.locale.bind(NS)
         localeStore = ctx.locale
         sourceName = () => t('panel')
+        ctx.inject(['uiKit'], (scope) => {
+          scope.effect(() => {
+            kitStore.set(scope.uiKit)
+            return () => kitStore.set(null)
+          }, 'media-hub: kit')
+        })
         ctx.inject(['uiActions'], (scope) => {
           scope.effect(() => {
             uiActions = scope.uiActions

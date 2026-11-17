@@ -56,6 +56,7 @@ export function apply(ctx, config) {
         converter: { command: config.converter, available: () => (config.converter === '' ? Promise.resolve(false) : commandExists(config.converter)) },
       },
       notifyCommand: config.notifyCommand,
+      recommender: config.recommender,
       cache: { ahead: config.cacheAhead, behind: config.cacheBehind, capBytes: config.cacheLimitGb * 1e9 },
       logger,
     })
@@ -77,7 +78,7 @@ export function apply(ctx, config) {
     const disposeHttp = ctx.webServer.register({
       kind: 'prefix',
       path: ROUTE,
-      handler: createHandler({ connection: ctx.connection, service: () => current, label: () => config.label, logger }),
+      handler: createHandler({ connection: ctx.connection, service: () => current, settings: () => ({ label: config.label, presence: config.presence }), logger }),
     })
     const disposeUpgrade = ctx.webServer.registerUpgrade({
       path: WS_PATH,

@@ -95,6 +95,24 @@ const DEFAULT_SOURCES = Object.freeze([
   },
 ])
 
+const Presence = z.object({
+  continue: z.boolean().default(true)
+    .description('The Continue card at the top of Watching: the show someone is in or last watched, its episodes and joining it.'),
+  recap: z.boolean().default(false)
+    .description('"So far" on the Continue card: a summary without spoilers kept with the show, written from outside through the tool (annotate). Shown only to viewers past the episodes it covers.'),
+  ratings: z.boolean().default(false)
+    .description('"How was it?": asks once about a show watched to the end or removed in the last two weeks; one tap writes a rating line to the watch log.'),
+  picks: z.boolean().default(false)
+    .description('Picks: works the recommender command suggests, each with its reason, to watch together or follow. Needs `recommender`.'),
+})
+
+const Recommender = z.object({
+  command: z.array(z.string()).default([])
+    .description('A command speaking docs/recommender-protocol.md (program and fixed arguments, the plugin adds the verbs). Empty means no picks.'),
+  env: z.dict(z.string()).default({})
+    .description('Extra environment variables for the command.'),
+})
+
 export const Config = z.object({
   label: Label.default('')
     .description('Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer\'s tag, then its primary subtag, then en). Empty uses the page\'s own name in the viewer\'s language.'),
@@ -132,6 +150,10 @@ export const Config = z.object({
     .description('Calibre\'s ebook-convert command. When it is installed, books can be downloaded in formats their source does not have (converted from the best one it has). Empty turns conversion off.'),
   notifyCommand: z.array(z.string()).default([])
     .description('A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run.'),
+  presence: Presence.default({ continue: true, recap: false, ratings: false, picks: false })
+    .description('What the Watching tab shows besides the open rooms and the library. Each part can be switched on or off.'),
+  recommender: Recommender.default({ command: [], env: {} })
+    .description('Where picks come from: a recommender extension. The hub has no taste of its own.'),
   ffmpeg: z.string().default('ffmpeg').description('ffmpeg command.'),
   ffprobe: z.string().default('ffprobe').description('ffprobe command.'),
   ytDlp: z.string().default('yt-dlp')

@@ -10,13 +10,22 @@ export let React
 export let h
 /** What the page knows of the library and the open rooms (web/known.js): set by Page, read anywhere a work is shown. */
 export let Known
+/** DSH's own components (@deepseek-ai/dsh-client-ui-primitives): Button, Tag, StateDot, SegmentedTabs, icons. */
+export let P
+/** The shared kit (@soffits/dsh-ui-kit, ctx.uiKit): Surface, Segments, Tile, Icon, TimeAgo, Suggested, TOUCH. */
+export let K
 
-/** Called once by client.js with the page's React before any view renders. */
-export function init(react) {
+/** Called once by client.js with the page's React, DSH's components and the kit before any view renders. */
+export function init(react, { primitives, kit }) {
   React = react
   h = react.createElement
+  P = primitives
+  K = kit
   Known = react.createContext({ library: null, rooms: undefined, reload: () => {} })
 }
+
+/** DSH's Button with a phone-sized target: `variant` outline (default), primary or ghost. */
+export const Btn = ({ variant = 'outline', className, ...rest }) => h(P.Button, { variant, className: className ? `${K.TOUCH} ${className}` : K.TOUCH, ...rest })
 
 export const base = () => new URL('media-hub/', document.baseURI)
 export const LINK_PARAM = 'media-room'
