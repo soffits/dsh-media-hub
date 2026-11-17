@@ -55,7 +55,7 @@ function Home({ t, nav, go, onOpen, rooms, library, load }) {
         h('h1', null, t('title')),
         h('p', { className: 'vsync-note' }, t('note'))),
       h(P.SegmentedTabs, {
-        className: 'vsync-tabs',
+        className: 'vsync-pageTabs',
         label: t('title'),
         value: nav.tab,
         onChange: tab => go({ tab }),
