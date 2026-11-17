@@ -9,6 +9,8 @@ import { pick } from './i18n.js'
 
 export let React
 export let h
+/** How many times each kind of change (`shelf`) has been announced by the plugin's change stream: a view re-reads when its count moves. */
+export let Changes
 /** What the page knows of the library and the open rooms (web/known.js): set by Page, read anywhere a work is shown. */
 export let Known
 /** DSH's own components (@deepseek-ai/dsh-client-ui-primitives): Button, Tag, StateDot, SegmentedTabs, icons. */
@@ -22,6 +24,7 @@ export function init(react, { primitives, kit }) {
   h = react.createElement
   P = primitives
   K = kit
+  Changes = react.createContext({ shelf: 0 })
   Known = react.createContext({ library: null, rooms: undefined, reload: () => {} })
 }
 
@@ -30,7 +33,6 @@ export const Btn = ({ variant = 'outline', size = 'sm', className, ...rest }) =>
 
 export const base = () => new URL('media-hub/', document.baseURI)
 export const LINK_PARAM = 'media-room'
-export const POLL_MS = 4000
 
 /** The page's words for failures, set by the page whenever its language changes (`setWords`). */
 let words = null

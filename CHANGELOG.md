@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+
+- The page no longer polls. The plugin tells open pages when something they show changes (a watch-state write, a refreshed copy of a show's details, a download landing or progressing, a room opening, closing or changing, a book on the shelf), over a Server-Sent Events stream, and the page re-reads then, and once whenever the stream connects or reconnects. Before, the library and rooms were re-read every 4 seconds and the shelf every 2 seconds while a book was fetching.
+
 ## 0.7.1
 
 - Opening the page no longer waits on the sources. Each show's details (title, blurb, score, related works, episode titles, cover) come from the copy saved with it, at once, as before 0.7.0. A copy that is missing (a show just added) or about a day old is refreshed from its source in the background, a couple of requests at a time and never for a source that just failed, and the new details show on the next look. A copy over a week old says when it was saved.
