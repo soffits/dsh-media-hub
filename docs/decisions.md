@@ -120,6 +120,9 @@
 - **Saving to the device is a link the person taps**, not an automatic download after the fetch: phones only treat a download they started as theirs (iOS hands an epub to Apple Books).
 - **The state folder is not moved on the rename**: shows and the watch log name files by absolute path, so an existing `videosync` folder is used where it is.
 - **The assistant's tool keeps the name `videosync`**: renaming it would remove a tool from running sessions.
+- **Discover's feed is dated local copies, asked again in the background when someone looks and the copy is about a day old** (src/copies.js): a source's trending lists and a person's picks are outside facts that change slowly and sit behind slow or rate-limited sites, so the page renders the saved copy at once, a missing copy shows a loading state until the change signal brings it, a failed ask is left alone for an hour with the old copy kept, and no timer asks on its own. The same store serves the Watching tab's picks, which used to be asked for while the page waited.
+- **Trending is a source verb, picks are the recommender's, and the two never mix**: what a site itself offers is the site's one piece of data (`trending`, declared per kind with `"trending": true`, so a source without it, such as Link, shows nothing); what suits a person is the recommender's, asked per source and kind (`--source`, `--kind`, `--language`) so Discover can follow the category and each pick's reason is written in the reader's language. Under All sources picks are interleaved and each source's lists stay under its own name, since ranks of different sites do not merge.
+- **The bookfetch source has no Open Library trending**: its trending lists hold almost only lend-only titles, which bookfetch never downloads; the lists it answers are Gutenberg's most downloaded and Standard Ebooks' new releases, all public files. Papers have none.
 
 ## Points extras
 

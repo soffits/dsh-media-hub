@@ -6,7 +6,7 @@
  */
 import { Picture } from './details.js'
 import { FollowButton } from './follow.js'
-import { Btn, Icon, K, P, React, asPerson, asPersonPaying, displayName, fillNodes, h } from './ui.js'
+import { Btn, Changes, Icon, K, P, React, asPerson, asPersonPaying, displayName, fillNodes, h, query } from './ui.js'
 
 /** The answers, in order, with the icon each one shows (DSH's own where it has one). */
 const ANSWERS = [
@@ -89,7 +89,8 @@ function PickCard({ t, pick, onOpen, onOpenWork }) {
 }
 
 export function PicksSection({ t, on, onOpen, onOpenWork }) {
-  const [picks] = usePersonList(on, 'picks', 'picks', 0)
+  const { discover } = React.useContext(Changes)
+  const [picks] = usePersonList(on, `picks?${query({ language: t.language })}`, 'picks', discover)
   if (!picks || picks.length === 0) return null
   return h(Section, { id: 'vsync-picks', title: t('picks.heading'), hint: t('picks.hint') },
     h('ul', { className: 'vsync-cards vsync-pickGrid' }, picks.map(pick => h(PickCard, { key: `${pick.work.source}:${pick.work.id}`, t, pick, onOpen, onOpenWork }))))
