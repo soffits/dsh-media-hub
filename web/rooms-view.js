@@ -9,7 +9,7 @@ import { Btn, Confirm, Icon, K, P, api, copyText, fill, h, React, roomLink, time
 function meta(t, room) {
   const parts = []
   if (room.episodes > 1) parts.push(fill(t('rooms.episode'), { n: room.index + 1, total: room.episodes }))
-  if (room.current && room.current !== room.title) parts.push(room.current)
+  if (room.episodes > 1 && room.current && room.current !== room.title) parts.push(room.current)
   if (room.members.length === 0) {
     if (room.emptySince) parts.push(fill(t('rooms.emptySince'), { time: time(t, room.emptySince) }))
     else if (room.opened === false) parts.push(t('rooms.unopened'))

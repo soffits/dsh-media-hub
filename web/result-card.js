@@ -7,8 +7,9 @@
 import { ChatButton } from './books-view.js'
 import { Cover, WorkDetails, glance, infoOf } from './details.js'
 import { FollowButton } from './follow.js'
+import { hasEpisodes, resumeLabel } from './format.js'
 import { useKnownWork } from './known.js'
-import { Confirm, EPISODE_BYTES, Icon, React, Spinner, asPerson, bytes, chatAbout, displayName, fill, h } from './ui.js'
+import { Confirm, EPISODE_BYTES, Icon, React, Spinner, asPerson, bytes, chatAbout, clock, displayName, fill, h } from './ui.js'
 
 /** Episodes fetched ahead of the one being watched; the Host's `cacheAhead` default, for the size hint. */
 const WINDOW_EPISODES = 6
@@ -79,16 +80,16 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
     actions = h(React.Fragment, null,
       h('span', { className: 'vsync-badge vsync-badgeHere' }, t(show.pinned ? 'search.offline' : 'search.inLibrary')),
       h(FollowButton, { t, source: source.id, work: result }),
-      !show.pinned && show.sourced && show.episodes < show.total && h('button', { type: 'button', className: 'vsync-btn', title: t('search.saveAllHint'), onClick: () => setState({ step: 'confirm' }) }, t('search.saveAll')),
+      !show.pinned && show.sourced && hasEpisodes(show.total) && show.episodes < show.total && h('button', { type: 'button', className: 'vsync-btn', title: t('search.saveAllHint'), onClick: () => setState({ step: 'confirm' }) }, t('search.saveAll')),
       room !== null
         ? h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => onOpen(room.id) }, t('search.joinRoom'))
-        : h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => fetchIt({ watch: true }) }, resume ? fill(t('search.continueEp'), { n: resume.index + 1 }) : t('search.open')))
+        : h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => fetchIt({ watch: true }) }, resume ? resumeLabel(t, { count: show.total ?? show.episodes, n: resume.index + 1, position: resume.position, at: clock(resume.position) }) : t('search.open')))
   } else {
     actions = h(React.Fragment, null,
       result.account && h('span', { className: 'vsync-account', title: t('link.accountHint') }, fill(t('link.account'), { name: result.account.name })),
       qualities.length > 1 && h(QualityPicker, { t, qualities, value: quality, onChange: setQuality }),
       h(FollowButton, { t, source: source.id, work: result }),
-      h('button', { type: 'button', className: 'vsync-btn', disabled: episodes === null, title: t('search.saveAllHint'), onClick: () => setState({ step: 'confirm' }) }, t('search.saveAll')),
+      hasEpisodes(result.episodes) && h('button', { type: 'button', className: 'vsync-btn', disabled: episodes === null, title: t('search.saveAllHint'), onClick: () => setState({ step: 'confirm' }) }, t('search.saveAll')),
       h('button', { type: 'button', className: 'vsync-btn', title: fill(t('search.saveHint'), { n: WINDOW_EPISODES }), onClick: () => fetchIt({ watch: false }) }, t('search.save')),
       h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => fetchIt({ watch: true }) }, t('search.watch')))
   }

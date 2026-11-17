@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- A film, one video or a single link no longer talks about episodes. It gets no episode list, strip or "Episode 1 of 1", and its buttons say *Play*, *Continue at 12:34* or *Join Ana*, in the Continue card, Discover, the library, the room's side panel and the watch log the tool reads. Episode words show from two episodes on.
+- "Preparing…" and "could not be prepared" no longer say "this episode".
+
 ## 0.6.0
 
 - A new Watching tab. At the top, a card for the show someone is in now, or the one you watched last, over its blurred cover: who is in the room, the title, where it stands, a strip of its episodes (watched, now, on disk), and *Join … · episode n*, or *Continue* alone (still the default) with *Watch together* beside it, the room's link and *Ask*. Below it, news from followed works, the shared rooms as cards, and the other shows you started.

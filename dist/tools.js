@@ -6788,13 +6788,14 @@ function ranges(numbers) {
   return out.map(([a, b]) => a === b ? String(a) : `${a}-${b}`).join(", ");
 }
 function historyView(entry) {
+  const single = entry.episodes === 1;
   return {
     title: entry.title,
     with: entry.with,
     from: entry.from,
     to: entry.to,
-    finished: ranges(entry.episodesFinished),
-    stopped: Object.fromEntries(Object.entries(entry.stoppedAt).map(([viewer, at]) => [viewer, at.finished ? `finished ep ${at.episode}` : `ep ${at.episode} at ${clock(at.position)}`]))
+    finished: single ? entry.episodesFinished.length > 0 ? "yes" : "no" : ranges(entry.episodesFinished),
+    stopped: Object.fromEntries(Object.entries(entry.stoppedAt).map(([viewer, at]) => [viewer, single ? at.finished ? "finished" : `at ${clock(at.position)}` : at.finished ? `finished ep ${at.episode}` : `ep ${at.episode} at ${clock(at.position)}`]))
   };
 }
 function libraryView(library) {
@@ -6876,6 +6877,7 @@ export {
   PARAMETERS,
   apply,
   createTool,
+  historyView,
   inject,
   name,
   ranges

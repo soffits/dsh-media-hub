@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { formatCount, metaLabel, popularityText } from '../web/format.js'
+import { formatCount, hasEpisodes, metaLabel, popularityText, resumeLabel, stoppedText } from '../web/format.js'
 
 const words = {
   'pop.plays': '{n}次播放',
@@ -32,4 +32,24 @@ test('a meta row uses the panel\'s word for a key it knows, else the source\'s l
   assert.equal(metaLabel(zh, { key: 'cast', label: 'Cast', value: 'x' }), '演员')
   assert.equal(metaLabel(zh, { key: 'region', label: 'Region', value: 'x' }), 'Region')
   assert.equal(metaLabel(zh, { key: '', label: 'Anything', value: 'x' }), 'Anything')
+})
+
+test('a film, one video or a single link is spoken of without episodes; from two on, with them', () => {
+  const t = key => ({
+    'continue.join': 'Join {names} · episode {n}', 'continue.joinOne': 'Join {names}', 'continue.continue': 'Continue · episode {n}',
+    'continue.continueAt': 'Continue at {time}', 'continue.play': 'Play',
+    'library.continueFrom': 'continue from ep {n}', 'library.continueFromAt': 'continue from ep {n} at {time}', 'library.continueAt': 'continue at {time}',
+  })[key]
+  assert.equal(hasEpisodes(1), false)
+  assert.equal(hasEpisodes(null), false)
+  assert.equal(hasEpisodes(2), true)
+  assert.equal(hasEpisodes(null, 3), true, 'a later episode means there are several, even without a count')
+  assert.equal(resumeLabel(t, { count: 1, n: 1, position: 0 }), 'Play')
+  assert.equal(resumeLabel(t, { count: 1, n: 1, position: 754, at: '12:34' }), 'Continue at 12:34')
+  assert.equal(resumeLabel(t, { count: 1, n: 1, names: 'Ana' }), 'Join Ana')
+  assert.equal(resumeLabel(t, { count: 24, n: 7, position: 10, at: '0:10' }), 'Continue · episode 7')
+  assert.equal(resumeLabel(t, { count: 24, n: 7, names: 'Ana' }), 'Join Ana · episode 7')
+  assert.equal(stoppedText(t, { count: 1, n: 1, position: 2 }), null)
+  assert.equal(stoppedText(t, { count: 1, n: 1, position: 754, at: '12:34' }), 'continue at 12:34')
+  assert.equal(stoppedText(t, { count: 9, n: 3, position: 754, at: '12:34' }), 'continue from ep 3 at 12:34')
 })

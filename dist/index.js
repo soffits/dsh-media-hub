@@ -13835,11 +13835,12 @@ function createWatchLog({ file, now = Date.now, logger }) {
       const at = Date.parse(event.at);
       if (!(at >= since) || event.title === void 0 || !isWatching(event.type)) continue;
       const key = event.show ?? `title:${event.title}`;
-      if (!shows.has(key)) shows.set(key, { title: event.title, show: event.show ?? null, firstAt: at, lastAt: at, viewers: /* @__PURE__ */ new Set(), finished: /* @__PURE__ */ new Map(), stopped: /* @__PURE__ */ new Map() });
+      if (!shows.has(key)) shows.set(key, { title: event.title, show: event.show ?? null, firstAt: at, lastAt: at, viewers: /* @__PURE__ */ new Set(), finished: /* @__PURE__ */ new Map(), stopped: /* @__PURE__ */ new Map(), episodes: 0 });
       const entry = shows.get(key);
       entry.lastAt = at;
       entry.title = event.title;
       for (const viewer of event.viewers ?? (event.viewer ? [event.viewer] : [])) entry.viewers.add(viewer);
+      if (Number.isInteger(event.episode?.of)) entry.episodes = Math.max(entry.episodes, event.episode.of);
       if (event.type === "episode.finished") entry.finished.set(event.episode.index, event.episode.title);
       if (event.type === "position" || event.type === "episode.started" || event.type === "episode.finished") {
         const position = event.type === "position" ? event.position : event.type === "episode.finished" ? event.duration ?? null : 0;
@@ -13854,6 +13855,7 @@ function createWatchLog({ file, now = Date.now, logger }) {
       with: [...entry.viewers],
       from: new Date(entry.firstAt).toISOString(),
       to: new Date(entry.lastAt).toISOString(),
+      episodes: entry.episodes || null,
       episodesFinished: [...entry.finished.keys()].sort((a, b) => a - b).map((index) => index + 1),
       stoppedAt: Object.fromEntries([...entry.stopped].map(([viewer, where]) => [viewer, { ...where, position: where.position === null ? null : Math.round(where.position) }]))
     }));
@@ -13865,7 +13867,7 @@ function createWatchLog({ file, now = Date.now, logger }) {
 function createJournal({ log, library, now = Date.now }) {
   const started = /* @__PURE__ */ new Map();
   const base = (room) => ({ room: room.id, title: room.title, show: room.showPath ?? null });
-  const episodeOf = (room, index) => ({ index, title: room.items[index]?.title ?? "" });
+  const episodeOf = (room, index) => ({ index, title: room.items[index]?.title ?? "", of: room.items.length });
   const durationOf = (room, index) => room.items[index]?.duration ?? null;
   const fileOf = (room, index) => room.items[index]?.sourcePath ?? null;
   function position(room, index, at, viewers) {

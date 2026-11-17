@@ -16,7 +16,7 @@
  *   { type: 'step.started',     show, title, step, person, by }     a suggested next step was started
  *
  * `show` is the path the room plays (a library show, or a file or folder), `title` the
- * room's title, `episode` { index, title }. `position` lines are written when
+ * room's title, `episode` { index, title, of } (`of`: how many the room has). `position` lines are written when
  * a viewer leaves, when the room moves to another episode, when it closes and
  * every few minutes while it plays, so the last one per viewer and episode
  * says where they stopped.
@@ -79,11 +79,12 @@ export function createWatchLog({ file, now = Date.now, logger }) {
       const at = Date.parse(event.at)
       if (!(at >= since) || event.title === undefined || !isWatching(event.type)) continue
       const key = event.show ?? `title:${event.title}`
-      if (!shows.has(key)) shows.set(key, { title: event.title, show: event.show ?? null, firstAt: at, lastAt: at, viewers: new Set(), finished: new Map(), stopped: new Map() })
+      if (!shows.has(key)) shows.set(key, { title: event.title, show: event.show ?? null, firstAt: at, lastAt: at, viewers: new Set(), finished: new Map(), stopped: new Map(), episodes: 0 })
       const entry = shows.get(key)
       entry.lastAt = at
       entry.title = event.title
       for (const viewer of event.viewers ?? (event.viewer ? [event.viewer] : [])) entry.viewers.add(viewer)
+      if (Number.isInteger(event.episode?.of)) entry.episodes = Math.max(entry.episodes, event.episode.of)
       if (event.type === 'episode.finished') entry.finished.set(event.episode.index, event.episode.title)
       if (event.type === 'position' || event.type === 'episode.started' || event.type === 'episode.finished') {
         const position = event.type === 'position' ? event.position : event.type === 'episode.finished' ? event.duration ?? null : 0
@@ -101,6 +102,7 @@ export function createWatchLog({ file, now = Date.now, logger }) {
         with: [...entry.viewers],
         from: new Date(entry.firstAt).toISOString(),
         to: new Date(entry.lastAt).toISOString(),
+        episodes: entry.episodes || null,
         episodesFinished: [...entry.finished.keys()].sort((a, b) => a - b).map(index => index + 1),
         stoppedAt: Object.fromEntries([...entry.stopped].map(([viewer, where]) => [viewer, { ...where, position: where.position === null ? null : Math.round(where.position) }])),
       }))

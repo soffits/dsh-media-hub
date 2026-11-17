@@ -15,7 +15,7 @@ export function createJournal({ log, library, now = Date.now }) {
   const started = new Map()
 
   const base = room => ({ room: room.id, title: room.title, show: room.showPath ?? null })
-  const episodeOf = (room, index) => ({ index, title: room.items[index]?.title ?? '' })
+  const episodeOf = (room, index) => ({ index, title: room.items[index]?.title ?? '', of: room.items.length })
   const durationOf = (room, index) => room.items[index]?.duration ?? null
   const fileOf = (room, index) => room.items[index]?.sourcePath ?? null
 
