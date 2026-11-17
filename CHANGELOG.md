@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- *Ask* opens a conversation with the show or book attached to the message box as a card, through [@soffits/dsh-ui-actions](https://github.com/soffits/dsh-ui-actions) (install it as a plugin too; without it there is no *Ask*). The person writes beside the card, the sent message shows it with the hub's icon and name, and the agent gets the item as a short quote with its source and id instead of a block of Markdown and JSON.
 - Languages: the page's words moved to `locale/<tag>.json`, one file per language, and the page now ships in French as well as English and Chinese. A language is added by adding its file; nothing in the code names a language. The sidebar `label` and source and kind labels take a string or `{ "<tag>": "text" }` (exact tag, then primary subtag, then English). The default sources' names come from the locale files (番茄 and 图书 in Chinese, Livres in French).
 - Counts, sizes, dates, plural forms and language names are written by `Intl` for the viewer's language (sizes read "565 ko" in French; "1 episode" and "0 épisode" are right).
 - The book language filter offers your language, the one picked and the languages in the results, instead of a fixed list.

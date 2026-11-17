@@ -49,20 +49,20 @@ export async function shelf(path = '', body) {
   }
 }
 
-/** Starts a new conversation with a prefilled, editable message (set by client.js from the Web UI's workspace service). */
-let startChat = null
-export function setChat(start) { startChat = start }
-export const canChat = () => startChat !== null
+/** Opens a conversation about an item (set by client.js; `available` is false without @soffits/dsh-ui-actions). */
+let chat = null
+export function setChat(value) { chat = value }
+export const canChat = () => chat?.available() === true
 
 /**
- * Open a conversation about an item: its title and facts quoted, a small JSON context below, for the person to finish and send.
- * @param {string} intro - the first line, in the viewer's language
- * @param {string[]} lines - what is shown about the item
- * @param {object} context - ids that let the agent find it again
+ * Open a conversation about an item, attached to the message box as a card the person writes beside.
+ * @param {object} about
+ * @param {string} about.title
+ * @param {string[]} about.lines - what is shown about the item
+ * @param {object} about.context - ids that let the agent find it again
  */
-export function chatAbout(intro, lines, context) {
-  const quoted = lines.filter(Boolean).map(line => `> ${line}`).join('\n')
-  return startChat?.(`${intro}\n\n${quoted}\n\n\`\`\`json\n${JSON.stringify(context)}\n\`\`\`\n\n`)
+export function chatAbout({ title, lines, context }) {
+  return chat?.start({ title, lines: lines.filter(Boolean), context })
 }
 export const query = values => new URLSearchParams(values).toString()
 

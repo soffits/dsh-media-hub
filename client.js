@@ -36,8 +36,16 @@ window.__ModuleLoader__.load({
         h('path', { d: 'M4.5 13.6c1 .5 2.2.8 3.5.8s2.5-.3 3.5-.8', ...stroke }))
     }
 
-    /** Set in apply: opens a new conversation with an editable draft, through the Web UI's workspace service. */
-    let startChat = null
+    /**
+     * "Ask" through @soffits/dsh-ui-actions (ctx.uiActions), when it is installed: a new conversation with the
+     * item attached as a card. `source` names this plugin on the card; set in apply.
+     */
+    let uiActions = null
+    let sourceName = () => ''
+    const chat = {
+      available: () => uiActions !== null,
+      start: about => uiActions?.chat({ source: '@soffits/dsh-media-hub', sourceName: sourceName(), ...about }),
+    }
     /** DSH's locale store, set in apply before anything renders, so the page renders again when the viewer switches language. */
     let localeStore
     const activeLanguage = () => localeStore.getSnapshot().active
@@ -67,7 +75,7 @@ window.__ModuleLoader__.load({
     const loadPage = () => {
       pageModule ??= Promise.all([import(web('ui.js')), import(web('page.js'))]).then(([ui, page]) => {
         ui.init(React)
-        ui.setChat(startChat)
+        ui.setChat(chat)
         return page
       })
       return pageModule
@@ -115,11 +123,14 @@ window.__ModuleLoader__.load({
       apply(ctx) {
         const t = ctx.locale.bind(NS)
         localeStore = ctx.locale
-        startChat = (prompt) => {
-          const workspace = ctx.get('uiWorkspace')
-          if (workspace === undefined) return undefined
-          return workspace.startSession(undefined, { prompt, whenDraftExists: 'replace' })
-        }
+        sourceName = () => t('panel')
+        ctx.inject(['uiActions'], (scope) => {
+          scope.effect(() => {
+            uiActions = scope.uiActions
+            const off = uiActions.registerSource({ id: '@soffits/dsh-media-hub', name: () => sourceName(), icon: SidebarIcon })
+            return () => { off(); uiActions = null }
+          }, 'media-hub: ask')
+        })
 
         ctx.effect(() => {
           if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return () => {}
@@ -144,6 +155,7 @@ window.__ModuleLoader__.load({
               console.warn('[media-hub] words: %s', error.message)
             }
             const label = settings.label ?? ''
+            sourceName = () => pick(label, activeLanguage()).trim() || t('panel')
             disposers.push(ctx.slots.inject('main', () => ctx.slots.register({
               name: 'main',
               key: PANEL,
@@ -155,7 +167,7 @@ window.__ModuleLoader__.load({
               id: PANEL,
               order: 12,
               locale: NS,
-              label: () => pick(label, activeLanguage()).trim() || t('panel'),
+              label: () => sourceName(),
             }, SidebarIcon)))
           })
           return () => {

@@ -63,6 +63,7 @@
 
 ## Web UI
 
+- *Ask* goes through `ctx.uiActions.chat` from @soffits/dsh-ui-actions: one shared item card and model format for every plugin page, instead of each page writing its own Markdown draft. The hub keeps its own button for its card layout.
 - **The page is browser modules served from `web/`** (`page.js` and what it imports), with React handed over by `client.js`, so the page can grow past one file and still needs no build step. `client.js` keeps the words and the registration.
 - **Three tabs: Watching, Library, Discover.** What people do with the page is three different things (see who is on and pick up where they stopped, manage what is on disk, find something new), and putting them in one column buried the rooms and the library under the search. Watching is the default because it is what a returning viewer wants; Discover keeps its search and results while another tab is open.
 - **Discover is source first, then category, then search.** The picker lists every configured source in config order, then a built-in *Link* entry for YouTube addresses under the reserved id `youtube` (so no configured source can collide with it). Labels and categories come from the `sources` config; the page only translates the category ids it has words for, and shows the configured label otherwise, so no site is known to the page. A YouTube address typed into a source's search box moves to Link instead of being searched.
