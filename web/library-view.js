@@ -5,7 +5,7 @@
  */
 import { Picture, WorkDetails } from './details.js'
 import { hasEpisodes, stoppedText } from './format.js'
-import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, React, api, asPerson, bytes, clock, day, displayName, fill, h, plural, post, query, watchMark } from './ui.js'
+import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, React, api, asPersonPaying, bytes, clock, day, displayName, fill, h, plural, post, query, watchMark } from './ui.js'
 
 const titleOf = name => name.replace(/\.[^.]+$/, '')
 
@@ -139,8 +139,9 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
   const start = async (startAt) => {
     setError(null)
     const by = await displayName(t('guest'))
-    const answer = await asPerson('rooms', { source: 'local', path: show.path, by, ...(startAt ? { start: startAt } : {}) })
+    const answer = await asPersonPaying('rooms', { source: 'local', path: show.path, by, ...(startAt ? { start: startAt } : {}) })
     if (answer.error) return setError(answer.error)
+    if (answer.declined) return undefined
     return onOpen(answer.room.id)
   }
 

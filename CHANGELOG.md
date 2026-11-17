@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0
+
+- Points extras (`points` setting, [docs/points-protocol.md](docs/points-protocol.md)): with a points extension, the people it plays with pay points for starting a series that is new to the hub and for a binge night (starting to watch late at night, one ticket for the whole night). The page shows the price and their balance at that moment and buys on *Buy*; going on with a series, later seasons, films, single videos and rooms already playing stay free. Without an extension, or for anyone it doesn't play with, nothing changes.
+
 ## 0.8.0
 
 - The page no longer polls. The plugin tells open pages when something they show changes (a watch-state write, a refreshed copy of a show's details, a download landing or progressing, a room opening, closing or changing, a book on the shelf), over a Server-Sent Events stream, and the page re-reads then, and once whenever the stream connects or reconnects. Before, the library and rooms were re-read every 4 seconds and the shelf every 2 seconds while a book was fetching.

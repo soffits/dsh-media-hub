@@ -198,10 +198,10 @@ async function readJson(req) {
  * in front of DSH (Cloudflare among them) replace a 502's body with their own
  * page, and the page would lose the reason.
  */
-export const STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 })
+export const STATUS = Object.freeze({ points: 402, invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 })
 
 /** The JSON body of a failed request: its code, the reason a page has words for, and a message for logs and the tool. */
-export const errorBody = error => ({ error: { code: error?.code ?? 'error', ...(error?.reason ? { reason: error.reason } : {}), message: error?.message ?? String(error) } })
+export const errorBody = error => ({ error: { code: error?.code ?? 'error', ...(error?.reason ? { reason: error.reason } : {}), ...(error?.points ? { points: error.points } : {}), message: error?.message ?? String(error) } })
 
 /**
  * The HTTP handler for everything under /media-hub.

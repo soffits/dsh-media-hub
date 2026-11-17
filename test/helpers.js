@@ -2,9 +2,10 @@ import { execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
 import WebSocket, { WebSocketServer } from 'ws'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /** A temporary folder removed after the test file. */
 export function tempDir(t) {
@@ -97,4 +98,12 @@ export async function viewer(url, clientId, name) {
       return new Promise(resolve => waiting.push({ match: m => { if (!match(m)) return false; messages.splice(messages.indexOf(m), 1); return true }, resolve }))
     },
   }
+}
+
+/** A points extension over a state file (test/fixtures/points-extension.mjs): `players` maps a person to their balance. */
+export function pointsExtension(t, players, night) {
+  const file = join(tempDir(t), 'points.json')
+  writeFileSync(file, JSON.stringify({ players, shop: {}, tickets: [], calls: [] }))
+  const command = [process.execPath, fileURLToPath(new URL('./fixtures/points-extension.mjs', import.meta.url)), file]
+  return { config: { command, env: {}, night }, state: () => JSON.parse(readFileSync(file, 'utf8')), file }
 }

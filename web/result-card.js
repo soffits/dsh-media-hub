@@ -9,7 +9,7 @@ import { Cover, WorkDetails, glance, infoOf } from './details.js'
 import { FollowButton } from './follow.js'
 import { hasEpisodes, resumeLabel } from './format.js'
 import { useKnownWork } from './known.js'
-import { Confirm, EPISODE_BYTES, Icon, React, Spinner, asPerson, bytes, chatAbout, clock, displayName, fill, h } from './ui.js'
+import { Confirm, EPISODE_BYTES, Icon, React, Spinner, asPersonPaying, bytes, chatAbout, clock, displayName, fill, h } from './ui.js'
 
 /** Episodes fetched ahead of the one being watched; the Host's `cacheAhead` default, for the size hint. */
 const WINDOW_EPISODES = 6
@@ -49,9 +49,10 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
     submitting.current = true
     setState({ step: watch ? 'opening' : 'saving' })
     const by = await displayName(t('guest'))
-    const answer = await asPerson('fetch', { source: source.id, id: result.id, watch, all, quality, language: t.language, by })
+    const answer = await asPersonPaying('fetch', { source: source.id, id: result.id, watch, all, quality, language: t.language, by })
     submitting.current = false
     if (answer.error) return setState({ step: 'error', message: answer.error })
+    if (answer.declined) return setState({ step: 'idle' })
     if (watch && answer.room) return onOpen(answer.room.id)
     setState({ step: 'saved', all })
     onSaved()

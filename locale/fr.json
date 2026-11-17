@@ -271,6 +271,14 @@
     "continue.continueAt": "Reprendre à {time}",
     "continue.play": "Lire",
     "library.continueAt": "reprendre à {time}",
-    "library.viewerStoppedAt": "{name} s’est arrêté·e à {time}"
+    "library.viewerStoppedAt": "{name} s’est arrêté·e à {time}",
+    "points.newSeries": "Commencer une nouvelle série",
+    "points.bingeNight": "Une nuit de marathon",
+    "points.offer": "{name} coûte {cost} points. Vous en avez {balance}.",
+    "points.short": "{name} coûte {cost} points : encore {gap} à gagner.",
+    "points.pending": "{name} attend un accord.",
+    "points.buy": "Acheter",
+    "points.notNow": "Pas maintenant",
+    "points.ok": "OK"
   }
 }

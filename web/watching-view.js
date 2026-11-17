@@ -10,7 +10,7 @@ import { continueSubject, continueWatching } from './continue.js'
 import { Poster, showMeta } from './library-view.js'
 import { PicksSection, RatingsSection } from './presence-view.js'
 import { RoomsSection } from './rooms-view.js'
-import { Btn, K, api, asPerson, displayName, fill, h, plural, post, React } from './ui.js'
+import { Btn, K, React, api, asPersonPaying, displayName, fill, h, plural, post } from './ui.js'
 
 /** Shows with news from a followed work: a new season added, or more episodes. */
 export const withNews = library => (library?.shows ?? []).filter(show => show.newSeason || show.newEpisodes)
@@ -30,9 +30,9 @@ function StartButton({ t, show, label, variant, onOpen, onStarted }) {
   const [busy, setBusy] = React.useState(false)
   const start = async () => {
     setBusy(true)
-    const answer = await asPerson('rooms', { source: 'local', path: show.path, by: await displayName(t('guest')) })
+    const answer = await asPersonPaying('rooms', { source: 'local', path: show.path, by: await displayName(t('guest')) })
     setBusy(false)
-    if (answer.error) return
+    if (answer.error || answer.declined) return
     onStarted?.()
     onOpen(answer.room.id)
   }

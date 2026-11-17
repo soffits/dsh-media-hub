@@ -58,6 +58,7 @@ export function apply(ctx, config) {
       },
       notifyCommand: config.notifyCommand,
       recommender: config.recommender,
+      points: config.points,
       cache: { ahead: config.cacheAhead, behind: config.cacheBehind, capBytes: config.cacheLimitGb * 1e9 },
       logger,
     })
