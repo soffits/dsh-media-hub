@@ -250,7 +250,8 @@ export function createLibrary(options) {
   }
 
   async function makeThumb(source, out, seek = 3) {
-    await mkdir(thumbDir, { recursive: true })
+    // A poster is optional: no folder to put it in (state removed while a job runs) means no poster, never an unhandled rejection.
+    if (await mkdir(thumbDir, { recursive: true }).then(() => false, () => true)) return
     const frame = ['-map', '0:V:0', '-frames:v', '1', '-vf', 'scale=-2:180', '-q:v', '5', '-f', 'image2', `${out}.part`]
     // A frame a few seconds in for videos; the cover picture, if any, for audio.
     const attempts = isAudio(source) ? [['-y', '-i', source, ...frame]] : [['-y', '-ss', String(seek), '-i', source, ...frame], ['-y', '-i', source, ...frame]]
