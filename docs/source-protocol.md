@@ -5,9 +5,9 @@ A source is a command line tool. The media hub knows nothing about the site behi
 ```json
 { "sources": [
   { "id": "fanqie", "label": "Fanqie",
-    "kinds": [{ "id": "drama", "label": "Short dramas", "media": "video" },
+    "kinds": [{ "id": "drama", "label": "Short dramas", "media": "video", "trending": true },
               { "id": "audio", "label": "Audiobooks", "media": "audio" },
-              { "id": "novel", "label": "Novels", "media": "book" }],
+              { "id": "novel", "label": "Novels", "media": "book", "trending": true }],
     "command": ["fanqie"] },
   { "id": "bookfetch", "label": "Books",
     "kinds": [{ "id": "ebook", "label": "Ebooks", "media": "book" }],
@@ -16,7 +16,7 @@ A source is a command line tool. The media hub knows nothing about the site behi
 ] }
 ```
 
-Each kind says what its works are (`media`): `video` or `audio` works have episodes and are watched or listened to together in a room; `book` works are one file, downloaded in a format onto the person's shelf. `media` defaults to `video`.
+Each kind says what its works are (`media`): `video` or `audio` works have episodes and are watched or listened to together in a room; `book` works are one file, downloaded in a format onto the person's shelf. `media` defaults to `video`. A kind with `"trending": true` (default false) is one the source's `trending` verb answers for.
 
 `command` is the program and its fixed arguments (a proxy flag, a cookies file); the hub appends the verb and its arguments. `env` adds environment variables. The command runs with `<stateDir>/<id>` as its working folder, so anything it writes there lands outside DSH's own folder. The network policy belongs to the command: a launcher that sends everything through a proxy keeps doing so, and the hub never contacts the site itself. A source whose program is not installed is hidden.
 
@@ -81,6 +81,23 @@ A work of a book kind may also carry:
   "year": 1813, "language": "en", "origin": "Project Gutenberg",
   "formats": [{ "format": "epub", "bytes": 482113 }, { "format": "txt", "bytes": 772419 }] }
 ```
+
+## trending
+
+```
+<command> trending --kind <kind> --limit <n> --json
+```
+
+Optional, and only asked for kinds configured with `"trending": true`. What the site itself puts forward for that kind right now: its rank lists, new arrivals, what is popular. The hub shows it on the Discover tab before any search, keeps the answer as a dated copy and asks again in the background about once a day when someone looks and the copy is old, so the verb may take its time and may be slow, and never needs caching of its own.
+
+```json
+{ "lists": [
+  { "id": "hot", "label": { "en": "Hot", "zh": "热播榜" },
+    "results": [ { "id": "7595108838659853336", "title": "…", "kind": "drama", "score": 8.1, "cover": "https://…" } ] }
+] }
+```
+
+Each list is one board of the site, in the site's own order (`results` as in `search`, with the same optional fields; at most `--limit` each). `label` is a string or `{ <language tag>: text }` and `id` any short word that stays the same between calls. A source with a single board may answer `{ "results": [ … ] }` instead of `lists`, shown under the page's own word "Trending". Results of another kind are dropped. Work only from the site (no taste, no per-person data): people-specific suggestions are the [recommender's](recommender-protocol.md).
 
 ## info
 

@@ -18,7 +18,7 @@ test('the state folder is media-hub, or the folder of an earlier Video Sync inst
 
 test('a source needs an id, kinds and a command; its label and environment are optional', () => {
   const { sources } = Config({ sources: [{ id: 'bili', kinds: [{ id: 'video', label: 'Videos' }], command: ['bilibili-wrapper', '--cookies', 'c.txt'] }] })
-  assert.deepEqual(sources, [{ id: 'bili', label: '', kinds: [{ id: 'video', label: 'Videos', media: 'video' }], filters: [], command: ['bilibili-wrapper', '--cookies', 'c.txt'], env: {} }])
+  assert.deepEqual(sources, [{ id: 'bili', label: '', kinds: [{ id: 'video', label: 'Videos', media: 'video', trending: false }], filters: [], command: ['bilibili-wrapper', '--cookies', 'c.txt'], env: {} }])
   assert.throws(() => Config({ sources: [{ id: 'a', kinds: [{ id: 'v', label: 'V', media: 'game' }], command: ['x'] }] }))
   assert.throws(() => Config({ sources: [{ id: 'a', kinds: [{ id: 'v', label: 'V' }], filters: ['colour'], command: ['x'] }] }))
   assert.throws(() => Config({ sources: [{ id: 'Bad Id', kinds: [{ id: 'v', label: 'V' }], command: ['x'] }] }))
