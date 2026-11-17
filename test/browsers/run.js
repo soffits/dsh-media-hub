@@ -687,6 +687,7 @@ async function pagingFlows({ a }) {
 async function linkFlows({ a, home }) {
   const calls = () => readFileSync(join(dirname(home), 'yt-dlp-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line))
   await a.page.goto(`${new URL(a.page.url()).origin}/?vs-tab=discover&vs-source=link`)
+  await a.page.locator('.vsync-segment').waitFor({ timeout: 20_000 })
   await dismissDialogs(a.page)
   await a.page.locator('.vsync-searchField').fill('https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG')
   await a.page.locator('.vsync-search button[type=submit]').click()
