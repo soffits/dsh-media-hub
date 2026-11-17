@@ -7420,7 +7420,7 @@ function createLibrary(options) {
     return null;
   }
   async function makeThumb(source, out, seek = 3) {
-    await mkdir6(thumbDir, { recursive: true });
+    if (await mkdir6(thumbDir, { recursive: true }).then(() => false, () => true)) return;
     const frame = ["-map", "0:V:0", "-frames:v", "1", "-vf", "scale=-2:180", "-q:v", "5", "-f", "image2", `${out}.part`];
     const attempts = isAudio(source) ? [["-y", "-i", source, ...frame]] : [["-y", "-ss", String(seek), "-i", source, ...frame], ["-y", "-i", source, ...frame]];
     for (const args of attempts) {
