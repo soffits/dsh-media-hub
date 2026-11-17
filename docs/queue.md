@@ -18,3 +18,7 @@
 - **A source's name per language**: `label` is one string, so Discover's picker shows it as configured ("Fanqie" or "番茄"); an optional `labels: { zh: "番茄" }` in the `sources` entry would follow the page language.
 - **Other people's pictures**: the avatar stack shows initials for everyone but the signed-in person (the sign-in plugin only tells a browser about itself); sending a picture URL with each viewer's name would need identity plumbing in the sync channel.
 - **Room card frames at the current position**: the preview frame is one per episode (a tenth in), not a frame near where people are.
+- **Flaky under load**: the browser test's "the switch needed no ready gate" check (preloaded next episode) failed once while the machine was busy converting a PDF, then passed on rerun.
+- **Book covers beyond Project Gutenberg**: `bookfetch source cover` only knows Gutenberg's cover address; Anna's Archive and Open Library covers need their own allow-listed patterns (and the per-source proxy for Anna's).
+- **Z-Library from the page**: its search runs in a browser over CDP, so `bookfetch source` leaves it out unless `--providers` names it; a page search driving someone's browser needs a design first.
+- **Paging for book searches**: `bookfetch source` answers one page per source; *Load more* would need offsets per source.
