@@ -24,8 +24,8 @@ export function init(react, { primitives, kit }) {
   Known = react.createContext({ library: null, rooms: undefined, reload: () => {} })
 }
 
-/** DSH's Button with a phone-sized target: `variant` outline (default), primary or ghost. */
-export const Btn = ({ variant = 'outline', className, ...rest }) => h(P.Button, { variant, className: className ? `${K.TOUCH} ${className}` : K.TOUCH, ...rest })
+/** DSH's Button, compact on a desk and 40 px tall on touch screens: `variant` outline (default), primary, ghost or toolbar. */
+export const Btn = ({ variant = 'outline', size = 'sm', className, ...rest }) => h(P.Button, { variant, size, className: className ? `${K.TOUCH} ${className}` : K.TOUCH, ...rest })
 
 export const base = () => new URL('media-hub/', document.baseURI)
 export const LINK_PARAM = 'media-room'

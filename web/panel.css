@@ -357,3 +357,7 @@
 .vsync-pickWhy .uk-icon{margin-top:2px}
 .vsync-pickActions{margin-top:auto;padding-top:6px}
 @media (width<=640px){.vsync-cc{flex-direction:column;gap:14px}.vsync-ccPoster{width:112px;height:150px}}
+/* Interface chrome is not selectable and pictures don't drag; titles, recaps and reasons stay selectable. */
+.vsync-tabs,.vsync-ccActions,.vsync-rateAnswers,.vsync-pickActions,.vsync-ccLive,.vsync-sectionMeta,.vsync-sectionHead h2,.vsync-actions,.vsync-tabCount,.vsync-ccStrip,.vsync-rateHead .uk-tile{user-select:none;-webkit-user-select:none}
+.vsync-page img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
+.vsync-ccActions .uk-touch,.vsync-pickActions .uk-touch,.vsync-rateAnswers .uk-touch{font-size:13px}
