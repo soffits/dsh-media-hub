@@ -229,6 +229,20 @@
     "quality.label": "Qualité",
     "quality.auto": "Auto",
     "quality.audio": "Audio seul",
-    "quality.height": "{n}p"
+    "quality.height": "{n}p",
+    "error.blocked": "Le site a refusé la demande. Il bloque peut-être le réseau du hub ; réessayez plus tard.",
+    "error.sign_in": "Le site demande un compte connecté pour cette vidéo. Demandez à la personne qui gère le hub d'en ajouter un.",
+    "error.not_found": "Il n'y a rien à lire à cette adresse. Vérifiez le lien.",
+    "error.proxy_down": "La connexion par laquelle passe ce site ne fonctionne pas pour l'instant. Réessayez dans un moment.",
+    "error.failed": "Le site n'a pas fourni cette vidéo. Réessayez plus tard.",
+    "error.status": "Le serveur n'a pas pu terminer (HTTP {status}). Réessayez.",
+    "error.network": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+    "progress.downloading": "Téléchargement",
+    "progress.downloadingPercent": "Téléchargement {n} %",
+    "progress.of": "{done} sur {total}",
+    "progress.speed": "{speed}/s",
+    "progress.left": "encore {time}",
+    "link.account": "Connecté en tant que {name}",
+    "link.accountHint": "Le compte utilisé pour ce site, qui décide des qualités proposées"
   }
 }

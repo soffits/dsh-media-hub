@@ -13,6 +13,7 @@
  * open room's window. The arithmetic is src/window.js; this wires it to
  * the library, the downloads and the rooms.
  */
+import { howOf } from './downloads.js'
 import { pickEvictions, planCache, windowOf } from './window.js'
 
 /**
@@ -61,7 +62,7 @@ export function createCache({ library, downloads, rooms, window: size, logger })
       await library.dropEpisodes(path, plan.trim, { reason: 'watched' })
       await rooms.syncShow(path)
     }
-    await downloads.want({ source: info.source.source, item: { id: info.source.id, title: info.source.title ?? '', kind: info.source.kind, episodes: info.total, quality: info.source.quality ?? '' }, dir: path }, plan.want, { priority: hasRoom, retry })
+    await downloads.want({ source: info.source.source, item: { id: info.source.id, title: info.source.title ?? '', kind: info.source.kind, episodes: info.total, how: howOf(info.source) }, dir: path }, plan.want, { priority: hasRoom, retry })
   }
 
   async function enforceCap() {

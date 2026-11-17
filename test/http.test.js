@@ -75,26 +75,24 @@ test('HLS segments resolve next to their playlist and cannot leave its folder', 
   assert.equal((await get('media/r/0/..%2Fsecret.txt')).status, 404)
 })
 
-test('the room API maps service errors to statuses', async (t) => {
+test('the room API maps service errors to statuses, and a failed site is never a gateway status', async (t) => {
   const service = {
     listRooms: () => [{ id: 'a' }],
-    createRoom: async (input) => {
-      if (input.path === '/bad') throw Object.assign(new Error('nope'), { code: 'invalid' })
-      return { room: { id: 'new', fromPanel: input.fromPanel } }
-    },
     closeRoom: (id) => {
       throw Object.assign(new Error(`no ${id}`), { code: 'not_found' })
+    },
+    search: async () => {
+      throw Object.assign(new Error('the site refused the request'), { code: 'source_failed', reason: 'blocked' })
     },
     library: async () => [],
   }
   const get = await serve(t, service)
   assert.deepEqual(await (await get('api/rooms')).json(), { rooms: [{ id: 'a' }] })
-  const created = await get('api/rooms', { method: 'POST', body: JSON.stringify({ path: '/videos/Show', fromPanel: false }) })
-  assert.deepEqual(await created.json(), { room: { id: 'new', fromPanel: true } })
-  const bad = await get('api/rooms', { method: 'POST', body: JSON.stringify({ path: '/bad' }) })
-  assert.equal(bad.status, 400)
   assert.equal((await get('api/rooms/zz', { method: 'DELETE' })).status, 404)
-  assert.equal((await get('api/rooms', { method: 'POST', body: '{' })).status, 400)
+  const refused = await get('api/search?source=s&q=x')
+  assert.equal(refused.status, 424, 'proxies in front of DSH replace a 502 with a page of their own')
+  assert.deepEqual(await refused.json(), { error: { code: 'source_failed', reason: 'blocked', message: 'the site refused the request' } })
+  assert.equal((await get('api/rooms', { method: 'POST', body: '{}' })).status, 404, 'opening a room acts for a person: under DSH\'s /api')
 })
 
 test('the player modules are served, nothing else from the package', async (t) => {

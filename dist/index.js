@@ -2289,7 +2289,7 @@ var require_websocket = __commonJS({
     var net4 = __require("net");
     var querystring = __require("querystring");
     var tls3 = __require("tls");
-    var { randomBytes: randomBytes2, createHash: createHash7 } = __require("crypto");
+    var { randomBytes: randomBytes3, createHash: createHash7 } = __require("crypto");
     var { Duplex, Readable: Readable2 } = __require("stream");
     var { URL: URL4 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -2843,7 +2843,7 @@ var require_websocket = __commonJS({
         }
       }
       const defaultPort = isSecure ? 443 : 80;
-      const key = randomBytes2(16).toString("base64");
+      const key = randomBytes3(16).toString("base64");
       const request = isSecure ? https.request : http2.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
@@ -8970,7 +8970,7 @@ var require_build = __commonJS({
 });
 
 // index.js
-import { join as join15, resolve as resolve6 } from "node:path";
+import { join as join16, resolve as resolve6 } from "node:path";
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -8985,7 +8985,7 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 // src/config.js
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join as join5 } from "node:path";
+import { join as join7 } from "node:path";
 
 // node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
@@ -9878,7 +9878,7 @@ function createDelivery({ mode }) {
 
 // src/proxy.js
 import { createWriteStream } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import { connect as connect4 } from "node:net";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { pipeline } from "node:stream/promises";
@@ -10193,11 +10193,11 @@ var HttpsProxyAgent = class extends Agent2 {
     const proxyResponsePromise = parseProxyResponse(socket);
     socket.write(`${payload}\r
 `);
-    const { connect: connect4, buffered } = await proxyResponsePromise;
-    req.emit("proxyConnect", connect4);
-    this.emit("proxyConnect", connect4, req);
+    const { connect: connect5, buffered } = await proxyResponsePromise;
+    req.emit("proxyConnect", connect5);
+    this.emit("proxyConnect", connect5, req);
     req.emit("proxy", { proxy: this.proxy.href, socket });
-    if (connect4.statusCode === 200) {
+    if (connect5.statusCode === 200) {
       req.once("socket", resume);
       if (opts.secureEndpoint) {
         debug2("Upgrading socket connection to TLS");
@@ -10208,13 +10208,13 @@ var HttpsProxyAgent = class extends Agent2 {
       }
       return socket;
     }
-    if (connect4.statusCode === 407 && this.onProxyAuth) {
+    if (connect5.statusCode === 407 && this.onProxyAuth) {
       debug2("Got 407 response, invoking onProxyAuth callback");
       socket.destroy();
-      const proxyAuthenticate = connect4.headers["proxy-authenticate"] || "";
+      const proxyAuthenticate = connect5.headers["proxy-authenticate"] || "";
       const scheme = Array.isArray(proxyAuthenticate) ? proxyAuthenticate[0].split(/\s/)[0] : proxyAuthenticate.split(/\s/)[0];
       const authResponse = await this.onProxyAuth({
-        response: connect4,
+        response: connect5,
         scheme
       });
       return this._connectWithAuth(req, opts, authResponse.headers);
@@ -10261,10 +10261,10 @@ var HttpsProxyAgent = class extends Agent2 {
     const proxyResponsePromise = parseProxyResponse(socket);
     socket.write(`${payload}\r
 `);
-    const { connect: connect4 } = await proxyResponsePromise;
-    req.emit("proxyConnect", connect4);
-    this.emit("proxyConnect", connect4, req);
-    if (connect4.statusCode === 200) {
+    const { connect: connect5 } = await proxyResponsePromise;
+    req.emit("proxyConnect", connect5);
+    this.emit("proxyConnect", connect5, req);
+    if (connect5.statusCode === 200) {
       req.once("socket", resume);
       if (opts.secureEndpoint) {
         debug2("Upgrading socket connection to TLS");
@@ -10276,7 +10276,7 @@ var HttpsProxyAgent = class extends Agent2 {
       return socket;
     }
     socket.destroy();
-    throw new Error(`Proxy authentication failed with status ${connect4.statusCode} after retry`);
+    throw new Error(`Proxy authentication failed with status ${connect5.statusCode} after retry`);
   }
 };
 HttpsProxyAgent.protocols = ["http", "https"];
@@ -10452,11 +10452,9 @@ function omit2(obj, ...keys) {
   return ret;
 }
 
-// src/proxy.js
-var PROXY_URL = /^(socks4a?|socks5h?|https?):\/\/[^\s/]+\/?$/;
-var MAX_REDIRECTS = 5;
-var USER_AGENT = "dsh-media-hub";
-var proxyError = (code, message) => Object.assign(new Error(message), { code });
+// src/hosts.js
+import { readFile, stat } from "node:fs/promises";
+var hostsError = (code, message) => Object.assign(new Error(message), { code });
 function hostOf(url) {
   try {
     return new URL(url).hostname.toLowerCase().replace(/\.$/, "");
@@ -10464,18 +10462,17 @@ function hostOf(url) {
     return "";
   }
 }
-var parseHosts = (text2) => text2.split("\n").map((line) => line.split("#")[0].trim().toLowerCase()).filter(Boolean);
+var parseHosts = (text3) => text3.split("\n").map((line) => line.split("#")[0].trim().toLowerCase()).filter(Boolean);
 function hostMatches(host, pattern2) {
   if (host === "") return false;
   if (pattern2 === "*") return true;
   if (pattern2.startsWith(".")) return host.endsWith(pattern2);
   return host === pattern2 || host.endsWith(`.${pattern2}`);
 }
-function createProxies(rules = [], io = {}) {
+function createHostRules(rules = [], io = {}) {
   const read = io.read ?? ((path) => readFile(path, "utf8"));
   const version = io.version ?? (async (path) => (await stat(path)).mtimeMs);
   const files = /* @__PURE__ */ new Map();
-  const agents = /* @__PURE__ */ new Map();
   async function patternsOf(rule) {
     const listed = (rule.hosts ?? []).map((pattern2) => pattern2.trim().toLowerCase()).filter(Boolean);
     if (!rule.hostsFile) return listed;
@@ -10484,17 +10481,56 @@ function createProxies(rules = [], io = {}) {
       if (files.get(rule.hostsFile)?.version !== current) files.set(rule.hostsFile, { version: current, patterns: parseHosts(await read(rule.hostsFile)) });
     } catch (error) {
       files.delete(rule.hostsFile);
-      throw proxyError("proxy_unavailable", `cannot read the proxy hosts file ${rule.hostsFile}: ${error.message}`);
+      throw hostsError("hosts_unreadable", `cannot read the hosts file ${rule.hostsFile}: ${error.message}`);
     }
     return [...listed, ...files.get(rule.hostsFile).patterns];
   }
-  async function route(url, page = "") {
-    const hosts = [hostOf(url), hostOf(page)].filter(Boolean);
-    for (const rule of rules) {
-      const patterns = await patternsOf(rule);
-      if (hosts.some((host) => patterns.some((pattern2) => hostMatches(host, pattern2)))) return rule.url;
+  return {
+    /**
+     * The first rule naming the host of any of `urls`, or null.
+     * @param {...string} urls
+     * @returns {Promise<Rule | null>}
+     */
+    async match(...urls) {
+      const hosts = urls.map(hostOf).filter(Boolean);
+      for (const rule of rules) {
+        const patterns = await patternsOf(rule);
+        if (hosts.some((host) => patterns.some((pattern2) => hostMatches(host, pattern2)))) return rule;
+      }
+      return null;
     }
-    return "";
+  };
+}
+
+// src/proxy.js
+var PROXY_URL = /^(socks4a?|socks5h?|https?):\/\/[^\s/]+\/?$/;
+var MAX_REDIRECTS = 5;
+var USER_AGENT = "dsh-media-hub";
+var PROBE_TIMEOUT_MS = 3e3;
+var proxyError = (code, message) => Object.assign(new Error(message), { code });
+function proxyAnswers(proxy, timeoutMs = PROBE_TIMEOUT_MS) {
+  const { hostname, port, protocol } = new URL(proxy);
+  const defaultPort = protocol.startsWith("socks") ? 1080 : protocol === "https:" ? 443 : 80;
+  return new Promise((resolve7) => {
+    const socket = connect4({ host: hostname.replace(/^\[|\]$/g, ""), port: Number(port) || defaultPort });
+    const done = (up) => {
+      socket.destroy();
+      resolve7(up);
+    };
+    socket.setTimeout(timeoutMs, () => done(false));
+    socket.once("connect", () => done(true));
+    socket.once("error", () => done(false));
+  });
+}
+function createProxies(rules = [], io = {}) {
+  const hostRules = createHostRules(rules, io);
+  const agents = /* @__PURE__ */ new Map();
+  async function route(url, page = "") {
+    try {
+      return (await hostRules.match(url, page))?.url ?? "";
+    } catch (error) {
+      throw proxyError("proxy_unavailable", error.message);
+    }
   }
   function agentFor(proxy) {
     if (proxy === "") return void 0;
@@ -10567,12 +10603,31 @@ function chain(tag) {
 function pick2(value, tag) {
   if (typeof value === "string") return value;
   if (value === null || typeof value !== "object") return "";
-  const byTag = new Map(Object.entries(value).map(([key, text2]) => [key.toLowerCase(), text2]));
+  const byTag = new Map(Object.entries(value).map(([key, text3]) => [key.toLowerCase(), text3]));
   for (const candidate of chain(tag)) {
-    const text2 = byTag.get(candidate);
-    if (typeof text2 === "string" && text2 !== "") return text2;
+    const text3 = byTag.get(candidate);
+    if (typeof text3 === "string" && text3 !== "") return text3;
   }
-  return Object.values(value).find((text2) => typeof text2 === "string" && text2 !== "") ?? "";
+  return Object.values(value).find((text3) => typeof text3 === "string" && text3 !== "") ?? "";
+}
+function localeOf(tag) {
+  try {
+    return new Intl.Locale(tag).maximize();
+  } catch {
+    return null;
+  }
+}
+function bestTag(tags, wanted) {
+  if (!wanted) return null;
+  const target = localeOf(wanted);
+  let best = null;
+  let score = 0;
+  for (const tag of tags) {
+    const locale = localeOf(tag);
+    const value = tag.toLowerCase() === wanted.toLowerCase() ? 3 : locale && target && locale.language === target.language && locale.script === target.script ? 2 : locale && target && locale.language === target.language ? 1 : 0;
+    if (value > score) [best, score] = [tag, value];
+  }
+  return best;
 }
 
 // src/sources/process.js
@@ -10645,7 +10700,7 @@ function parseLine(line) {
     return null;
   }
 }
-var lastLine = (text2) => text2.trim().split("\n").filter(Boolean).pop() ?? "";
+var lastLine = (text3) => text3.trim().split("\n").filter(Boolean).pop() ?? "";
 
 // src/sources/command.js
 var SEARCH_LIMIT = 12;
@@ -10865,11 +10920,11 @@ function createCommandSource(definition, { logger, cwd }) {
 }
 
 // src/sources/index.js
-import { join as join4 } from "node:path";
+import { join as join6 } from "node:path";
 
 // src/sources/link.js
-import { mkdir as mkdir2, readdir } from "node:fs/promises";
-import { join as join3 } from "node:path";
+import { mkdir as mkdir3, readdir as readdir2 } from "node:fs/promises";
+import { join as join5 } from "node:path";
 
 // src/episodes.js
 import { basename as basename3, extname } from "node:path";
@@ -10926,922 +10981,9 @@ function noteFor(entry, notes, name2) {
   return found?.[1];
 }
 
-// src/sources/link.js
-var LINK_SOURCE = "link";
-var AUTO = "auto";
-var AUDIO = "audio";
-var HEIGHTS = Object.freeze([2160, 1440, 1080, 720, 480, 360]);
-var isQuality = (value) => value === AUTO || value === AUDIO || /^\d{3,4}$/.test(String(value)) && Number(value) >= 144;
-var INFO_TIMEOUT_MS = 12e4;
-var COVER_TIMEOUT_MS2 = 3e4;
-var MAX_BLURB = 1e3;
-var MAX_URL = 200;
-var linkError = (code, message) => Object.assign(new Error(message), { code });
-var isWebAddress = (value) => {
-  try {
-    return ["http:", "https:"].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
-};
-function thumbnailOf(data) {
-  if (typeof data.thumbnail === "string") return data.thumbnail;
-  const listed = (Array.isArray(data.thumbnails) ? data.thumbnails : []).filter((entry) => typeof entry?.url === "string");
-  return listed.sort((a, b) => (a.width ?? 0) - (b.width ?? 0)).pop()?.url ?? null;
-}
-var seconds = (value) => Number.isFinite(value) && value > 0 ? Math.round(value) : null;
-function qualityChoices(formats, maxHeight) {
-  const known = Array.isArray(formats) ? formats.map((format) => format?.height).filter((height) => Number.isInteger(height) && height > 0) : [];
-  const heights = (known.length > 0 ? [...new Set(known)] : HEIGHTS).filter((height) => height <= maxHeight && height >= 144).sort((a, b) => b - a);
-  return [AUTO, ...heights.map(String), AUDIO];
-}
-function infoDocument(data, url, maxHeight) {
-  const page = typeof data.webpage_url === "string" && isWebAddress(data.webpage_url) ? data.webpage_url : url;
-  const entries = data._type === "playlist" ? (data.entries ?? []).filter((entry) => entry !== null && typeof entry === "object") : [data];
-  const durations = entries.map((entry) => seconds(entry.duration));
-  const site = data.webpage_url_domain ?? new URL(page).hostname;
-  return {
-    id: page,
-    url: page,
-    kind: "video",
-    title: data.title ?? data.id ?? page,
-    author: data.uploader ?? data.channel ?? data.playlist_uploader ?? "",
-    blurb: typeof data.description === "string" ? data.description.slice(0, MAX_BLURB) : "",
-    cover: thumbnailOf(data) ?? thumbnailOf(entries[0] ?? {}),
-    duration: durations.every(Boolean) ? durations.reduce((sum, value) => sum + value, 0) : null,
-    popularity: Number.isFinite(data.view_count) ? { count: data.view_count, label: "plays" } : null,
-    tags: Array.isArray(data.tags) ? data.tags : [],
-    meta: [{ key: "site", label: "Site", value: site }],
-    episodes: entries.map((entry, index) => ({ number: index + 1, title: entry.title ?? "" })),
-    qualities: qualityChoices(data._type === "playlist" ? null : data.formats, maxHeight)
-  };
-}
-function formatArgs(quality, maxHeight) {
-  if (quality === AUDIO) return ["-f", "ba/b", "-S", "acodec:aac", "-x", "--audio-format", "m4a"];
-  const height = quality === AUTO || !isQuality(quality) ? maxHeight : Math.min(Number(quality), maxHeight);
-  return ["-f", "bv*+ba/b", "-S", `res:${height},vcodec:h264,acodec:aac`, "--merge-output-format", "mp4"];
-}
-function createLinkSource({ ytDlp, proxies, maxHeight, cwd, logger }) {
-  async function workDir() {
-    await mkdir2(cwd, { recursive: true });
-    return cwd;
-  }
-  async function ytdlp(url, args, options = {}) {
-    if (!isWebAddress(url)) throw linkError("invalid", "not a web address");
-    const proxy = await proxies.route(url);
-    return run([ytDlp, "--no-warnings", "--no-playlist", "--proxy", proxy, ...args, "--", url], { cwd: await workDir(), ...options });
-  }
-  return {
-    id: LINK_SOURCE,
-    label: "",
-    input: "url",
-    kinds: [{ id: "video", label: "", media: "video" }],
-    filters: [],
-    available: () => commandExists(ytDlp),
-    async info(url) {
-      const { code, stdout, stderr, oversized } = await ytdlp(String(url), ["-J", "--flat-playlist"], { timeoutMs: INFO_TIMEOUT_MS });
-      if (oversized) throw linkError("source_failed", "the page lists too much to read");
-      if (code !== 0) throw linkError("source_failed", lastLine(stderr).replace(/^ERROR:\s*/, "") || `yt-dlp exit ${code}`);
-      let data;
-      try {
-        data = JSON.parse(stdout);
-      } catch {
-        throw linkError("source_failed", "yt-dlp answered something that is not JSON");
-      }
-      const document2 = infoDocument(data, String(url), maxHeight);
-      if (document2.id.length > MAX_URL) throw linkError("invalid", "the address is too long");
-      if (document2.episodes.length === 0) throw linkError("empty", "there is no video at this address");
-      return { ...parseInfo(document2), qualities: document2.qualities };
-    },
-    /** The thumbnail, through the route of its own host or its page's. */
-    async cover(url, file, { page = "" } = {}) {
-      await proxies.download(url, file, { page, maxBytes: 2e6, timeoutMs: COVER_TIMEOUT_MS2 });
-    },
-    /** Episodes `from`..`to` into `dir`, one file each, named by number; yt-dlp skips the ones already there. */
-    async download({ id, dir, from: from2 = 1, to = from2, quality = AUTO, signal, onEpisode, onStart }) {
-      await mkdir2(dir, { recursive: true });
-      const onLine = (line) => {
-        const event = parseLine(line);
-        if (!Number.isInteger(event?.number)) return;
-        if (event.event === "start") onStart?.(event.number);
-        onEpisode?.();
-      };
-      const number = "%(playlist_index|1)";
-      const args = [
-        ...formatArgs(quality, maxHeight),
-        "-i",
-        "--no-mtime",
-        "--no-progress",
-        "-P",
-        `home:${dir}`,
-        "-P",
-        `temp:${join3(dir, ".incoming")}`,
-        "-o",
-        `${number}03d %(title).100B.%(ext)s`,
-        "--playlist-items",
-        `${from2}:${to}`,
-        "--print",
-        `before_dl:{"event":"start","number":${number}s}`,
-        "--print",
-        `after_move:{"event":"done","number":${number}s}`
-      ];
-      const { code, stderr } = await ytdlp(String(id), args, { signal, onStdoutLine: onLine });
-      onEpisode?.();
-      if (signal?.aborted) return { failed: [] };
-      const have = new Set((await readdir(dir)).map(episodeNumber).filter((n) => n !== null));
-      const failed = [];
-      for (let n = from2; n <= to; n++) if (!have.has(n)) failed.push(String(n));
-      if (failed.length > 0) logger.warn("link download %s ended with %s: %s", id, code, lastLine(stderr));
-      if (code !== 0 && failed.length === to - from2 + 1) throw linkError("source_failed", lastLine(stderr).replace(/^ERROR:\s*/, "") || `yt-dlp exit ${code}`);
-      return { failed };
-    }
-  };
-}
-
-// src/sources/index.js
-var EPISODE_BYTES = Object.freeze({ drama: 15e6, audio: 8e6 });
-var MEDIA = Object.freeze(["video", "audio", "book"]);
-var ALL_SOURCES = "all";
-var RESERVED_IDS = Object.freeze(["local", LINK_SOURCE, ALL_SOURCES]);
-function createSources(definitions, { stateDir, logger, link }) {
-  const seen = /* @__PURE__ */ new Set();
-  for (const { id, kinds } of definitions) {
-    if (kinds.length === 0) throw new Error(`source ${id} lists no kinds`);
-    if (RESERVED_IDS.includes(id)) throw new Error(`source id ${id} is reserved`);
-    if (seen.has(id)) throw new Error(`source id ${id} is listed twice`);
-    seen.add(id);
-  }
-  return [
-    ...definitions.map((definition) => createCommandSource(definition, { logger, cwd: join4(stateDir, definition.id) })),
-    createLinkSource({ ...link, logger, cwd: join4(stateDir, LINK_SOURCE) })
-  ];
-}
-async function describeSources(sources) {
-  const out = [];
-  for (const source of sources) {
-    if (await source.available()) out.push({ id: source.id, label: source.label, input: source.input ?? "search", kinds: source.kinds.map((kind) => ({ ...kind, media: kind.media ?? "video" })), filters: source.filters });
-  }
-  return out;
-}
-
-// src/config.js
-var DSH_HOME = process.env.DSH_HOME || join5(homedir(), ".dsh");
-function defaultStateDir(home = DSH_HOME, exists2 = existsSync) {
-  const current = join5(home, "media-hub");
-  const earlier = join5(home, "videosync");
-  return !exists2(current) && exists2(earlier) ? earlier : current;
-}
-var DEFAULT_STATE_DIR = defaultStateDir();
-var Label = Schema.union([Schema.string(), Schema.dict(Schema.string())]);
-var SourceConfig = Schema.object({
-  id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("Stable id, lowercase letters, digits, - and _. Names the source in URLs and saved downloads, and the folder the command runs in (stateDir/<id>). Not local, link or all."),
-  label: Label.default("").description("Name on the source's tab: a string, or { <tag>: text } per language. Empty uses the page's own words for this source id (source.name.<id> in locale/), else the id."),
-  kinds: Schema.array(Schema.object({
-    id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("What the command's search --kind takes."),
-    label: Label.default("").description("Name of the category chip: a string, or { <tag>: text } per language. Empty uses the page's own words for this kind id (kind.<id> in locale/), else the id."),
-    media: Schema.union(MEDIA.map((media) => Schema.const(media))).default("video").description("What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format).")
-  })).description("What the source can search for; at least one."),
-  filters: Schema.array(Schema.union(FILTERS.map((filter) => Schema.const(filter)))).default([]).description("Search filters the command understands (docs/source-protocol.md). The hub filters the answers by language, format, year and size itself as well."),
-  command: Schema.array(Schema.string()).min(1).description("The command and its fixed arguments, one entry per word; the plugin adds the protocol verbs after them."),
-  env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command.")
-});
-var ProxyRule = Schema.object({
-  url: Schema.string().pattern(PROXY_URL).description("The proxy: socks5h://host:port (names resolved by the proxy), socks5://, socks4://, http:// or https://."),
-  hosts: Schema.array(Schema.string()).default([]).description("Hosts it carries: example.com (that host and every host under it), .example (every host ending so), * (every host)."),
-  hostsFile: Schema.string().default("").description("A file with more such patterns, one per line, # starting a comment; read again when it changes. While it cannot be read, requests fail instead of going direct.")
-});
-var DEFAULT_SOURCES = Object.freeze([
-  {
-    id: "fanqie",
-    kinds: [{ id: "drama", media: "video" }, { id: "audio", media: "audio" }, { id: "novel", media: "book" }],
-    filters: [],
-    command: ["fanqie"],
-    env: {}
-  },
-  {
-    id: "bookfetch",
-    kinds: [{ id: "ebook", media: "book" }, { id: "paper", media: "book" }],
-    filters: ["language", "format", "year"],
-    command: ["bookfetch", "source"],
-    env: {}
-  }
-]);
-var Config = Schema.object({
-  label: Label.default("").description("Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer's tag, then its primary subtag, then en). Empty uses the page's own name in the viewer's language."),
-  libraryRoots: Schema.array(Schema.string()).default([]).description(`Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The assistant's tool can open any path.`),
-  delivery: Schema.union(DELIVERY_MODES.map((mode) => Schema.const(mode))).default("origin").description("Where viewers load local media from. origin: DSH's own web server (through whatever sits in front of DSH). r2: object storage with signed links (not built yet)."),
-  stateDir: Schema.string().default(DEFAULT_STATE_DIR).description("Folder for open rooms (rooms.json), the default library folder (library, where downloads go), prepared media (cache), the watch log (watch-log.jsonl) and library notes (shows.json, downloads.json)."),
-  maxHeight: Schema.natural().min(240).default(1080).description("Videos taller than this, or in codecs browsers cannot play, are transcoded to H.264 at this height."),
-  threads: Schema.natural().min(1).default(2).description("ffmpeg threads for transcoding. Jobs run one at a time at low priority."),
-  emptyMinutes: Schema.natural().min(1).default(30).description("A room closes this many minutes after its last viewer left."),
-  unopenedHours: Schema.natural().min(1).default(24).description("A room nobody has opened yet closes this many hours after it was created, so a link sent ahead of time still works."),
-  cacheDays: Schema.natural().min(1).default(7).description("Prepared media no open room uses is deleted after this many days."),
-  autoDeleteDays: Schema.natural().default(7).description("A library show is deleted this many days after it was watched to the end (its last episode, or every episode), unless someone keeps it. 0 never deletes."),
-  cacheAhead: Schema.natural().default(5).description("Rolling cache: how many episodes after the one being watched are kept on disk for a show from a source. The episode being watched is fetched first, then these in order."),
-  cacheBehind: Schema.natural().default(1).description("Rolling cache: how many watched episodes before the current one stay on disk. Older watched episodes are deleted (the watch log still marks them watched)."),
-  cacheLimitGb: Schema.number().min(0).default(5).description("Rolling cache: the most disk, in GB, that cached episodes of shows from a source may use. Past it the least recently watched go first, never one near where a room is. Shows kept offline do not count. 0 means no limit."),
-  sources: Schema.array(SourceConfig).default(DEFAULT_SOURCES.map((source) => ({ ...source, kinds: [...source.kinds], filters: [...source.filters], command: [...source.command] }))).description("Where the search box looks for shows and the library downloads them from. Each source is a command line tool that speaks the JSON protocol in docs/source-protocol.md; every request goes through that command, so a launcher that routes it through a proxy keeps that rule. A source is hidden while its command is not installed. The list replaces the default, so keep the default entry when adding another."),
-  coverCacheMb: Schema.number().min(0).default(50).description("The most disk, in MB, that search result covers may use (stateDir/covers). Past it the least recently shown go. 0 means no limit."),
-  bookCacheGb: Schema.number().min(0).default(5).description("The most disk, in GB, that downloaded books may use (stateDir/books). Past it the least recently used files go; they stay on their shelves and can be downloaded again. 0 means no limit."),
-  converter: Schema.string().default("ebook-convert").description("Calibre's ebook-convert command. When it is installed, books can be downloaded in formats their source does not have (converted from the best one it has). Empty turns conversion off."),
-  notifyCommand: Schema.array(Schema.string()).default([]).description("A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run."),
-  ffmpeg: Schema.string().default("ffmpeg").description("ffmpeg command."),
-  ffprobe: Schema.string().default("ffprobe").description("ffprobe command."),
-  ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file (cookies, for example) applies."),
-  proxies: Schema.array(ProxyRule).default([]).description("Which proxy each outbound request takes, by host: the first rule naming the host wins, any other host goes direct. Applies to every yt-dlp call (by the page's host) and every picture the hub fetches itself. Sources' commands keep their own network setup.")
-});
-
-// src/http.js
-import { createReadStream as createReadStream2, existsSync as existsSync2 } from "node:fs";
-import { readFile as readFile3, stat as stat3 } from "node:fs/promises";
-import { dirname, extname as extname2, isAbsolute as isAbsolute2, relative, resolve as resolve2, sep } from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-
-// src/filters.js
-var LANGUAGE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/;
-var YEAR2 = (value) => Number.isInteger(value) && value > 0 && value < 1e4 ? value : null;
-function parseFilters(param) {
-  const whole = (name2) => {
-    const value = Number.parseInt(param(name2), 10);
-    return Number.isFinite(value) && value > 0 ? value : null;
-  };
-  const language = param("language").trim();
-  const format = param("format").trim().toLowerCase();
-  return {
-    language: LANGUAGE.test(language) ? language.toLowerCase() : "",
-    format: FORMAT.test(format) ? format : "",
-    yearFrom: YEAR2(whole("yearFrom")),
-    yearTo: YEAR2(whole("yearTo")),
-    maxBytes: whole("maxMb") === null ? null : whole("maxMb") * 1e6
-  };
-}
-var primary = (code) => code.toLowerCase().split("-")[0];
-function smallestBytes(result) {
-  const sizes = [result.bytes, ...(result.formats ?? []).map((entry) => entry.bytes)].filter((size) => Number.isInteger(size) && size > 0);
-  return sizes.length === 0 ? null : Math.min(...sizes);
-}
-function matches(result, { language = "", format = "", yearFrom = null, yearTo = null, maxBytes = null } = {}) {
-  if (language && result.language && primary(result.language) !== primary(language)) return false;
-  if (format && (result.formats ?? []).length > 0 && !result.formats.some((entry) => entry.format === format)) return false;
-  if (yearFrom !== null && result.year !== null && result.year !== void 0 && result.year < yearFrom) return false;
-  if (yearTo !== null && result.year !== null && result.year !== void 0 && result.year > yearTo) return false;
-  const size = smallestBytes(result);
-  if (maxBytes !== null && size !== null && size > maxBytes) return false;
-  return true;
-}
-var applyFilters = (results, filters) => results.filter((result) => matches(result, filters));
-function interleave(lists) {
-  const out = [];
-  const longest = Math.max(0, ...lists.map((list) => list.length));
-  for (let index = 0; index < longest; index += 1) {
-    for (const list of lists) if (index < list.length) out.push(list[index]);
-  }
-  return out;
-}
-
-// src/locales.js
-import { readdir as readdir2, readFile as readFile2 } from "node:fs/promises";
-import { join as join6 } from "node:path";
-async function readLocales(dir, logger) {
-  const names = (await readdir2(dir).catch(() => [])).filter((name2) => name2.endsWith(".json")).sort();
-  const locales = {};
-  for (const name2 of names) {
-    const tag = name2.slice(0, -".json".length);
-    if (!TAG.test(tag)) {
-      logger?.warn("locale/%s: the name is not a language tag; skipped", name2);
-      continue;
-    }
-    try {
-      const { ui } = JSON.parse(await readFile2(join6(dir, name2), "utf8"));
-      if (ui === null || typeof ui !== "object" || Array.isArray(ui)) throw new Error('no "ui" table');
-      locales[tag] = Object.fromEntries(Object.entries(ui).filter(([, text2]) => typeof text2 === "string"));
-    } catch (error) {
-      logger?.warn("locale/%s: %s; skipped", name2, error.message);
-    }
-  }
-  if (locales[BASE] === void 0) logger?.warn("locale/%s.json is missing; every other language falls back to it", BASE);
-  return locales;
-}
-
-// src/http.js
-var ROUTE = `/${PREFIX}`;
-var WS_PATH = `${ROUTE}/ws`;
-var SECURITY_HEADERS = Object.freeze({
-  "cache-control": "no-store",
-  "referrer-policy": "no-referrer",
-  "x-content-type-options": "nosniff"
-});
-var MEDIA_TYPES = Object.freeze({
-  ".mp4": "video/mp4",
-  ".m4v": "video/mp4",
-  ".mov": "video/quicktime",
-  ".webm": "video/webm",
-  ".m3u8": "application/vnd.apple.mpegurl",
-  ".ts": "video/mp2t",
-  ".m4s": "video/iso.segment",
-  ".aac": "audio/aac",
-  ".m4a": "audio/mp4",
-  ".mp3": "audio/mpeg",
-  ".vtt": "text/vtt; charset=utf-8",
-  ".jpg": "image/jpeg"
-});
-var WEB_TYPES = Object.freeze({ ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" });
-var here = fileURLToPath(new URL(".", import.meta.url));
-var WEB_DIR = resolve2(here, "../web");
-var LOCALE_DIR = resolve2(here, "../locale");
-var MODULES = Object.freeze({
-  "sync.js": resolve2(here, "../src/sync.js"),
-  "formats.js": resolve2(here, "../src/formats.js"),
-  "i18n.js": resolve2(here, "../src/i18n.js")
-});
-function hlsFile() {
-  const built = resolve2(here, "../dist/hls.mjs");
-  return existsSync2(built) ? built : resolve2(dirname(createRequire(import.meta.url).resolve("hls.js/package.json")), "dist/hls.mjs");
-}
-function webFile(name2) {
-  if (name2 === "hls.mjs") return hlsFile();
-  if (MODULES[name2] !== void 0) return MODULES[name2];
-  return /^[a-z0-9-]+\.(js|css)$/.test(name2) ? resolve2(WEB_DIR, name2) : void 0;
-}
-function admitOwner(connection, request) {
-  const admission = connection.admit(request);
-  if ("rejection" in admission) return { ok: false, status: admission.rejection };
-  if (admission.peer?.principal?.kind !== "owner") return { ok: false, status: 403 };
-  return { ok: true };
-}
-function resolveRange(header, size) {
-  if (typeof header !== "string" || header.trim() === "") return { kind: "absent" };
-  const match = /^bytes=(\d*)-(\d*)$/i.exec(header.trim());
-  if (match === null || size <= 0) return { kind: "unsatisfiable" };
-  const [, rawStart, rawEnd] = match;
-  if (rawStart === "") {
-    const suffix = Number(rawEnd);
-    if (rawEnd === "" || !(suffix > 0)) return { kind: "unsatisfiable" };
-    return { kind: "window", start: Math.max(0, size - suffix), end: size - 1 };
-  }
-  const start = Number(rawStart);
-  const end = rawEnd === "" ? size - 1 : Math.min(Number(rawEnd), size - 1);
-  if (start >= size || end < start) return { kind: "unsatisfiable" };
-  return { kind: "window", start, end };
-}
-async function sendFile(req, res, path, type = MEDIA_TYPES[extname2(path).toLowerCase()] ?? "application/octet-stream") {
-  let info;
-  try {
-    info = await stat3(path);
-  } catch {
-    return sendText(res, 404, "Not found.");
-  }
-  if (!info.isFile()) return sendText(res, 404, "Not found.");
-  const size = info.size;
-  const range = resolveRange(req.headers.range, size);
-  const headers = { ...SECURITY_HEADERS, "cache-control": "private, no-store", "accept-ranges": "bytes", "content-type": type };
-  if (range.kind === "unsatisfiable") {
-    res.writeHead(416, { ...headers, "content-range": `bytes */${size}` }).end();
-    return;
-  }
-  const start = range.kind === "window" ? range.start : 0;
-  const end = range.kind === "window" ? range.end : size - 1;
-  const status = range.kind === "window" ? 206 : 200;
-  if (range.kind === "window") headers["content-range"] = `bytes ${start}-${end}/${size}`;
-  headers["content-length"] = String(size === 0 ? 0 : end - start + 1);
-  res.writeHead(status, headers);
-  if (req.method === "HEAD" || size === 0) {
-    res.end();
-    return;
-  }
-  const stream = createReadStream2(path, { start, end });
-  stream.on("error", () => res.destroy());
-  res.on("close", () => stream.destroy());
-  stream.pipe(res);
-}
-function sendText(res, status, text2) {
-  res.writeHead(status, { ...SECURITY_HEADERS, "content-type": "text/plain; charset=utf-8" }).end(`${text2}
-`);
-}
-function sendJson(res, status, value) {
-  const body2 = JSON.stringify(value);
-  res.writeHead(status, { ...SECURITY_HEADERS, "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body2) }).end(body2);
-}
-function within(root, rel) {
-  const target = resolve2(root, rel);
-  const back = relative(root, target);
-  if (back === "" || back === ".." || back.startsWith(`..${sep}`) || isAbsolute2(back)) return null;
-  return target;
-}
-var MAX_BODY = 64 * 1024;
-var byOf = (body2) => typeof body2?.by === "string" ? body2.by.slice(0, 40) : null;
-var pick3 = (body2, keys) => Object.fromEntries(keys.filter((key) => body2?.[key] !== void 0).map((key) => [key, body2[key]]));
-async function readJson(req) {
-  let size = 0;
-  const chunks = [];
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > MAX_BODY) throw Object.assign(new Error("request body too large"), { status: 413 });
-    chunks.push(chunk);
-  }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
-  } catch {
-    throw Object.assign(new Error("request body is not JSON"), { status: 400 });
-  }
-}
-var STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 502, unavailable: 503 });
-function createHandler({ connection, service, label = () => "", localeDir = LOCALE_DIR, logger }) {
-  let locales;
-  return async (req, res) => {
-    const admitted = admitOwner(connection, req);
-    if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? "Sign in to DSH first." : "Forbidden.");
-    const url = new URL(req.url ?? "/", "http://media-hub.invalid");
-    const parts = url.pathname.slice(ROUTE.length + 1).split("/").map(decodeURIComponent);
-    const hub = service();
-    if (hub === void 0) return sendText(res, 503, "The media hub is starting.");
-    try {
-      if (parts[0] === "web" && parts.length === 2 && req.method === "GET") {
-        const file = webFile(parts[1]);
-        const body2 = file === void 0 ? null : await readFile3(file).catch(() => null);
-        if (body2 === null) return sendText(res, 404, "Not found.");
-        res.writeHead(200, { ...SECURITY_HEADERS, "content-type": WEB_TYPES[extname2(file)], "content-length": body2.length }).end(body2);
-        return;
-      }
-      if (parts[0] === "covers" && parts.length === 2 && req.method === "GET") {
-        const cover = await hub.coverFile(parts[1]);
-        if (cover === null) return sendText(res, 404, "Not found.");
-        return sendFile(req, res, cover.file, cover.type);
-      }
-      if (parts[0] === "media" && parts.length >= 4 && (req.method === "GET" || req.method === "HEAD")) {
-        const item = hub.mediaFile(parts[1], Number(parts[2]));
-        if (item === void 0) return sendText(res, 404, "Not found.");
-        const rest = parts.slice(3).join("/");
-        if (item.kind === "hls") {
-          const target = within(dirname(item.file), rest);
-          return target === null ? sendText(res, 404, "Not found.") : sendFile(req, res, target);
-        }
-        return sendFile(req, res, item.file);
-      }
-      if (parts[0] === "subs" && parts.length === 4 && req.method === "GET") {
-        const file = hub.subtitleFile(parts[1], Number(parts[2]), Number.parseInt(parts[3], 10));
-        return file === void 0 ? sendText(res, 404, "Not found.") : sendFile(req, res, file, MEDIA_TYPES[".vtt"]);
-      }
-      if (parts[0] === "api") {
-        const route = `${req.method} ${parts.slice(1).join("/")}`;
-        const query = (name2) => url.searchParams.get(name2) ?? "";
-        if (route === "GET rooms") return sendJson(res, 200, { rooms: await hub.listRooms() });
-        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "work") return sendJson(res, 200, hub.roomWork(parts[2]));
-        if (route === "POST rooms") return sendJson(res, 200, await hub.createRoom({ ...pick3(await readJson(req), ["path", "title", "by", "start"]), fromPanel: true }));
-        if (req.method === "DELETE" && parts[1] === "rooms" && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]));
-        if (route === "GET library") return sendJson(res, 200, await hub.library());
-        if (route === "GET library/episodes") return sendJson(res, 200, { episodes: await hub.episodes(query("path")) });
-        if (route === "DELETE library") {
-          const by = query("by") || null;
-          return sendJson(res, 200, query("episode") ? await hub.removeEpisode(query("path"), query("episode"), by) : await hub.removeShow(query("path"), by));
-        }
-        if (route === "POST library/rename") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.renameShow(body2.path, body2.name, byOf(body2)));
-        }
-        if (route === "POST library/keep") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.keepShow(body2.path, byOf(body2)));
-        }
-        if (route === "POST library/countdown") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.countdownShow(body2.path, byOf(body2)));
-        }
-        if (route === "POST library/retry") return sendJson(res, 200, await hub.retryDownload((await readJson(req)).path));
-        if (route === "POST library/pin") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.pinShow(body2.path, body2.pinned === true, byOf(body2)));
-        }
-        if (route === "POST follow") return sendJson(res, 200, await hub.followWork(pick3(await readJson(req), ["source", "id", "follow"])));
-        if (route === "POST library/seen") return sendJson(res, 200, hub.dismissNews((await readJson(req)).path));
-        if (route === "POST library/refresh") return sendJson(res, 200, { work: await hub.refreshWork((await readJson(req)).path) });
-        if (route === "POST library/cancel") return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path));
-        if (route === "GET settings") return sendJson(res, 200, { label: label() });
-        if (route === "GET locales") return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)));
-        if (route === "GET sources") return sendJson(res, 200, { sources: await hub.sources() });
-        if (route === "GET search") return sendJson(res, 200, await hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query)));
-        if (route === "GET info") return sendJson(res, 200, await hub.info(query("source"), query("id")));
-        if (route === "POST fetch") return sendJson(res, 200, await hub.fetch(pick3(await readJson(req), ["source", "id", "watch", "all", "quality", "by"])));
-      }
-      return sendText(res, 404, "Not found.");
-    } catch (error) {
-      const status = error?.status ?? STATUS[error?.code] ?? 500;
-      if (!res.headersSent) sendJson(res, status, { error: { code: error?.code ?? "error", message: error?.message ?? String(error) } });
-      else res.destroy();
-    }
-  };
-}
-function refuseUpgrade(socket, status) {
-  const text2 = { 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found" }[status] ?? "Error";
-  socket.end(`HTTP/1.1 ${status} ${text2}\r
-Connection: close\r
-Content-Length: 0\r
-\r
-`);
-}
-
-// src/media.js
-import { spawn as spawn4 } from "node:child_process";
-import { createHash as createHash5 } from "node:crypto";
-import { statfs as statfs2, stat as stat9 } from "node:fs/promises";
-import { join as join14, resolve as resolve5 } from "node:path";
-
-// src/window.js
-function windowOf(focus, total, { ahead, behind }) {
-  return { first: Math.max(1, focus - behind), last: Math.min(total, focus + ahead) };
-}
-function planCache({ total, focuses, cached, finished, skip = /* @__PURE__ */ new Set(), pinned = false, ahead, behind }) {
-  const protect = /* @__PURE__ */ new Set();
-  const want = [];
-  const add = (n) => {
-    if (!cached.has(n) && !want.includes(n) && (!skip.has(n) || focuses.includes(n))) want.push(n);
-  };
-  for (const focus of focuses) {
-    const { first, last } = windowOf(focus, total, { ahead, behind });
-    for (let n = first; n <= last; n++) protect.add(n);
-    for (let n = focus; n <= last; n++) add(n);
-  }
-  if (pinned) {
-    const start = focuses[0] ?? 1;
-    for (let n = start; n <= total; n++) add(n);
-    for (let n = 1; n < start; n++) add(n);
-  }
-  const trim = pinned ? [] : [...cached].filter((n) => finished.has(n) && !protect.has(n)).sort((a, b) => a - b);
-  return { want, protect, trim };
-}
-function pickEvictions(entries, capBytes) {
-  if (!(capBytes > 0)) return [];
-  let used = entries.reduce((sum, entry) => sum + entry.bytes, 0);
-  const out = [];
-  for (const entry of entries.filter((e) => !e.protected).sort((a, b) => a.lastAt - b.lastAt)) {
-    if (used <= capBytes) break;
-    out.push(entry.key);
-    used -= entry.bytes;
-  }
-  return out;
-}
-function nextRun(want, have) {
-  const missing = want.filter((n) => !have.has(n));
-  if (missing.length === 0) return null;
-  const from2 = missing[0];
-  let to = from2;
-  while (missing.includes(to + 1)) to += 1;
-  return [from2, to];
-}
-
-// src/cache.js
-function createCache({ library, downloads, rooms, window: size, logger }) {
-  let chain2 = Promise.resolve();
-  const serial = (step) => {
-    const result = chain2.then(step);
-    chain2 = result.catch((error) => logger.warn("rolling cache: %s", error.message));
-    return result;
-  };
-  async function protectedEpisodes() {
-    const out = /* @__PURE__ */ new Map();
-    for (const path of await library.sourcedShows()) {
-      const info = await library.cacheInfo(path);
-      const set2 = /* @__PURE__ */ new Set();
-      for (const focus of rooms.focusesOf(path)) {
-        const { first, last } = windowOf(focus, info.total, size);
-        for (let n = first; n <= last; n++) set2.add(n);
-      }
-      out.set(path, set2);
-    }
-    return out;
-  }
-  async function refreshShow(path, { retry = false } = {}) {
-    const info = await library.cacheInfo(path);
-    if (info === null) return;
-    const focuses = rooms.focusesOf(path);
-    const hasRoom = focuses.length > 0;
-    const places = hasRoom ? focuses : info.focus === null ? [] : [info.focus];
-    const skip = new Set([...info.skip].filter((n) => !places.includes(n)));
-    if (skip.size !== info.skip.size) await library.unskip(path, places);
-    const plan = planCache({ total: info.total, focuses: places, cached: info.cached, finished: info.finished, skip, pinned: info.pinned, ...size });
-    if (plan.trim.length > 0) {
-      await library.dropEpisodes(path, plan.trim, { reason: "watched" });
-      await rooms.syncShow(path);
-    }
-    await downloads.want({ source: info.source.source, item: { id: info.source.id, title: info.source.title ?? "", kind: info.source.kind, episodes: info.total, quality: info.source.quality ?? "" }, dir: path }, plan.want, { priority: hasRoom, retry });
-  }
-  async function enforceCap() {
-    if (!(size.capBytes > 0)) return;
-    const protectedBy = await protectedEpisodes();
-    const entries = (await library.cacheEntries()).map((entry) => ({ ...entry, protected: protectedBy.get(entry.show)?.has(entry.n) === true }));
-    const doomed = new Set(pickEvictions(entries, size.capBytes));
-    if (doomed.size === 0) return;
-    const byShow = /* @__PURE__ */ new Map();
-    for (const entry of entries) if (doomed.has(entry.key)) byShow.set(entry.show, [...byShow.get(entry.show) ?? [], entry.n]);
-    for (const [path, numbers] of byShow) {
-      await library.dropEpisodes(path, numbers, { reason: "cache full" });
-      await rooms.syncShow(path);
-    }
-  }
-  return {
-    /** Plan one show again: after a room moved, a show was saved, something finished. `retry`: someone asked for an episode, so a failed download is tried again. */
-    refresh: (path, options) => serial(async () => {
-      await refreshShow(path, options);
-      await enforceCap();
-    }),
-    /** Plan every show a room has open or that is kept offline (at start). */
-    refreshActive: () => serial(async () => {
-      for (const path of await library.sourcedShows()) {
-        const info = await library.cacheInfo(path);
-        if (info.pinned || rooms.focusesOf(path).length > 0) await refreshShow(path);
-      }
-      await enforceCap();
-    }),
-    enforce: () => serial(enforceCap)
-  };
-}
-
-// src/books.js
-import { spawn as spawn2 } from "node:child_process";
-import { createHash as createHash2, randomUUID } from "node:crypto";
-import { mkdir as mkdir3, readFile as readFile4, readdir as readdir3, rename, rm as rm2, stat as stat4, writeFile } from "node:fs/promises";
-import { extname as extname3, join as join7 } from "node:path";
-
-// src/formats.js
-var CONVERT_TARGETS = Object.freeze(["epub", "azw3", "mobi", "pdf", "txt", "docx", "fb2"]);
-var CONVERT_INPUTS = Object.freeze(["epub", "azw3", "mobi", "fb2", "docx", "txt", "pdf"]);
-function convertBase(formats) {
-  const have = new Set((formats ?? []).map((entry) => entry.format));
-  return CONVERT_INPUTS.find((format) => have.has(format)) ?? null;
-}
-
-// src/books.js
-var BOOK_TYPES = Object.freeze({
-  epub: "application/epub+zip",
-  pdf: "application/pdf",
-  txt: "text/plain; charset=utf-8",
-  azw3: "application/vnd.amazon.ebook",
-  mobi: "application/x-mobipocket-ebook",
-  fb2: "application/x-fictionbook+xml",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  cbz: "application/vnd.comicbook+zip",
-  djvu: "image/vnd.djvu"
-});
-var STATE_FILE = "books.json";
-var MAX_ENTRIES = 2e3;
-var CONVERT_TIMEOUT_MS = 10 * 6e4;
-var CONCURRENCY = 2;
-var ENTRY = /^[0-9a-f-]{36}$/;
-var booksError = (code, message) => Object.assign(new Error(message), { code });
-var fileKey = (source, id, format) => createHash2("sha256").update(`${source}
-${id}
-${format}`).digest("hex").slice(0, 24);
-function attachment(name2) {
-  const fallback = name2.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_") || "book";
-  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name2)}`;
-}
-function sha256Of2(path) {
-  return readFile4(path).then((body2) => createHash2("sha256").update(body2).digest("hex"));
-}
-function runConverter(command, input, output) {
-  return new Promise((resolve7, reject) => {
-    const child = spawn2(command, [input, output], { stdio: ["ignore", "ignore", "pipe"], detached: true });
-    let stderr = "";
-    const timer = setTimeout(() => {
-      try {
-        process.kill(-child.pid, "SIGTERM");
-      } catch {
-      }
-    }, CONVERT_TIMEOUT_MS);
-    child.stderr.on("data", (chunk) => {
-      stderr = (stderr + chunk).slice(-4e3);
-    });
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      if (code === 0) resolve7();
-      else reject(booksError("convert_failed", `conversion failed: ${stderr.trim().split("\n").pop() || `exit ${code}`}`));
-    });
-  });
-}
-function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, now = Date.now }) {
-  let state = { files: {}, shelves: {} };
-  let saving = Promise.resolve();
-  const running = /* @__PURE__ */ new Map();
-  const waiting = [];
-  let active = 0;
-  let disposed = false;
-  const save = () => {
-    saving = saving.then(async () => {
-      await mkdir3(dir, { recursive: true });
-      const temporary = join7(dir, `.${STATE_FILE}.${process.pid}.tmp`);
-      await writeFile(temporary, JSON.stringify(state));
-      await rename(temporary, join7(dir, STATE_FILE));
-    }).catch((error) => logger.warn("books: could not save the shelves: %s", error.message));
-    return saving;
-  };
-  const shelf = (person) => state.shelves[person] ??= [];
-  const holders = (key) => Object.values(state.shelves).some((entries) => entries.some((entry) => entry.file === key));
-  function describe(entry) {
-    const file = state.files[entry.file];
-    return {
-      entry: entry.entry,
-      source: entry.source,
-      id: entry.id,
-      format: entry.format,
-      title: entry.title,
-      author: entry.author,
-      cover: entry.cover ? covers.ofSource(entry.source, entry.cover) : null,
-      addedAt: entry.addedAt,
-      state: file?.state ?? "removed",
-      error: file?.error ?? null,
-      name: file?.name ?? null,
-      bytes: file?.bytes ?? null,
-      converted: file?.converted ?? false
-    };
-  }
-  async function usedBytes() {
-    return Object.values(state.files).filter((file) => file.state === "ready").reduce((sum, file) => sum + (file.bytes ?? 0), 0);
-  }
-  async function enforceCap() {
-    if (!(capBytes > 0)) return;
-    let total = await usedBytes();
-    const ready = Object.entries(state.files).filter(([key, file]) => file.state === "ready" && !running.has(key)).sort(([, a], [, b]) => a.usedAt - b.usedAt);
-    for (const [key, file] of ready) {
-      if (total <= capBytes) break;
-      await rm2(join7(dir, "files", key), { recursive: true, force: true });
-      total -= file.bytes ?? 0;
-      state.files[key] = { ...file, state: "removed", name: null };
-    }
-  }
-  async function fetchFile(key, { source: sourceId, id, format }, signal) {
-    const source = sources.get(sourceId);
-    const work = await source.info(id);
-    const native = (work.formats ?? []).some((entry) => entry.format === format) || (work.formats ?? []).length === 0;
-    const scratch = join7(dir, "tmp", key);
-    await rm2(scratch, { recursive: true, force: true });
-    await mkdir3(scratch, { recursive: true });
-    try {
-      let name2;
-      let converted = false;
-      if (native) {
-        name2 = (await source.downloadFile({ id, format, dir: scratch, signal })).name;
-      } else {
-        const base = convertBase(work.formats);
-        if (base === null || !await converter.available()) throw booksError("unsupported", `${work.title || id} is not offered as ${format}`);
-        const downloaded = (await source.downloadFile({ id, format: base, dir: scratch, signal })).name;
-        name2 = `${downloaded.slice(0, downloaded.length - extname3(downloaded).length)}.${format}`;
-        await runConverter(converter.command, join7(scratch, downloaded), join7(scratch, name2));
-        await rm2(join7(scratch, downloaded), { force: true });
-        converted = true;
-      }
-      const target = join7(dir, "files", key);
-      await rm2(target, { recursive: true, force: true });
-      await mkdir3(join7(dir, "files"), { recursive: true });
-      await rename(scratch, target);
-      const path = join7(target, name2);
-      return { name: name2, bytes: (await stat4(path)).size, sha256: await sha256Of2(path), converted, title: work.title, author: work.author, cover: work.cover };
-    } finally {
-      await rm2(scratch, { recursive: true, force: true });
-    }
-  }
-  function pump() {
-    while (!disposed && active < CONCURRENCY && waiting.length > 0) {
-      const { key, request } = waiting.shift();
-      active += 1;
-      const controller = new AbortController();
-      running.set(key, controller);
-      fetchFile(key, request, controller.signal).then((got) => {
-        state.files[key] = { ...state.files[key], state: "ready", error: null, name: got.name, bytes: got.bytes, sha256: got.sha256, converted: got.converted, usedAt: now() };
-        for (const entries of Object.values(state.shelves)) {
-          for (const entry of entries) {
-            if (entry.file !== key) continue;
-            entry.title ||= got.title ?? "";
-            entry.author ||= got.author ?? "";
-            entry.cover ||= got.cover ?? null;
-          }
-        }
-        return enforceCap();
-      }, (error) => {
-        if (disposed) return;
-        logger.warn("books: %s:%s as %s failed: %s", request.source, request.id, request.format, error.message);
-        state.files[key] = { ...state.files[key], state: "failed", error: error.message };
-      }).finally(() => {
-        active -= 1;
-        running.delete(key);
-        save();
-        pump();
-      });
-    }
-  }
-  function start(key, request) {
-    if (running.has(key) || waiting.some((job) => job.key === key)) return;
-    state.files[key] = { ...state.files[key], source: request.source, id: request.id, format: request.format, state: "fetching", error: null };
-    waiting.push({ key, request });
-    pump();
-  }
-  return {
-    async load() {
-      try {
-        const loaded = JSON.parse(await readFile4(join7(dir, STATE_FILE), "utf8"));
-        if (loaded && typeof loaded.files === "object" && typeof loaded.shelves === "object") state = loaded;
-      } catch (error) {
-        if (error.code !== "ENOENT") logger.warn("books: could not read the shelves: %s", error.message);
-      }
-      for (const [key, file] of Object.entries(state.files)) {
-        if (file.state === "fetching") start(key, file);
-        else if (file.state === "ready" && !await stat4(join7(dir, "files", key, file.name ?? "")).then((info) => info.isFile(), () => false)) state.files[key] = { ...file, state: "removed", name: null };
-      }
-      await rm2(join7(dir, "tmp"), { recursive: true, force: true });
-      await this.sweep();
-    },
-    /** Folders under files/ that no record names (a crash between a rename and a save) are deleted. */
-    async sweep() {
-      for (const name2 of await readdir3(join7(dir, "files")).catch(() => [])) {
-        if (state.files[name2] === void 0) await rm2(join7(dir, "files", name2), { recursive: true, force: true });
-      }
-    },
-    async list(person) {
-      return {
-        entries: shelf(person).map(describe).reverse(),
-        usedBytes: await usedBytes(),
-        capBytes,
-        convert: await converter.available()
-      };
-    },
-    /**
-     * Put a work on a person's shelf in `format` and fetch it unless the file is already here.
-     * @param {string} person
-     * @param {{ source: string, id: string, format: string, title?: string, author?: string, by?: string }} input
-     */
-    async add(person, { source: sourceId, id, format, title = "", author = "", by = "" }) {
-      const source = sources.get(sourceId);
-      if (source === void 0 || typeof source.downloadFile !== "function") throw booksError("not_found", `no source ${sourceId}`);
-      if (typeof id !== "string" || !/^[^\s\0]{1,200}$/.test(id)) throw booksError("invalid", "not a work id");
-      if (typeof format !== "string" || !/^[a-z0-9]{1,8}$/.test(format)) throw booksError("invalid", "not a format");
-      const key = fileKey(sourceId, id, format);
-      const entries = shelf(person);
-      let entry = entries.find((one) => one.file === key);
-      if (entry === void 0) {
-        if (entries.length >= MAX_ENTRIES) throw booksError("invalid", "this shelf is full; delete some books first");
-        entry = { entry: randomUUID(), file: key, source: sourceId, id, format, title: String(title).slice(0, 300), author: String(author).slice(0, 200), cover: null, addedAt: new Date(now()).toISOString(), by: String(by).slice(0, 80) };
-        entries.push(entry);
-      }
-      const file = state.files[key];
-      if (file?.state === "ready") state.files[key] = { ...file, usedAt: now() };
-      else start(key, { source: sourceId, id, format });
-      await save();
-      return describe(entry);
-    },
-    /** Fetch an entry's file again (it failed, or was removed to save space). */
-    async retry(person, entryId) {
-      const entry = shelf(person).find((one) => one.entry === entryId);
-      if (entry === void 0) throw booksError("not_found", "not on this shelf");
-      if (state.files[entry.file]?.state !== "ready") start(entry.file, entry);
-      await save();
-      return describe(entry);
-    },
-    async remove(person, entryId) {
-      const entries = shelf(person);
-      const index = entries.findIndex((one) => one.entry === entryId);
-      if (index === -1) throw booksError("not_found", "not on this shelf");
-      const [entry] = entries.splice(index, 1);
-      if (!holders(entry.file)) {
-        running.get(entry.file)?.abort();
-        const queued = waiting.findIndex((job) => job.key === entry.file);
-        if (queued !== -1) waiting.splice(queued, 1);
-        delete state.files[entry.file];
-        await rm2(join7(dir, "files", entry.file), { recursive: true, force: true });
-      }
-      await save();
-      return { removed: entryId };
-    },
-    /** The file behind a person's entry, when it is ready. */
-    async file(person, entryId) {
-      if (!ENTRY.test(String(entryId))) return null;
-      const entry = shelf(person).find((one) => one.entry === entryId);
-      const file = entry === void 0 ? void 0 : state.files[entry.file];
-      if (file?.state !== "ready" || !file.name) return null;
-      state.files[entry.file] = { ...file, usedAt: now() };
-      save();
-      return { path: join7(dir, "files", entry.file, file.name), name: file.name, type: BOOK_TYPES[entry.format] ?? "application/octet-stream" };
-    },
-    async dispose() {
-      disposed = true;
-      waiting.length = 0;
-      for (const controller of running.values()) controller.abort();
-      await saving;
-    }
-  };
-}
-
-// src/covers.js
-import { createHash as createHash4 } from "node:crypto";
-import { mkdir as mkdir5, open as open2, readdir as readdir6, rename as rename3, rm as rm4, stat as stat7, utimes } from "node:fs/promises";
-import { join as join10 } from "node:path";
-
 // src/library.js
-import { open, readdir as readdir4, stat as stat5 } from "node:fs/promises";
-import { basename as basename4, dirname as dirname2, extname as extname4, join as join8 } from "node:path";
+import { open, readdir, stat as stat3 } from "node:fs/promises";
+import { basename as basename4, dirname, extname as extname2, join as join3 } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 var run2 = promisify(execFile);
@@ -11852,7 +10994,7 @@ var BROWSER_VIDEO = /* @__PURE__ */ new Set(["h264", "vp8", "vp9", "av1"]);
 var BROWSER_AUDIO = /* @__PURE__ */ new Set(["aac", "mp3", "opus", "vorbis"]);
 var DIRECT_CONTAINERS = /* @__PURE__ */ new Set([".mp4", ".m4v", ".mov", ".webm"]);
 var collator = new Intl.Collator(void 0, { numeric: true, sensitivity: "base" });
-var extOf = (name2) => extname4(name2).toLowerCase();
+var extOf = (name2) => extname2(name2).toLowerCase();
 var isVideo = (name2) => VIDEO_EXTENSIONS.includes(extOf(name2));
 var isAudio = (name2) => AUDIO_EXTENSIONS.includes(extOf(name2));
 var isMedia = (name2) => !name2.startsWith(".") && (isVideo(name2) || isAudio(name2));
@@ -11861,27 +11003,27 @@ function naturalSort(names) {
   return [...names].sort(collator.compare);
 }
 function matchSubtitles(video, names) {
-  const stem = basename4(video, extname4(video));
+  const stem = basename4(video, extname2(video));
   const found = [];
   for (const name2 of naturalSort(names)) {
     if (!isSubtitle(name2)) continue;
-    const subStem = basename4(name2, extname4(name2));
+    const subStem = basename4(name2, extname2(name2));
     if (subStem === stem) found.push({ name: name2, label: "" });
     else if (subStem.startsWith(`${stem}.`)) found.push({ name: name2, label: subStem.slice(stem.length + 1) });
   }
   return found;
 }
-var titleOf2 = (file) => basename4(file, extname4(file));
+var titleOf2 = (file) => basename4(file, extname2(file));
 async function scanSource(path) {
-  const info = await stat5(path);
-  const folder = info.isDirectory() ? path : dirname2(path);
-  const names = await readdir4(folder);
+  const info = await stat3(path);
+  const folder = info.isDirectory() ? path : dirname(path);
+  const names = await readdir(folder);
   const videos = info.isDirectory() ? naturalSort(names.filter(isMedia)) : [basename4(path)];
   if (videos.length === 0) throw Object.assign(new Error(`no video or audio files in ${path}`), { code: "empty" });
   return videos.map((name2) => ({
     title: titleOf2(name2),
-    path: join8(folder, name2),
-    subtitles: matchSubtitles(name2, names).map((sub) => ({ path: join8(folder, sub.name), label: sub.label }))
+    path: join3(folder, name2),
+    subtitles: matchSubtitles(name2, names).map((sub) => ({ path: join3(folder, sub.name), label: sub.label }))
   }));
 }
 async function probe(path, { ffprobe = "ffprobe" } = {}) {
@@ -11941,11 +11083,1286 @@ function planVideo(path, info, { fastStart, maxHeight }) {
   return fastStart ? "direct" : "remux";
 }
 
+// src/cookies.js
+import { randomBytes } from "node:crypto";
+import { copyFile, chmod, mkdir as mkdir2, rm as rm2 } from "node:fs/promises";
+import { join as join4 } from "node:path";
+var cookiesError = (code, message) => Object.assign(new Error(message), { code });
+var accountView = (account) => account === null ? null : { name: account.name || account.person || "" };
+function createCookies(rules = [], io = {}) {
+  const hostRules = createHostRules(rules, io);
+  return {
+    /**
+     * The account for reading `url` on behalf of `person` (a sign-in id, '' for nobody known), or null.
+     * @returns {Promise<{ person: string, name: string, file: string, userAgent: string, share: boolean } | null>}
+     */
+    async account(url, person = "") {
+      const rule = await hostRules.match(url);
+      const accounts = (rule?.accounts ?? []).map((entry) => ({ person: "", name: "", userAgent: "", share: false, ...entry }));
+      return (person !== "" ? accounts.find((entry) => entry.person === person) : void 0) ?? accounts.find((entry) => entry.person === "") ?? accounts.find((entry) => entry.share) ?? null;
+    },
+    /**
+     * yt-dlp's arguments for an account, with a private copy of its cookies in `dir`; `done` deletes the copy.
+     * @returns {Promise<{ args: string[], done: () => Promise<void> }>}
+     */
+    async use(account, dir) {
+      if (account === null) return { args: [], done: async () => {
+      } };
+      await mkdir2(dir, { recursive: true });
+      const copy = join4(dir, `.cookies-${randomBytes(6).toString("hex")}.txt`);
+      try {
+        await copyFile(account.file, copy);
+        await chmod(copy, 384);
+      } catch (error) {
+        await rm2(copy, { force: true });
+        throw cookiesError("cookies_unavailable", `cannot read the cookies of the account ${accountView(account).name}: ${error.code ?? error.message}`);
+      }
+      const args = ["--cookies", copy, ...account.userAgent ? ["--user-agent", account.userAgent] : []];
+      return { args, done: () => rm2(copy, { force: true }) };
+    }
+  };
+}
+
+// src/sources/ytdlp.js
+var PROGRESS_ARGS = Object.freeze([
+  "--progress",
+  "--newline",
+  "--progress-delta",
+  "1",
+  "--progress-template",
+  'download:{"event":"progress","format":"%(info.format_id|)s","downloaded":%(progress.downloaded_bytes|null)s,"total":%(progress.total_bytes,progress.total_bytes_estimate|null)s,"speed":%(progress.speed|null)s,"eta":%(progress.eta|null)s}'
+]);
+var startTemplate = (number) => `before_dl:{"event":"start","number":${number}s,"formats":%(requested_formats.:.format_id|null)j,"sizes":%(requested_formats.:.filesize,filesize_approx|null)j,"size":%(filesize,filesize_approx|null)s}`;
+var positive = (value) => Number.isFinite(value) && value > 0 ? value : null;
+function createProgress(report) {
+  let current = null;
+  return {
+    /** Feed every parsed stdout event. */
+    event(event) {
+      if (event.event === "start" && Number.isInteger(event.number)) {
+        const formats = Array.isArray(event.formats) ? event.formats.map(String) : [];
+        const sizes = Array.isArray(event.sizes) ? event.sizes.map(positive) : [];
+        current = { number: event.number, formats, sizes: sizes.length > 0 && sizes.every(Boolean) ? sizes : null, size: positive(event.size) };
+        report(current.number, { fraction: 0, done: 0, total: current.sizes ? current.sizes.reduce((a, b) => a + b, 0) : current.size, speed: null, eta: null });
+        return;
+      }
+      if (event.event !== "progress" || current === null || !event.format) return;
+      const downloaded = positive(event.downloaded) ?? 0;
+      const fileTotal = positive(event.total);
+      const at = current.formats.indexOf(String(event.format));
+      let done = downloaded;
+      let total = fileTotal;
+      if (current.sizes && at >= 0) {
+        done = current.sizes.slice(0, at).reduce((a, b) => a + b, 0) + downloaded;
+        total = current.sizes.reduce((a, b) => a + b, 0);
+      }
+      report(current.number, {
+        fraction: total ? Math.min(1, done / total) : null,
+        done,
+        total,
+        speed: positive(event.speed),
+        eta: Number.isFinite(event.eta) && event.eta >= 0 ? Math.round(event.eta) : null
+      });
+    }
+  };
+}
+var REASONS = Object.freeze(["blocked", "sign_in", "not_found", "proxy_down", "failed"]);
+var REFUSED = /* @__PURE__ */ new Set([403, 412, 429, 451]);
+var MISSING = /* @__PURE__ */ new Set([404, 410]);
+function failureReason(stderr) {
+  const status = Number(/HTTP Error (\d{3})/.exec(stderr)?.[1]);
+  if (status === 401 || /--cookies\b/.test(stderr)) return "sign_in";
+  if (REFUSED.has(status)) return "blocked";
+  if (MISSING.has(status) || /\bUnsupported URL\b/.test(stderr)) return "not_found";
+  return "failed";
+}
+var TEXT_FORMATS = /* @__PURE__ */ new Set(["vtt", "srt", "ass", "ssa"]);
+var hasText = (formats) => (Array.isArray(formats) ? formats : []).some((format) => TEXT_FORMATS.has(String(format?.ext)));
+function subtitleLanguages(data, viewer) {
+  if (data?.subtitles === void 0 && data?.automatic_captions === void 0) return null;
+  const own = Object.entries(data.subtitles ?? {}).filter(([, formats]) => hasText(formats)).map(([tag]) => tag);
+  const generated = Object.entries(data.automatic_captions ?? {}).filter(([, formats]) => hasText(formats)).map(([tag]) => tag);
+  const wanted = [...own];
+  for (const language of [viewer, data.language]) {
+    if (!language || bestTag(own, language)) continue;
+    const tag = bestTag(generated, language);
+    if (tag && !wanted.includes(tag)) wanted.push(tag);
+  }
+  return wanted;
+}
+function subtitleArgs(languages, viewer) {
+  const convert = ["--sub-format", "vtt/srt/ass/best", "--convert-subs", "vtt"];
+  if (Array.isArray(languages)) return languages.length === 0 ? [] : ["--write-subs", "--write-auto-subs", "--sub-langs", languages.map(escapeTag).join(","), ...convert];
+  const primary2 = localeOf(viewer)?.language;
+  return primary2 ? ["--write-subs", "--write-auto-subs", "--sub-langs", `^${primary2}(-.*)?$`, ...convert] : [];
+}
+var escapeTag = (tag) => `^${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
+
+// src/sources/link.js
+var LINK_SOURCE = "link";
+var AUTO = "auto";
+var AUDIO = "audio";
+var HEIGHTS = Object.freeze([2160, 1440, 1080, 720, 480, 360]);
+var isQuality = (value) => value === AUTO || value === AUDIO || /^\d{3,4}$/.test(String(value)) && Number(value) >= 144;
+var INFO_TIMEOUT_MS = 12e4;
+var COVER_TIMEOUT_MS2 = 3e4;
+var MAX_BLURB = 1e3;
+var MAX_URL = 200;
+var REASON_TEXT = Object.freeze({
+  blocked: "the site refused the request",
+  sign_in: "the site wants a signed-in account",
+  not_found: "there is nothing to play at this address",
+  proxy_down: "the proxy for this site is not answering",
+  failed: "the site did not give the video"
+});
+var linkError = (code, message, reason) => Object.assign(new Error(message), { code, ...reason ? { reason } : {} });
+var failure = (reason) => linkError("source_failed", REASON_TEXT[reason], reason);
+var isWebAddress = (value) => {
+  try {
+    return ["http:", "https:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+};
+function thumbnailOf(data) {
+  if (typeof data.thumbnail === "string") return data.thumbnail;
+  const listed = (Array.isArray(data.thumbnails) ? data.thumbnails : []).filter((entry) => typeof entry?.url === "string");
+  return listed.sort((a, b) => (a.width ?? 0) - (b.width ?? 0)).pop()?.url ?? null;
+}
+var seconds = (value) => Number.isFinite(value) && value > 0 ? Math.round(value) : null;
+function qualityChoices(formats, maxHeight) {
+  const known = Array.isArray(formats) ? formats.map((format) => format?.height).filter((height) => Number.isInteger(height) && height > 0) : [];
+  const heights = (known.length > 0 ? [...new Set(known)] : HEIGHTS).filter((height) => height <= maxHeight && height >= 144).sort((a, b) => b - a);
+  return [AUTO, ...heights.map(String), AUDIO];
+}
+function infoDocument(data, url, maxHeight) {
+  const page = typeof data.webpage_url === "string" && isWebAddress(data.webpage_url) ? data.webpage_url : url;
+  const entries = data._type === "playlist" ? (data.entries ?? []).filter((entry) => entry !== null && typeof entry === "object") : [data];
+  const durations = entries.map((entry) => seconds(entry.duration));
+  const site = data.webpage_url_domain ?? new URL(page).hostname;
+  return {
+    id: page,
+    url: page,
+    kind: "video",
+    title: data.title ?? data.id ?? page,
+    author: data.uploader ?? data.channel ?? data.playlist_uploader ?? "",
+    blurb: typeof data.description === "string" ? data.description.slice(0, MAX_BLURB) : "",
+    cover: thumbnailOf(data) ?? thumbnailOf(entries[0] ?? {}),
+    duration: durations.every(Boolean) ? durations.reduce((sum, value) => sum + value, 0) : null,
+    popularity: Number.isFinite(data.view_count) ? { count: data.view_count, label: "plays" } : null,
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    meta: [{ key: "site", label: "Site", value: site }],
+    episodes: entries.map((entry, index) => ({ number: index + 1, title: entry.title ?? "" })),
+    qualities: qualityChoices(data._type === "playlist" ? null : data.formats, maxHeight)
+  };
+}
+function formatArgs(quality, maxHeight) {
+  if (quality === AUDIO) return ["-f", "ba/b", "-S", "acodec:aac", "-x", "--audio-format", "m4a"];
+  const height = quality === AUTO || !isQuality(quality) ? maxHeight : Math.min(Number(quality), maxHeight);
+  return ["-f", "bv*+ba/b", "-S", `res:${height},vcodec:h264,acodec:aac`, "--merge-output-format", "mp4"];
+}
+function createLinkSource({ ytDlp, proxies, cookies, maxHeight, cwd, logger }) {
+  async function workDir() {
+    await mkdir3(cwd, { recursive: true });
+    return cwd;
+  }
+  async function access2(url, person) {
+    if (!isWebAddress(url)) throw linkError("invalid", "not a web address");
+    let proxy;
+    try {
+      proxy = await proxies.route(url);
+    } catch (error) {
+      logger.warn("link %s: %s", url, error.message);
+      throw failure("proxy_down");
+    }
+    let account;
+    try {
+      account = await cookies.account(url, person);
+    } catch (error) {
+      logger.warn("link %s: %s", url, error.message);
+      throw failure("failed");
+    }
+    return { proxy, account };
+  }
+  async function ytdlp(url, args, { person = "", ...options } = {}) {
+    const { proxy, account } = await access2(url, person);
+    const dir = await workDir();
+    let session;
+    try {
+      session = await cookies.use(account, dir);
+    } catch (error) {
+      logger.warn("link %s: %s", url, error.message);
+      throw failure("sign_in");
+    }
+    try {
+      const result = await run([ytDlp, "--no-warnings", "--no-playlist", "--proxy", proxy, ...session.args, ...args, "--", url], { cwd: dir, ...options });
+      return { ...result, proxy, account };
+    } finally {
+      await session.done();
+    }
+  }
+  async function reasonOf(url, { code, stderr, proxy }) {
+    const reason = proxy !== "" && !await proxyAnswers(proxy) ? "proxy_down" : failureReason(stderr);
+    logger.warn("link %s failed (%s): %s", url, reason, lastLine(stderr) || `exit ${code}`);
+    return failure(reason);
+  }
+  return {
+    id: LINK_SOURCE,
+    label: "",
+    input: "url",
+    kinds: [{ id: "video", label: "", media: "video" }],
+    filters: [],
+    available: () => commandExists(ytDlp),
+    /**
+     * The work at an address, read with the account `person` would use (so its qualities are what that account gets).
+     * `language` is the viewer's, for choosing generated subtitles.
+     */
+    async info(url, { person = "", language = "" } = {}) {
+      const result = await ytdlp(String(url), ["-J", "--flat-playlist"], { person, timeoutMs: INFO_TIMEOUT_MS });
+      if (result.oversized) throw linkError("source_failed", "the page lists too much to read", "failed");
+      if (result.code !== 0) throw await reasonOf(url, result);
+      let data;
+      try {
+        data = JSON.parse(result.stdout);
+      } catch {
+        throw linkError("source_failed", "yt-dlp answered something that is not JSON", "failed");
+      }
+      const document2 = infoDocument(data, String(url), maxHeight);
+      if (document2.id.length > MAX_URL) throw linkError("invalid", "the address is too long");
+      if (document2.episodes.length === 0) throw linkError("empty", "there is no video at this address", "not_found");
+      return { ...parseInfo(document2), qualities: document2.qualities, account: accountView(result.account), subtitles: subtitleLanguages(data, language) };
+    },
+    /** The thumbnail, through the route of its own host or its page's. */
+    async cover(url, file, { page = "" } = {}) {
+      await proxies.download(url, file, { page, maxBytes: 2e6, timeoutMs: COVER_TIMEOUT_MS2 });
+    },
+    /**
+     * Episodes `from`..`to` into `dir`, one file each, named by number, with their subtitles; yt-dlp skips the ones already there.
+     * `subtitles` is the language list `info` chose (null when unknown, then `language`'s), `person` whose account to use.
+     */
+    async download({ id, dir, from: from2 = 1, to = from2, quality = AUTO, person = "", subtitles = null, language = "", signal, onEpisode, onStart, onProgress }) {
+      await mkdir3(dir, { recursive: true });
+      const progress = createProgress((number2, value) => onProgress?.(number2, value));
+      const onLine = (line) => {
+        const event = parseLine(line);
+        if (event === null) return;
+        progress.event(event);
+        if (!Number.isInteger(event.number)) return;
+        if (event.event === "start") onStart?.(event.number);
+        onEpisode?.();
+      };
+      const number = "%(playlist_index|1)";
+      const args = [
+        ...formatArgs(quality, maxHeight),
+        ...subtitleArgs(subtitles, language),
+        "-i",
+        "--no-mtime",
+        ...PROGRESS_ARGS,
+        "-P",
+        `home:${dir}`,
+        "-P",
+        `temp:${join5(dir, ".incoming")}`,
+        "-o",
+        `${number}03d %(title).100B.%(ext)s`,
+        "--playlist-items",
+        `${from2}:${to}`,
+        "--print",
+        startTemplate(number),
+        "--print",
+        `after_move:{"event":"done","number":${number}s}`
+      ];
+      const result = await ytdlp(String(id), args, { person, signal, onStdoutLine: onLine });
+      onEpisode?.();
+      if (signal?.aborted) return { failed: [] };
+      const have = new Set((await readdir2(dir)).filter(isMedia).map(episodeNumber).filter((n) => n !== null));
+      const failed = [];
+      for (let n = from2; n <= to; n++) if (!have.has(n)) failed.push(String(n));
+      if (result.code !== 0 && failed.length === to - from2 + 1) throw await reasonOf(id, result);
+      if (failed.length > 0) logger.warn("link download %s ended with %s: %s", id, result.code, lastLine(result.stderr));
+      return { failed };
+    }
+  };
+}
+
+// src/sources/index.js
+var EPISODE_BYTES = Object.freeze({ drama: 15e6, audio: 8e6 });
+var MEDIA = Object.freeze(["video", "audio", "book"]);
+var ALL_SOURCES = "all";
+var RESERVED_IDS = Object.freeze(["local", LINK_SOURCE, ALL_SOURCES]);
+function createSources(definitions, { stateDir, logger, link }) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const { id, kinds } of definitions) {
+    if (kinds.length === 0) throw new Error(`source ${id} lists no kinds`);
+    if (RESERVED_IDS.includes(id)) throw new Error(`source id ${id} is reserved`);
+    if (seen.has(id)) throw new Error(`source id ${id} is listed twice`);
+    seen.add(id);
+  }
+  return [
+    ...definitions.map((definition) => createCommandSource(definition, { logger, cwd: join6(stateDir, definition.id) })),
+    createLinkSource({ ...link, logger, cwd: join6(stateDir, LINK_SOURCE) })
+  ];
+}
+async function describeSources(sources) {
+  const out = [];
+  for (const source of sources) {
+    if (await source.available()) out.push({ id: source.id, label: source.label, input: source.input ?? "search", kinds: source.kinds.map((kind) => ({ ...kind, media: kind.media ?? "video" })), filters: source.filters });
+  }
+  return out;
+}
+
+// src/config.js
+var DSH_HOME = process.env.DSH_HOME || join7(homedir(), ".dsh");
+function defaultStateDir(home = DSH_HOME, exists2 = existsSync) {
+  const current = join7(home, "media-hub");
+  const earlier = join7(home, "videosync");
+  return !exists2(current) && exists2(earlier) ? earlier : current;
+}
+var DEFAULT_STATE_DIR = defaultStateDir();
+var Label = Schema.union([Schema.string(), Schema.dict(Schema.string())]);
+var SourceConfig = Schema.object({
+  id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("Stable id, lowercase letters, digits, - and _. Names the source in URLs and saved downloads, and the folder the command runs in (stateDir/<id>). Not local, link or all."),
+  label: Label.default("").description("Name on the source's tab: a string, or { <tag>: text } per language. Empty uses the page's own words for this source id (source.name.<id> in locale/), else the id."),
+  kinds: Schema.array(Schema.object({
+    id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("What the command's search --kind takes."),
+    label: Label.default("").description("Name of the category chip: a string, or { <tag>: text } per language. Empty uses the page's own words for this kind id (kind.<id> in locale/), else the id."),
+    media: Schema.union(MEDIA.map((media) => Schema.const(media))).default("video").description("What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format).")
+  })).description("What the source can search for; at least one."),
+  filters: Schema.array(Schema.union(FILTERS.map((filter) => Schema.const(filter)))).default([]).description("Search filters the command understands (docs/source-protocol.md). The hub filters the answers by language, format, year and size itself as well."),
+  command: Schema.array(Schema.string()).min(1).description("The command and its fixed arguments, one entry per word; the plugin adds the protocol verbs after them."),
+  env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command.")
+});
+var hostFields = () => ({
+  hosts: Schema.array(Schema.string()).default([]).description("Hosts it applies to: example.com (that host and every host under it), .example (every host ending so), * (every host)."),
+  hostsFile: Schema.string().default("").description("A file with more such patterns, one per line, # starting a comment; read again when it changes. While it cannot be read, requests to any host fail instead of going without the rule.")
+});
+var ProxyRule = Schema.object({
+  url: Schema.string().pattern(PROXY_URL).description("The proxy: socks5h://host:port (names resolved by the proxy), socks5://, socks4://, http:// or https://."),
+  ...hostFields()
+});
+var CookieAccount = Schema.object({
+  person: Schema.string().default("").description("Whose account this is: their sign-in id (the id the sign-in plugin gives, such as an OpenID subject). Empty makes it the default account, used by anyone without one of their own."),
+  name: Schema.string().default("").description("The name shown for this account when someone looks up a link (never the cookies)."),
+  file: Schema.string().description("A Netscape cookies file of a signed-in session, kept fresh by whatever holds that session. The hub only reads it: yt-dlp gets a private copy for each run, so nothing is written back."),
+  userAgent: Schema.string().default("").description("The User-Agent of the session the cookies belong to, sent with them, so the site sees the same device. Empty keeps yt-dlp's own."),
+  share: Schema.boolean().default(false).description("Whether other people's requests may use this account when they have none of their own (a room started by its owner always does).")
+});
+var CookieRule = Schema.object({
+  accounts: Schema.array(CookieAccount).default([]).description("The signed-in accounts for these hosts. A request uses its person's own account, else the default one, else a shared one, in this order."),
+  ...hostFields()
+});
+var DEFAULT_SOURCES = Object.freeze([
+  {
+    id: "fanqie",
+    kinds: [{ id: "drama", media: "video" }, { id: "audio", media: "audio" }, { id: "novel", media: "book" }],
+    filters: [],
+    command: ["fanqie"],
+    env: {}
+  },
+  {
+    id: "bookfetch",
+    kinds: [{ id: "ebook", media: "book" }, { id: "paper", media: "book" }],
+    filters: ["language", "format", "year"],
+    command: ["bookfetch", "source"],
+    env: {}
+  }
+]);
+var Config = Schema.object({
+  label: Label.default("").description("Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer's tag, then its primary subtag, then en). Empty uses the page's own name in the viewer's language."),
+  libraryRoots: Schema.array(Schema.string()).default([]).description(`Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The assistant's tool can open any path.`),
+  delivery: Schema.union(DELIVERY_MODES.map((mode) => Schema.const(mode))).default("origin").description("Where viewers load local media from. origin: DSH's own web server (through whatever sits in front of DSH). r2: object storage with signed links (not built yet)."),
+  stateDir: Schema.string().default(DEFAULT_STATE_DIR).description("Folder for open rooms (rooms.json), the default library folder (library, where downloads go), prepared media (cache), the watch log (watch-log.jsonl) and library notes (shows.json, downloads.json)."),
+  maxHeight: Schema.natural().min(240).default(1080).description("Videos taller than this, or in codecs browsers cannot play, are transcoded to H.264 at this height."),
+  threads: Schema.natural().min(1).default(2).description("ffmpeg threads for transcoding. Jobs run one at a time at low priority."),
+  emptyMinutes: Schema.natural().min(1).default(30).description("A room closes this many minutes after its last viewer left."),
+  unopenedHours: Schema.natural().min(1).default(24).description("A room nobody has opened yet closes this many hours after it was created, so a link sent ahead of time still works."),
+  cacheDays: Schema.natural().min(1).default(7).description("Prepared media no open room uses is deleted after this many days."),
+  autoDeleteDays: Schema.natural().default(7).description("A library show is deleted this many days after it was watched to the end (its last episode, or every episode), unless someone keeps it. 0 never deletes."),
+  cacheAhead: Schema.natural().default(5).description("Rolling cache: how many episodes after the one being watched are kept on disk for a show from a source. The episode being watched is fetched first, then these in order."),
+  cacheBehind: Schema.natural().default(1).description("Rolling cache: how many watched episodes before the current one stay on disk. Older watched episodes are deleted (the watch log still marks them watched)."),
+  cacheLimitGb: Schema.number().min(0).default(5).description("Rolling cache: the most disk, in GB, that cached episodes of shows from a source may use. Past it the least recently watched go first, never one near where a room is. Shows kept offline do not count. 0 means no limit."),
+  sources: Schema.array(SourceConfig).default(DEFAULT_SOURCES.map((source) => ({ ...source, kinds: [...source.kinds], filters: [...source.filters], command: [...source.command] }))).description("Where the search box looks for shows and the library downloads them from. Each source is a command line tool that speaks the JSON protocol in docs/source-protocol.md; every request goes through that command, so a launcher that routes it through a proxy keeps that rule. A source is hidden while its command is not installed. The list replaces the default, so keep the default entry when adding another."),
+  coverCacheMb: Schema.number().min(0).default(50).description("The most disk, in MB, that search result covers may use (stateDir/covers). Past it the least recently shown go. 0 means no limit."),
+  bookCacheGb: Schema.number().min(0).default(5).description("The most disk, in GB, that downloaded books may use (stateDir/books). Past it the least recently used files go; they stay on their shelves and can be downloaded again. 0 means no limit."),
+  converter: Schema.string().default("ebook-convert").description("Calibre's ebook-convert command. When it is installed, books can be downloaded in formats their source does not have (converted from the best one it has). Empty turns conversion off."),
+  notifyCommand: Schema.array(Schema.string()).default([]).description("A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run."),
+  ffmpeg: Schema.string().default("ffmpeg").description("ffmpeg command."),
+  ffprobe: Schema.string().default("ffprobe").description("ffprobe command."),
+  ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file applies."),
+  proxies: Schema.array(ProxyRule).default([]).description("Which proxy each outbound request takes, by host: the first rule naming the host wins, any other host goes direct. Applies to every yt-dlp call (by the page's host) and every picture the hub fetches itself. Sources' commands keep their own network setup."),
+  cookies: Schema.array(CookieRule).default([]).description("Signed-in accounts for sites, by host: the first rule naming a page's host gives its accounts, and yt-dlp reads that page with the chosen account's cookies and User-Agent. A show keeps the account of whoever fetched it, or started the room on it.")
+});
+
+// src/http.js
+import { createReadStream as createReadStream2, existsSync as existsSync2 } from "node:fs";
+import { readFile as readFile3, stat as stat4 } from "node:fs/promises";
+import { dirname as dirname2, extname as extname3, isAbsolute as isAbsolute2, relative, resolve as resolve2, sep } from "node:path";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+
+// src/filters.js
+var LANGUAGE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/;
+var YEAR2 = (value) => Number.isInteger(value) && value > 0 && value < 1e4 ? value : null;
+function parseFilters(param) {
+  const whole = (name2) => {
+    const value = Number.parseInt(param(name2), 10);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  };
+  const language = param("language").trim();
+  const format = param("format").trim().toLowerCase();
+  return {
+    language: LANGUAGE.test(language) ? language.toLowerCase() : "",
+    format: FORMAT.test(format) ? format : "",
+    yearFrom: YEAR2(whole("yearFrom")),
+    yearTo: YEAR2(whole("yearTo")),
+    maxBytes: whole("maxMb") === null ? null : whole("maxMb") * 1e6
+  };
+}
+var primary = (code) => code.toLowerCase().split("-")[0];
+function smallestBytes(result) {
+  const sizes = [result.bytes, ...(result.formats ?? []).map((entry) => entry.bytes)].filter((size) => Number.isInteger(size) && size > 0);
+  return sizes.length === 0 ? null : Math.min(...sizes);
+}
+function matches(result, { language = "", format = "", yearFrom = null, yearTo = null, maxBytes = null } = {}) {
+  if (language && result.language && primary(result.language) !== primary(language)) return false;
+  if (format && (result.formats ?? []).length > 0 && !result.formats.some((entry) => entry.format === format)) return false;
+  if (yearFrom !== null && result.year !== null && result.year !== void 0 && result.year < yearFrom) return false;
+  if (yearTo !== null && result.year !== null && result.year !== void 0 && result.year > yearTo) return false;
+  const size = smallestBytes(result);
+  if (maxBytes !== null && size !== null && size > maxBytes) return false;
+  return true;
+}
+var applyFilters = (results, filters) => results.filter((result) => matches(result, filters));
+function interleave(lists) {
+  const out = [];
+  const longest = Math.max(0, ...lists.map((list) => list.length));
+  for (let index = 0; index < longest; index += 1) {
+    for (const list of lists) if (index < list.length) out.push(list[index]);
+  }
+  return out;
+}
+
+// src/locales.js
+import { readdir as readdir3, readFile as readFile2 } from "node:fs/promises";
+import { join as join8 } from "node:path";
+async function readLocales(dir, logger) {
+  const names = (await readdir3(dir).catch(() => [])).filter((name2) => name2.endsWith(".json")).sort();
+  const locales = {};
+  for (const name2 of names) {
+    const tag = name2.slice(0, -".json".length);
+    if (!TAG.test(tag)) {
+      logger?.warn("locale/%s: the name is not a language tag; skipped", name2);
+      continue;
+    }
+    try {
+      const { ui } = JSON.parse(await readFile2(join8(dir, name2), "utf8"));
+      if (ui === null || typeof ui !== "object" || Array.isArray(ui)) throw new Error('no "ui" table');
+      locales[tag] = Object.fromEntries(Object.entries(ui).filter(([, text3]) => typeof text3 === "string"));
+    } catch (error) {
+      logger?.warn("locale/%s: %s; skipped", name2, error.message);
+    }
+  }
+  if (locales[BASE] === void 0) logger?.warn("locale/%s.json is missing; every other language falls back to it", BASE);
+  return locales;
+}
+
+// src/http.js
+var ROUTE = `/${PREFIX}`;
+var WS_PATH = `${ROUTE}/ws`;
+var SECURITY_HEADERS = Object.freeze({
+  "cache-control": "no-store",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff"
+});
+var MEDIA_TYPES = Object.freeze({
+  ".mp4": "video/mp4",
+  ".m4v": "video/mp4",
+  ".mov": "video/quicktime",
+  ".webm": "video/webm",
+  ".m3u8": "application/vnd.apple.mpegurl",
+  ".ts": "video/mp2t",
+  ".m4s": "video/iso.segment",
+  ".aac": "audio/aac",
+  ".m4a": "audio/mp4",
+  ".mp3": "audio/mpeg",
+  ".vtt": "text/vtt; charset=utf-8",
+  ".jpg": "image/jpeg"
+});
+var WEB_TYPES = Object.freeze({ ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" });
+var here = fileURLToPath(new URL(".", import.meta.url));
+var WEB_DIR = resolve2(here, "../web");
+var LOCALE_DIR = resolve2(here, "../locale");
+var MODULES = Object.freeze({
+  "sync.js": resolve2(here, "../src/sync.js"),
+  "formats.js": resolve2(here, "../src/formats.js"),
+  "i18n.js": resolve2(here, "../src/i18n.js")
+});
+function hlsFile() {
+  const built = resolve2(here, "../dist/hls.mjs");
+  return existsSync2(built) ? built : resolve2(dirname2(createRequire(import.meta.url).resolve("hls.js/package.json")), "dist/hls.mjs");
+}
+function webFile(name2) {
+  if (name2 === "hls.mjs") return hlsFile();
+  if (MODULES[name2] !== void 0) return MODULES[name2];
+  return /^[a-z0-9-]+\.(js|css)$/.test(name2) ? resolve2(WEB_DIR, name2) : void 0;
+}
+function admitOwner(connection, request) {
+  const admission = connection.admit(request);
+  if ("rejection" in admission) return { ok: false, status: admission.rejection };
+  if (admission.peer?.principal?.kind !== "owner") return { ok: false, status: 403 };
+  return { ok: true };
+}
+function resolveRange(header, size) {
+  if (typeof header !== "string" || header.trim() === "") return { kind: "absent" };
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(header.trim());
+  if (match === null || size <= 0) return { kind: "unsatisfiable" };
+  const [, rawStart, rawEnd] = match;
+  if (rawStart === "") {
+    const suffix = Number(rawEnd);
+    if (rawEnd === "" || !(suffix > 0)) return { kind: "unsatisfiable" };
+    return { kind: "window", start: Math.max(0, size - suffix), end: size - 1 };
+  }
+  const start = Number(rawStart);
+  const end = rawEnd === "" ? size - 1 : Math.min(Number(rawEnd), size - 1);
+  if (start >= size || end < start) return { kind: "unsatisfiable" };
+  return { kind: "window", start, end };
+}
+async function sendFile(req, res, path, type = MEDIA_TYPES[extname3(path).toLowerCase()] ?? "application/octet-stream") {
+  let info;
+  try {
+    info = await stat4(path);
+  } catch {
+    return sendText(res, 404, "Not found.");
+  }
+  if (!info.isFile()) return sendText(res, 404, "Not found.");
+  const size = info.size;
+  const range = resolveRange(req.headers.range, size);
+  const headers = { ...SECURITY_HEADERS, "cache-control": "private, no-store", "accept-ranges": "bytes", "content-type": type };
+  if (range.kind === "unsatisfiable") {
+    res.writeHead(416, { ...headers, "content-range": `bytes */${size}` }).end();
+    return;
+  }
+  const start = range.kind === "window" ? range.start : 0;
+  const end = range.kind === "window" ? range.end : size - 1;
+  const status = range.kind === "window" ? 206 : 200;
+  if (range.kind === "window") headers["content-range"] = `bytes ${start}-${end}/${size}`;
+  headers["content-length"] = String(size === 0 ? 0 : end - start + 1);
+  res.writeHead(status, headers);
+  if (req.method === "HEAD" || size === 0) {
+    res.end();
+    return;
+  }
+  const stream = createReadStream2(path, { start, end });
+  stream.on("error", () => res.destroy());
+  res.on("close", () => stream.destroy());
+  stream.pipe(res);
+}
+function sendText(res, status, text3) {
+  res.writeHead(status, { ...SECURITY_HEADERS, "content-type": "text/plain; charset=utf-8" }).end(`${text3}
+`);
+}
+function sendJson(res, status, value) {
+  const body2 = JSON.stringify(value);
+  res.writeHead(status, { ...SECURITY_HEADERS, "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body2) }).end(body2);
+}
+function within(root, rel) {
+  const target = resolve2(root, rel);
+  const back = relative(root, target);
+  if (back === "" || back === ".." || back.startsWith(`..${sep}`) || isAbsolute2(back)) return null;
+  return target;
+}
+var MAX_BODY = 64 * 1024;
+var byOf = (body2) => typeof body2?.by === "string" ? body2.by.slice(0, 40) : null;
+var pick3 = (body2, keys) => Object.fromEntries(keys.filter((key) => body2?.[key] !== void 0).map((key) => [key, body2[key]]));
+async function readJson(req) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > MAX_BODY) throw Object.assign(new Error("request body too large"), { status: 413 });
+    chunks.push(chunk);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+  } catch {
+    throw Object.assign(new Error("request body is not JSON"), { status: 400 });
+  }
+}
+var STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 });
+var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, message: error?.message ?? String(error) } });
+function createHandler({ connection, service, label = () => "", localeDir = LOCALE_DIR, logger }) {
+  let locales;
+  return async (req, res) => {
+    const admitted = admitOwner(connection, req);
+    if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? "Sign in to DSH first." : "Forbidden.");
+    const url = new URL(req.url ?? "/", "http://media-hub.invalid");
+    const parts = url.pathname.slice(ROUTE.length + 1).split("/").map(decodeURIComponent);
+    const hub = service();
+    if (hub === void 0) return sendText(res, 503, "The media hub is starting.");
+    try {
+      if (parts[0] === "web" && parts.length === 2 && req.method === "GET") {
+        const file = webFile(parts[1]);
+        const body2 = file === void 0 ? null : await readFile3(file).catch(() => null);
+        if (body2 === null) return sendText(res, 404, "Not found.");
+        res.writeHead(200, { ...SECURITY_HEADERS, "content-type": WEB_TYPES[extname3(file)], "content-length": body2.length }).end(body2);
+        return;
+      }
+      if (parts[0] === "covers" && parts.length === 2 && req.method === "GET") {
+        const cover = await hub.coverFile(parts[1]);
+        if (cover === null) return sendText(res, 404, "Not found.");
+        return sendFile(req, res, cover.file, cover.type);
+      }
+      if (parts[0] === "media" && parts.length >= 4 && (req.method === "GET" || req.method === "HEAD")) {
+        const item = hub.mediaFile(parts[1], Number(parts[2]));
+        if (item === void 0) return sendText(res, 404, "Not found.");
+        const rest = parts.slice(3).join("/");
+        if (item.kind === "hls") {
+          const target = within(dirname2(item.file), rest);
+          return target === null ? sendText(res, 404, "Not found.") : sendFile(req, res, target);
+        }
+        return sendFile(req, res, item.file);
+      }
+      if (parts[0] === "subs" && parts.length === 4 && req.method === "GET") {
+        const file = hub.subtitleFile(parts[1], Number(parts[2]), Number.parseInt(parts[3], 10));
+        return file === void 0 ? sendText(res, 404, "Not found.") : sendFile(req, res, file, MEDIA_TYPES[".vtt"]);
+      }
+      if (parts[0] === "api") {
+        const route = `${req.method} ${parts.slice(1).join("/")}`;
+        const query = (name2) => url.searchParams.get(name2) ?? "";
+        if (route === "GET rooms") return sendJson(res, 200, { rooms: await hub.listRooms() });
+        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "work") return sendJson(res, 200, hub.roomWork(parts[2]));
+        if (req.method === "DELETE" && parts[1] === "rooms" && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]));
+        if (route === "GET library") return sendJson(res, 200, await hub.library());
+        if (route === "GET library/episodes") return sendJson(res, 200, { episodes: await hub.episodes(query("path")) });
+        if (route === "DELETE library") {
+          const by = query("by") || null;
+          return sendJson(res, 200, query("episode") ? await hub.removeEpisode(query("path"), query("episode"), by) : await hub.removeShow(query("path"), by));
+        }
+        if (route === "POST library/rename") {
+          const body2 = await readJson(req);
+          return sendJson(res, 200, await hub.renameShow(body2.path, body2.name, byOf(body2)));
+        }
+        if (route === "POST library/keep") {
+          const body2 = await readJson(req);
+          return sendJson(res, 200, await hub.keepShow(body2.path, byOf(body2)));
+        }
+        if (route === "POST library/countdown") {
+          const body2 = await readJson(req);
+          return sendJson(res, 200, await hub.countdownShow(body2.path, byOf(body2)));
+        }
+        if (route === "POST library/retry") return sendJson(res, 200, await hub.retryDownload((await readJson(req)).path));
+        if (route === "POST library/pin") {
+          const body2 = await readJson(req);
+          return sendJson(res, 200, await hub.pinShow(body2.path, body2.pinned === true, byOf(body2)));
+        }
+        if (route === "POST follow") return sendJson(res, 200, await hub.followWork(pick3(await readJson(req), ["source", "id", "follow"])));
+        if (route === "POST library/seen") return sendJson(res, 200, hub.dismissNews((await readJson(req)).path));
+        if (route === "POST library/refresh") return sendJson(res, 200, { work: await hub.refreshWork((await readJson(req)).path) });
+        if (route === "POST library/cancel") return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path));
+        if (route === "GET settings") return sendJson(res, 200, { label: label() });
+        if (route === "GET locales") return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)));
+        if (route === "GET sources") return sendJson(res, 200, { sources: await hub.sources() });
+        if (route === "GET search") return sendJson(res, 200, await hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query)));
+      }
+      return sendText(res, 404, "Not found.");
+    } catch (error) {
+      const status = error?.status ?? STATUS[error?.code] ?? 500;
+      if (!res.headersSent) sendJson(res, status, errorBody(error));
+      else res.destroy();
+    }
+  };
+}
+function refuseUpgrade(socket, status) {
+  const text3 = { 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found" }[status] ?? "Error";
+  socket.end(`HTTP/1.1 ${status} ${text3}\r
+Connection: close\r
+Content-Length: 0\r
+\r
+`);
+}
+
+// src/media.js
+import { spawn as spawn4 } from "node:child_process";
+import { createHash as createHash5 } from "node:crypto";
+import { statfs as statfs2, stat as stat9 } from "node:fs/promises";
+import { join as join15, resolve as resolve5 } from "node:path";
+
+// src/downloads.js
+import { readFile as readFile4, rename, writeFile } from "node:fs/promises";
+import { join as join9 } from "node:path";
+
+// src/window.js
+function windowOf(focus, total, { ahead, behind }) {
+  return { first: Math.max(1, focus - behind), last: Math.min(total, focus + ahead) };
+}
+function planCache({ total, focuses, cached, finished, skip = /* @__PURE__ */ new Set(), pinned = false, ahead, behind }) {
+  const protect = /* @__PURE__ */ new Set();
+  const want = [];
+  const add = (n) => {
+    if (!cached.has(n) && !want.includes(n) && (!skip.has(n) || focuses.includes(n))) want.push(n);
+  };
+  for (const focus of focuses) {
+    const { first, last } = windowOf(focus, total, { ahead, behind });
+    for (let n = first; n <= last; n++) protect.add(n);
+    for (let n = focus; n <= last; n++) add(n);
+  }
+  if (pinned) {
+    const start = focuses[0] ?? 1;
+    for (let n = start; n <= total; n++) add(n);
+    for (let n = 1; n < start; n++) add(n);
+  }
+  const trim = pinned ? [] : [...cached].filter((n) => finished.has(n) && !protect.has(n)).sort((a, b) => a - b);
+  return { want, protect, trim };
+}
+function pickEvictions(entries, capBytes) {
+  if (!(capBytes > 0)) return [];
+  let used = entries.reduce((sum, entry) => sum + entry.bytes, 0);
+  const out = [];
+  for (const entry of entries.filter((e) => !e.protected).sort((a, b) => a.lastAt - b.lastAt)) {
+    if (used <= capBytes) break;
+    out.push(entry.key);
+    used -= entry.bytes;
+  }
+  return out;
+}
+function nextRun(want, have) {
+  const missing = want.filter((n) => !have.has(n));
+  if (missing.length === 0) return null;
+  const from2 = missing[0];
+  let to = from2;
+  while (missing.includes(to + 1)) to += 1;
+  return [from2, to];
+}
+
+// src/downloads.js
+var ACTIVE = /* @__PURE__ */ new Set(["queued", "running"]);
+var howOf = (source = {}) => ({ quality: source.quality ?? "", person: source.person ?? "", subtitles: source.subtitles ?? null, language: source.language ?? "" });
+var sourceError3 = (code, message) => Object.assign(new Error(message), { code });
+function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {
+}, logger, now = Date.now }) {
+  const file = join9(stateDir, "downloads.json");
+  const jobs = /* @__PURE__ */ new Map();
+  let running = null;
+  let disposed = false;
+  let saving = Promise.resolve();
+  let notifying = Promise.resolve();
+  function save() {
+    const body2 = JSON.stringify({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) }, null, 1);
+    saving = saving.then(async () => {
+      await writeFile(`${file}.part`, body2);
+      await rename(`${file}.part`, file);
+    }).catch((error) => logger.warn("could not save downloads: %s", error.message));
+    return saving;
+  }
+  function notify(job) {
+    notifying = notifying.then(() => onFiles(job)).catch((error) => logger.warn("after a download step: %s", error.message));
+    return notifying;
+  }
+  function next() {
+    const queued = [...jobs.values()].filter((job) => job.status === "queued");
+    queued.sort((a, b) => Number(b.priority) - Number(a.priority) || a.createdAt - b.createdAt);
+    return queued[0];
+  }
+  function pump() {
+    if (disposed) return;
+    const candidate = next();
+    if (candidate === void 0) return;
+    if (running !== null) {
+      if (candidate.priority && !running.priority) running.controller.abort("yield");
+      return;
+    }
+    run3(candidate);
+  }
+  async function run3(job) {
+    const source = sources.get(job.source);
+    running = job;
+    job.status = "running";
+    job.error = null;
+    job.reason = null;
+    job.failed = [];
+    job.controller = new AbortController();
+    const { signal } = job.controller;
+    save();
+    try {
+      if (source === void 0) throw sourceError3("unavailable", `source ${job.source} is not available`);
+      for (; ; ) {
+        const range = nextRun(job.want, await have(job.dir));
+        if (range === null || signal.aborted) break;
+        if (!await hasSpace()) throw sourceError3("no_space", "the library disk is almost full; delete something first");
+        job.current = range;
+        job.at = range[0];
+        const result = await source.download({ ...howOf(job.how), id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => {
+          job.at = n;
+        }, onEpisode: () => notify(job), onProgress: (n, progress) => onProgress(job, n, progress) });
+        await notify(job);
+        if (signal.aborted) break;
+        if (result.failed.length > 0) {
+          job.failed = result.failed;
+          throw sourceError3("source_failed", `${result.failed.length} episodes could not be downloaded`);
+        }
+      }
+      if (signal.aborted) {
+        if (signal.reason === "yield") job.status = "queued";
+      } else {
+        job.status = "done";
+      }
+    } catch (error) {
+      logger.warn("download of %s failed: %s", job.title, error.message);
+      job.status = "failed";
+      job.error = error.message;
+      job.reason = error.reason ?? null;
+    } finally {
+      delete job.controller;
+      delete job.current;
+      delete job.at;
+      running = null;
+      if (job.status === "done") jobs.delete(job.dir);
+      save();
+      if (job.status === "failed") await notify(job);
+      pump();
+    }
+  }
+  return {
+    async load() {
+      let data = { jobs: [] };
+      try {
+        data = JSON.parse(await readFile4(file, "utf8"));
+      } catch (error) {
+        if (error.code !== "ENOENT") logger.warn("could not read %s: %s", file, error.message);
+      }
+      for (const job of data.jobs ?? []) if (Array.isArray(job.want)) jobs.set(job.dir, { ...job, status: job.status === "running" ? "queued" : job.status });
+      pump();
+    },
+    /**
+     * Say which episodes of a show to have on disk, in the order to fetch
+     * them (replacing any earlier list). A job that failed stays failed
+     * unless `retry` is set: someone asked for an episode again.
+     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null, how?: object }, dir: string }} show - `how` as `howOf` gives it
+     * @param {number[]} want
+     * @param {{ priority?: boolean, retry?: boolean }} [options] - priority: a room is open on this show
+     */
+    async want({ source, item, dir }, want, { priority = false, retry = false } = {}) {
+      let job = jobs.get(dir);
+      if (job === void 0) {
+        if (want.length === 0) return null;
+        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, status: "queued", error: null, reason: null, failed: [], priority, want, createdAt: now() };
+        jobs.set(dir, job);
+      }
+      job.how = howOf(item.how);
+      job.want = want;
+      job.priority = priority;
+      const onDisk = await have(dir);
+      const first = want.find((n) => !onDisk.has(n));
+      if (first === void 0) {
+        if (running === job) job.controller.abort("yield");
+        else if (!ACTIVE.has(job.status) || job.status === "failed") jobs.delete(dir);
+        save();
+        return null;
+      }
+      if (job.status === "failed" && retry) {
+        job.status = "queued";
+        job.error = null;
+        job.reason = null;
+      }
+      if (running === job) {
+        const [from2, to] = job.current ?? [0, -1];
+        if (!(first >= (job.at ?? from2) && first <= to)) job.controller.abort("yield");
+      }
+      save();
+      pump();
+      return job;
+    },
+    /** What is happening to a show folder, or null when nothing is. */
+    state(dir) {
+      const job = jobs.get(dir);
+      if (job === void 0) return null;
+      return { status: job.status, active: ACTIVE.has(job.status), total: job.episodes, error: job.error, reason: job.reason ?? null, failed: job.failed.length, source: job.source, wanted: job.want.length };
+    },
+    job: (dir) => jobs.get(dir),
+    /** Start a failed job again. */
+    retry(dir) {
+      const job = jobs.get(dir);
+      if (job === void 0) return null;
+      if (job.status === "failed") {
+        job.status = "queued";
+        job.error = null;
+        job.reason = null;
+      }
+      save();
+      pump();
+      return job;
+    },
+    /** Stop and forget a show's download. */
+    async cancel(dir) {
+      const job = jobs.get(dir);
+      if (job === void 0) return;
+      jobs.delete(dir);
+      job.controller?.abort("cancel");
+      save();
+      while (running === job) await new Promise((done) => setTimeout(done, 50));
+    },
+    async dispose() {
+      disposed = true;
+      running?.controller?.abort("stop");
+      while (running !== null) await new Promise((done) => setTimeout(done, 50));
+      await saving;
+    }
+  };
+}
+
+// src/cache.js
+function createCache({ library, downloads, rooms, window: size, logger }) {
+  let chain2 = Promise.resolve();
+  const serial = (step) => {
+    const result = chain2.then(step);
+    chain2 = result.catch((error) => logger.warn("rolling cache: %s", error.message));
+    return result;
+  };
+  async function protectedEpisodes() {
+    const out = /* @__PURE__ */ new Map();
+    for (const path of await library.sourcedShows()) {
+      const info = await library.cacheInfo(path);
+      const set2 = /* @__PURE__ */ new Set();
+      for (const focus of rooms.focusesOf(path)) {
+        const { first, last } = windowOf(focus, info.total, size);
+        for (let n = first; n <= last; n++) set2.add(n);
+      }
+      out.set(path, set2);
+    }
+    return out;
+  }
+  async function refreshShow(path, { retry = false } = {}) {
+    const info = await library.cacheInfo(path);
+    if (info === null) return;
+    const focuses = rooms.focusesOf(path);
+    const hasRoom = focuses.length > 0;
+    const places = hasRoom ? focuses : info.focus === null ? [] : [info.focus];
+    const skip = new Set([...info.skip].filter((n) => !places.includes(n)));
+    if (skip.size !== info.skip.size) await library.unskip(path, places);
+    const plan = planCache({ total: info.total, focuses: places, cached: info.cached, finished: info.finished, skip, pinned: info.pinned, ...size });
+    if (plan.trim.length > 0) {
+      await library.dropEpisodes(path, plan.trim, { reason: "watched" });
+      await rooms.syncShow(path);
+    }
+    await downloads.want({ source: info.source.source, item: { id: info.source.id, title: info.source.title ?? "", kind: info.source.kind, episodes: info.total, how: howOf(info.source) }, dir: path }, plan.want, { priority: hasRoom, retry });
+  }
+  async function enforceCap() {
+    if (!(size.capBytes > 0)) return;
+    const protectedBy = await protectedEpisodes();
+    const entries = (await library.cacheEntries()).map((entry) => ({ ...entry, protected: protectedBy.get(entry.show)?.has(entry.n) === true }));
+    const doomed = new Set(pickEvictions(entries, size.capBytes));
+    if (doomed.size === 0) return;
+    const byShow = /* @__PURE__ */ new Map();
+    for (const entry of entries) if (doomed.has(entry.key)) byShow.set(entry.show, [...byShow.get(entry.show) ?? [], entry.n]);
+    for (const [path, numbers] of byShow) {
+      await library.dropEpisodes(path, numbers, { reason: "cache full" });
+      await rooms.syncShow(path);
+    }
+  }
+  return {
+    /** Plan one show again: after a room moved, a show was saved, something finished. `retry`: someone asked for an episode, so a failed download is tried again. */
+    refresh: (path, options) => serial(async () => {
+      await refreshShow(path, options);
+      await enforceCap();
+    }),
+    /** Plan every show a room has open or that is kept offline (at start). */
+    refreshActive: () => serial(async () => {
+      for (const path of await library.sourcedShows()) {
+        const info = await library.cacheInfo(path);
+        if (info.pinned || rooms.focusesOf(path).length > 0) await refreshShow(path);
+      }
+      await enforceCap();
+    }),
+    enforce: () => serial(enforceCap)
+  };
+}
+
+// src/books.js
+import { spawn as spawn2 } from "node:child_process";
+import { createHash as createHash2, randomUUID } from "node:crypto";
+import { mkdir as mkdir4, readFile as readFile5, readdir as readdir4, rename as rename2, rm as rm3, stat as stat5, writeFile as writeFile2 } from "node:fs/promises";
+import { extname as extname4, join as join10 } from "node:path";
+
+// src/formats.js
+var CONVERT_TARGETS = Object.freeze(["epub", "azw3", "mobi", "pdf", "txt", "docx", "fb2"]);
+var CONVERT_INPUTS = Object.freeze(["epub", "azw3", "mobi", "fb2", "docx", "txt", "pdf"]);
+function convertBase(formats) {
+  const have = new Set((formats ?? []).map((entry) => entry.format));
+  return CONVERT_INPUTS.find((format) => have.has(format)) ?? null;
+}
+
+// src/books.js
+var BOOK_TYPES = Object.freeze({
+  epub: "application/epub+zip",
+  pdf: "application/pdf",
+  txt: "text/plain; charset=utf-8",
+  azw3: "application/vnd.amazon.ebook",
+  mobi: "application/x-mobipocket-ebook",
+  fb2: "application/x-fictionbook+xml",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  cbz: "application/vnd.comicbook+zip",
+  djvu: "image/vnd.djvu"
+});
+var STATE_FILE = "books.json";
+var MAX_ENTRIES = 2e3;
+var CONVERT_TIMEOUT_MS = 10 * 6e4;
+var CONCURRENCY = 2;
+var ENTRY = /^[0-9a-f-]{36}$/;
+var booksError = (code, message) => Object.assign(new Error(message), { code });
+var fileKey = (source, id, format) => createHash2("sha256").update(`${source}
+${id}
+${format}`).digest("hex").slice(0, 24);
+function attachment(name2) {
+  const fallback = name2.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_") || "book";
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name2)}`;
+}
+function sha256Of2(path) {
+  return readFile5(path).then((body2) => createHash2("sha256").update(body2).digest("hex"));
+}
+function runConverter(command, input, output) {
+  return new Promise((resolve7, reject) => {
+    const child = spawn2(command, [input, output], { stdio: ["ignore", "ignore", "pipe"], detached: true });
+    let stderr = "";
+    const timer = setTimeout(() => {
+      try {
+        process.kill(-child.pid, "SIGTERM");
+      } catch {
+      }
+    }, CONVERT_TIMEOUT_MS);
+    child.stderr.on("data", (chunk) => {
+      stderr = (stderr + chunk).slice(-4e3);
+    });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve7();
+      else reject(booksError("convert_failed", `conversion failed: ${stderr.trim().split("\n").pop() || `exit ${code}`}`));
+    });
+  });
+}
+function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, now = Date.now }) {
+  let state = { files: {}, shelves: {} };
+  let saving = Promise.resolve();
+  const running = /* @__PURE__ */ new Map();
+  const waiting = [];
+  let active = 0;
+  let disposed = false;
+  const save = () => {
+    saving = saving.then(async () => {
+      await mkdir4(dir, { recursive: true });
+      const temporary = join10(dir, `.${STATE_FILE}.${process.pid}.tmp`);
+      await writeFile2(temporary, JSON.stringify(state));
+      await rename2(temporary, join10(dir, STATE_FILE));
+    }).catch((error) => logger.warn("books: could not save the shelves: %s", error.message));
+    return saving;
+  };
+  const shelf = (person) => state.shelves[person] ??= [];
+  const holders = (key) => Object.values(state.shelves).some((entries) => entries.some((entry) => entry.file === key));
+  function describe(entry) {
+    const file = state.files[entry.file];
+    return {
+      entry: entry.entry,
+      source: entry.source,
+      id: entry.id,
+      format: entry.format,
+      title: entry.title,
+      author: entry.author,
+      cover: entry.cover ? covers.ofSource(entry.source, entry.cover) : null,
+      addedAt: entry.addedAt,
+      state: file?.state ?? "removed",
+      error: file?.error ?? null,
+      name: file?.name ?? null,
+      bytes: file?.bytes ?? null,
+      converted: file?.converted ?? false
+    };
+  }
+  async function usedBytes() {
+    return Object.values(state.files).filter((file) => file.state === "ready").reduce((sum, file) => sum + (file.bytes ?? 0), 0);
+  }
+  async function enforceCap() {
+    if (!(capBytes > 0)) return;
+    let total = await usedBytes();
+    const ready = Object.entries(state.files).filter(([key, file]) => file.state === "ready" && !running.has(key)).sort(([, a], [, b]) => a.usedAt - b.usedAt);
+    for (const [key, file] of ready) {
+      if (total <= capBytes) break;
+      await rm3(join10(dir, "files", key), { recursive: true, force: true });
+      total -= file.bytes ?? 0;
+      state.files[key] = { ...file, state: "removed", name: null };
+    }
+  }
+  async function fetchFile(key, { source: sourceId, id, format }, signal) {
+    const source = sources.get(sourceId);
+    const work = await source.info(id);
+    const native = (work.formats ?? []).some((entry) => entry.format === format) || (work.formats ?? []).length === 0;
+    const scratch = join10(dir, "tmp", key);
+    await rm3(scratch, { recursive: true, force: true });
+    await mkdir4(scratch, { recursive: true });
+    try {
+      let name2;
+      let converted = false;
+      if (native) {
+        name2 = (await source.downloadFile({ id, format, dir: scratch, signal })).name;
+      } else {
+        const base = convertBase(work.formats);
+        if (base === null || !await converter.available()) throw booksError("unsupported", `${work.title || id} is not offered as ${format}`);
+        const downloaded = (await source.downloadFile({ id, format: base, dir: scratch, signal })).name;
+        name2 = `${downloaded.slice(0, downloaded.length - extname4(downloaded).length)}.${format}`;
+        await runConverter(converter.command, join10(scratch, downloaded), join10(scratch, name2));
+        await rm3(join10(scratch, downloaded), { force: true });
+        converted = true;
+      }
+      const target = join10(dir, "files", key);
+      await rm3(target, { recursive: true, force: true });
+      await mkdir4(join10(dir, "files"), { recursive: true });
+      await rename2(scratch, target);
+      const path = join10(target, name2);
+      return { name: name2, bytes: (await stat5(path)).size, sha256: await sha256Of2(path), converted, title: work.title, author: work.author, cover: work.cover };
+    } finally {
+      await rm3(scratch, { recursive: true, force: true });
+    }
+  }
+  function pump() {
+    while (!disposed && active < CONCURRENCY && waiting.length > 0) {
+      const { key, request } = waiting.shift();
+      active += 1;
+      const controller = new AbortController();
+      running.set(key, controller);
+      fetchFile(key, request, controller.signal).then((got) => {
+        state.files[key] = { ...state.files[key], state: "ready", error: null, name: got.name, bytes: got.bytes, sha256: got.sha256, converted: got.converted, usedAt: now() };
+        for (const entries of Object.values(state.shelves)) {
+          for (const entry of entries) {
+            if (entry.file !== key) continue;
+            entry.title ||= got.title ?? "";
+            entry.author ||= got.author ?? "";
+            entry.cover ||= got.cover ?? null;
+          }
+        }
+        return enforceCap();
+      }, (error) => {
+        if (disposed) return;
+        logger.warn("books: %s:%s as %s failed: %s", request.source, request.id, request.format, error.message);
+        state.files[key] = { ...state.files[key], state: "failed", error: error.message };
+      }).finally(() => {
+        active -= 1;
+        running.delete(key);
+        save();
+        pump();
+      });
+    }
+  }
+  function start(key, request) {
+    if (running.has(key) || waiting.some((job) => job.key === key)) return;
+    state.files[key] = { ...state.files[key], source: request.source, id: request.id, format: request.format, state: "fetching", error: null };
+    waiting.push({ key, request });
+    pump();
+  }
+  return {
+    async load() {
+      try {
+        const loaded = JSON.parse(await readFile5(join10(dir, STATE_FILE), "utf8"));
+        if (loaded && typeof loaded.files === "object" && typeof loaded.shelves === "object") state = loaded;
+      } catch (error) {
+        if (error.code !== "ENOENT") logger.warn("books: could not read the shelves: %s", error.message);
+      }
+      for (const [key, file] of Object.entries(state.files)) {
+        if (file.state === "fetching") start(key, file);
+        else if (file.state === "ready" && !await stat5(join10(dir, "files", key, file.name ?? "")).then((info) => info.isFile(), () => false)) state.files[key] = { ...file, state: "removed", name: null };
+      }
+      await rm3(join10(dir, "tmp"), { recursive: true, force: true });
+      await this.sweep();
+    },
+    /** Folders under files/ that no record names (a crash between a rename and a save) are deleted. */
+    async sweep() {
+      for (const name2 of await readdir4(join10(dir, "files")).catch(() => [])) {
+        if (state.files[name2] === void 0) await rm3(join10(dir, "files", name2), { recursive: true, force: true });
+      }
+    },
+    async list(person) {
+      return {
+        entries: shelf(person).map(describe).reverse(),
+        usedBytes: await usedBytes(),
+        capBytes,
+        convert: await converter.available()
+      };
+    },
+    /**
+     * Put a work on a person's shelf in `format` and fetch it unless the file is already here.
+     * @param {string} person
+     * @param {{ source: string, id: string, format: string, title?: string, author?: string, by?: string }} input
+     */
+    async add(person, { source: sourceId, id, format, title = "", author = "", by = "" }) {
+      const source = sources.get(sourceId);
+      if (source === void 0 || typeof source.downloadFile !== "function") throw booksError("not_found", `no source ${sourceId}`);
+      if (typeof id !== "string" || !/^[^\s\0]{1,200}$/.test(id)) throw booksError("invalid", "not a work id");
+      if (typeof format !== "string" || !/^[a-z0-9]{1,8}$/.test(format)) throw booksError("invalid", "not a format");
+      const key = fileKey(sourceId, id, format);
+      const entries = shelf(person);
+      let entry = entries.find((one) => one.file === key);
+      if (entry === void 0) {
+        if (entries.length >= MAX_ENTRIES) throw booksError("invalid", "this shelf is full; delete some books first");
+        entry = { entry: randomUUID(), file: key, source: sourceId, id, format, title: String(title).slice(0, 300), author: String(author).slice(0, 200), cover: null, addedAt: new Date(now()).toISOString(), by: String(by).slice(0, 80) };
+        entries.push(entry);
+      }
+      const file = state.files[key];
+      if (file?.state === "ready") state.files[key] = { ...file, usedAt: now() };
+      else start(key, { source: sourceId, id, format });
+      await save();
+      return describe(entry);
+    },
+    /** Fetch an entry's file again (it failed, or was removed to save space). */
+    async retry(person, entryId) {
+      const entry = shelf(person).find((one) => one.entry === entryId);
+      if (entry === void 0) throw booksError("not_found", "not on this shelf");
+      if (state.files[entry.file]?.state !== "ready") start(entry.file, entry);
+      await save();
+      return describe(entry);
+    },
+    async remove(person, entryId) {
+      const entries = shelf(person);
+      const index = entries.findIndex((one) => one.entry === entryId);
+      if (index === -1) throw booksError("not_found", "not on this shelf");
+      const [entry] = entries.splice(index, 1);
+      if (!holders(entry.file)) {
+        running.get(entry.file)?.abort();
+        const queued = waiting.findIndex((job) => job.key === entry.file);
+        if (queued !== -1) waiting.splice(queued, 1);
+        delete state.files[entry.file];
+        await rm3(join10(dir, "files", entry.file), { recursive: true, force: true });
+      }
+      await save();
+      return { removed: entryId };
+    },
+    /** The file behind a person's entry, when it is ready. */
+    async file(person, entryId) {
+      if (!ENTRY.test(String(entryId))) return null;
+      const entry = shelf(person).find((one) => one.entry === entryId);
+      const file = entry === void 0 ? void 0 : state.files[entry.file];
+      if (file?.state !== "ready" || !file.name) return null;
+      state.files[entry.file] = { ...file, usedAt: now() };
+      save();
+      return { path: join10(dir, "files", entry.file, file.name), name: file.name, type: BOOK_TYPES[entry.format] ?? "application/octet-stream" };
+    },
+    async dispose() {
+      disposed = true;
+      waiting.length = 0;
+      for (const controller of running.values()) controller.abort();
+      await saving;
+    }
+  };
+}
+
+// src/covers.js
+import { createHash as createHash4 } from "node:crypto";
+import { mkdir as mkdir6, open as open2, readdir as readdir6, rename as rename4, rm as rm5, stat as stat7, utimes } from "node:fs/promises";
+import { join as join12 } from "node:path";
+
 // src/prepare.js
 import { spawn as spawn3 } from "node:child_process";
 import { createHash as createHash3 } from "node:crypto";
-import { mkdir as mkdir4, readFile as readFile5, readdir as readdir5, rename as rename2, rm as rm3, stat as stat6, writeFile as writeFile2 } from "node:fs/promises";
-import { extname as extname5, join as join9 } from "node:path";
+import { mkdir as mkdir5, readFile as readFile6, readdir as readdir5, rename as rename3, rm as rm4, stat as stat6, writeFile as writeFile3 } from "node:fs/promises";
+import { extname as extname5, join as join11 } from "node:path";
 
 // src/subtitles.js
 var LEGACY_ENCODINGS = Object.freeze(["gb18030", "big5", "shift_jis", "euc-kr"]);
@@ -11974,7 +12391,7 @@ function srtToVtt(srt) {
 ${body2}
 `;
 }
-var isVtt = (text2) => /^\uFEFF?WEBVTT/.test(text2);
+var isVtt = (text3) => /^\uFEFF?WEBVTT/.test(text3);
 
 // src/prepare.js
 async function cacheKey(path) {
@@ -11985,12 +12402,12 @@ async function preparedBytes(cacheDir, path) {
   const key = await cacheKey(path).catch(() => null);
   if (key === null) return 0;
   let total = 0;
-  for (const name2 of await readdir5(join9(cacheDir, key)).catch(() => [])) total += (await stat6(join9(cacheDir, key, name2)).catch(() => null))?.size ?? 0;
+  for (const name2 of await readdir5(join11(cacheDir, key)).catch(() => [])) total += (await stat6(join11(cacheDir, key, name2)).catch(() => null))?.size ?? 0;
   return total;
 }
 async function dropPrepared(cacheDir, path) {
   const key = await cacheKey(path).catch(() => null);
-  if (key !== null) await rm3(join9(cacheDir, key), { recursive: true, force: true });
+  if (key !== null) await rm4(join11(cacheDir, key), { recursive: true, force: true });
 }
 function createQueue() {
   let tail = Promise.resolve();
@@ -12044,25 +12461,25 @@ function videoArgs(plan, input, output, { maxHeight = 1080, threads = 2 } = {}) 
   ];
 }
 async function writeAtomic(path, data) {
-  await writeFile2(`${path}.part`, data);
-  await rename2(`${path}.part`, path);
+  await writeFile3(`${path}.part`, data);
+  await rename3(`${path}.part`, path);
 }
 var exists = (path) => stat6(path).then(() => true, () => false);
 async function convertSubtitle(source, dir, name2, { ffmpeg = "ffmpeg" } = {}) {
-  const out = join9(dir, `${name2}.vtt`);
+  const out = join11(dir, `${name2}.vtt`);
   if (await exists(out)) return out;
-  const text2 = decodeText(await readFile5(source));
+  const text3 = decodeText(await readFile6(source));
   const ext = extname5(source).toLowerCase();
-  if (ext === ".srt") await writeAtomic(out, srtToVtt(text2));
-  else if (ext === ".vtt" || isVtt(text2)) await writeAtomic(out, text2);
+  if (ext === ".srt") await writeAtomic(out, srtToVtt(text3));
+  else if (ext === ".vtt" || isVtt(text3)) await writeAtomic(out, text3);
   else {
-    const utf8 = join9(dir, `${name2}.utf8${ext}`);
-    await writeFile2(utf8, text2);
+    const utf8 = join11(dir, `${name2}.utf8${ext}`);
+    await writeFile3(utf8, text3);
     try {
       await runFfmpeg(["-y", "-i", utf8, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
-      await rename2(`${out}.part`, out);
+      await rename3(`${out}.part`, out);
     } finally {
-      await rm3(utf8, { force: true });
+      await rm4(utf8, { force: true });
     }
   }
   return out;
@@ -12072,26 +12489,26 @@ async function prepareEpisode(episode, options) {
   if (extname5(episode.path).toLowerCase() === ".m3u8") {
     return { file: episode.path, kind: "hls", duration: null, plan: "direct", subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) };
   }
-  const dir = join9(cacheDir, await cacheKey(episode.path));
-  await mkdir4(dir, { recursive: true });
+  const dir = join11(cacheDir, await cacheKey(episode.path));
+  await mkdir5(dir, { recursive: true });
   const info = await probe(episode.path, { ffprobe });
   const mp4Family = [".mp4", ".m4v", ".mov", ".m4a"].includes(extname5(episode.path).toLowerCase());
   const plan = planVideo(episode.path, info, { fastStart: mp4Family ? await isFastStart(episode.path) : null, maxHeight });
   let file = episode.path;
   if (plan !== "direct") {
-    file = join9(dir, "video.mp4");
+    file = join11(dir, "video.mp4");
     if (!await exists(file)) {
       await runFfmpeg(videoArgs(plan, episode.path, `${file}.part`, { maxHeight, threads }), { ffmpeg, duration: info.duration, onProgress });
-      await rename2(`${file}.part`, file);
+      await rename3(`${file}.part`, file);
     }
   }
   const subtitles = await externalSubtitles(episode, dir, ffmpeg, cacheDir);
   for (const stream of info.subtitles.filter((s) => isTextSubtitle(s.codec))) {
-    const out = join9(dir, `embedded-${stream.index}.vtt`);
+    const out = join11(dir, `embedded-${stream.index}.vtt`);
     if (!await exists(out)) {
       try {
         await runFfmpeg(["-y", "-i", episode.path, "-map", `0:s:${stream.index}`, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
-        await rename2(`${out}.part`, out);
+        await rename3(`${out}.part`, out);
       } catch {
         continue;
       }
@@ -12102,8 +12519,8 @@ async function prepareEpisode(episode, options) {
 }
 async function externalSubtitles(episode, dir, ffmpeg, cacheDir) {
   if (episode.subtitles.length === 0) return [];
-  const target = dir ?? join9(cacheDir, await cacheKey(episode.path));
-  await mkdir4(target, { recursive: true });
+  const target = dir ?? join11(cacheDir, await cacheKey(episode.path));
+  await mkdir5(target, { recursive: true });
   const out = [];
   for (const [n, sub] of episode.subtitles.entries()) {
     try {
@@ -12117,8 +12534,8 @@ async function pruneCache(cacheDir, used, days, now = Date.now()) {
   const keep = new Set(used.filter((file) => typeof file === "string" && file.startsWith(`${cacheDir}/`)).map((file) => file.slice(cacheDir.length + 1).split("/")[0]));
   for (const name2 of await readdir5(cacheDir).catch(() => [])) {
     if (keep.has(name2)) continue;
-    const info = await stat6(join9(cacheDir, name2)).catch(() => null);
-    if (info !== null && now - info.mtimeMs > days * 864e5) await rm3(join9(cacheDir, name2), { recursive: true, force: true });
+    const info = await stat6(join11(cacheDir, name2)).catch(() => null);
+    if (info !== null && now - info.mtimeMs > days * 864e5) await rm4(join11(cacheDir, name2), { recursive: true, force: true });
   }
 }
 
@@ -12139,16 +12556,16 @@ var coverKey = (sourceId, url) => keyOf2(sourceId, url);
 async function grabFrame(input, output, at, { ffmpeg }) {
   const frame = ["-map", "0:V:0", "-frames:v", "1", "-vf", `scale=-2:${FRAME_HEIGHT}`, "-q:v", "5", "-f", "image2", "-c:v", "mjpeg", output];
   const attempts = isAudio(input) ? [["-y", "-i", input, ...frame]] : [["-y", "-ss", String(at), "-i", input, ...frame], ["-y", "-i", input, ...frame]];
-  let failure2;
+  let failure3;
   for (const args of attempts) {
     try {
       await runFfmpeg(args, { ffmpeg, duration: null });
       return;
     } catch (error) {
-      failure2 = error;
+      failure3 = error;
     }
   }
-  throw failure2;
+  throw failure3;
 }
 function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3, ffmpeg = "ffmpeg", logger, now = Date.now }, sourceOf) {
   const known = /* @__PURE__ */ new Map();
@@ -12188,19 +12605,19 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
     const files = [];
     for (const name2 of await readdir6(dir).catch(() => [])) {
       if (!name2.endsWith(".img")) continue;
-      const info = await stat7(join10(dir, name2)).catch(() => null);
+      const info = await stat7(join12(dir, name2)).catch(() => null);
       if (info !== null) files.push({ name: name2, size: info.size, used: info.mtimeMs });
     }
     let total = files.reduce((sum, file) => sum + file.size, 0);
     for (const file of files.sort((a, b) => a.used - b.used)) {
       if (total <= capBytes) break;
-      await rm4(join10(dir, file.name), { force: true });
+      await rm5(join12(dir, file.name), { force: true });
       total -= file.size;
     }
   }
   async function make(key, entry) {
-    await mkdir5(dir, { recursive: true });
-    const partial = join10(dir, `.${key}.part`);
+    await mkdir6(dir, { recursive: true });
+    const partial = join12(dir, `.${key}.part`);
     try {
       await makers[entry.by](entry, partial);
       const info = await stat7(partial);
@@ -12213,14 +12630,14 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
         await handle.close();
       }
       if (imageType(head) === null) throw new Error("the file is not a picture a browser shows");
-      await rename3(partial, join10(dir, `${key}.img`));
+      await rename4(partial, join12(dir, `${key}.img`));
       await trim();
       return true;
     } catch (error) {
       logger.warn("picture %s (%s): %s", key, entry.by === "source" ? entry.sourceId : entry.file, error.message);
       return false;
     } finally {
-      await rm4(partial, { force: true });
+      await rm5(partial, { force: true });
     }
   }
   return {
@@ -12241,7 +12658,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
      */
     async file(key) {
       if (!KEY.test(key)) return null;
-      const file = join10(dir, `${key}.img`);
+      const file = join12(dir, `${key}.img`);
       const cached = async () => {
         const handle = await open2(file, "r").catch(() => null);
         if (handle === null) return null;
@@ -12282,181 +12699,10 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
   };
 }
 
-// src/downloads.js
-import { readFile as readFile6, rename as rename4, writeFile as writeFile3 } from "node:fs/promises";
-import { join as join11 } from "node:path";
-var ACTIVE = /* @__PURE__ */ new Set(["queued", "running"]);
-var sourceError3 = (code, message) => Object.assign(new Error(message), { code });
-function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, logger, now = Date.now }) {
-  const file = join11(stateDir, "downloads.json");
-  const jobs = /* @__PURE__ */ new Map();
-  let running = null;
-  let disposed = false;
-  let saving = Promise.resolve();
-  let notifying = Promise.resolve();
-  function save() {
-    const body2 = JSON.stringify({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) }, null, 1);
-    saving = saving.then(async () => {
-      await writeFile3(`${file}.part`, body2);
-      await rename4(`${file}.part`, file);
-    }).catch((error) => logger.warn("could not save downloads: %s", error.message));
-    return saving;
-  }
-  function notify(job) {
-    notifying = notifying.then(() => onFiles(job)).catch((error) => logger.warn("after a download step: %s", error.message));
-    return notifying;
-  }
-  function next() {
-    const queued = [...jobs.values()].filter((job) => job.status === "queued");
-    queued.sort((a, b) => Number(b.priority) - Number(a.priority) || a.createdAt - b.createdAt);
-    return queued[0];
-  }
-  function pump() {
-    if (disposed) return;
-    const candidate = next();
-    if (candidate === void 0) return;
-    if (running !== null) {
-      if (candidate.priority && !running.priority) running.controller.abort("yield");
-      return;
-    }
-    run3(candidate);
-  }
-  async function run3(job) {
-    const source = sources.get(job.source);
-    running = job;
-    job.status = "running";
-    job.error = null;
-    job.failed = [];
-    job.controller = new AbortController();
-    const { signal } = job.controller;
-    save();
-    try {
-      if (source === void 0) throw sourceError3("unavailable", `source ${job.source} is not available`);
-      for (; ; ) {
-        const range = nextRun(job.want, await have(job.dir));
-        if (range === null || signal.aborted) break;
-        if (!await hasSpace()) throw sourceError3("no_space", "the library disk is almost full; delete something first");
-        job.current = range;
-        job.at = range[0];
-        const result = await source.download({ id: job.id, dir: job.dir, from: range[0], to: range[1], quality: job.quality ?? "", signal, onStart: (n) => {
-          job.at = n;
-        }, onEpisode: () => notify(job) });
-        await notify(job);
-        if (signal.aborted) break;
-        if (result.failed.length > 0) {
-          job.failed = result.failed;
-          throw sourceError3("source_failed", `${result.failed.length} episodes could not be downloaded`);
-        }
-      }
-      if (signal.aborted) {
-        if (signal.reason === "yield") job.status = "queued";
-      } else {
-        job.status = "done";
-      }
-    } catch (error) {
-      logger.warn("download of %s failed: %s", job.title, error.message);
-      job.status = "failed";
-      job.error = error.message;
-    } finally {
-      delete job.controller;
-      delete job.current;
-      delete job.at;
-      running = null;
-      if (job.status === "done") jobs.delete(job.dir);
-      save();
-      if (job.status === "failed") await notify(job);
-      pump();
-    }
-  }
-  return {
-    async load() {
-      let data = { jobs: [] };
-      try {
-        data = JSON.parse(await readFile6(file, "utf8"));
-      } catch (error) {
-        if (error.code !== "ENOENT") logger.warn("could not read %s: %s", file, error.message);
-      }
-      for (const job of data.jobs ?? []) if (Array.isArray(job.want)) jobs.set(job.dir, { ...job, status: job.status === "running" ? "queued" : job.status });
-      pump();
-    },
-    /**
-     * Say which episodes of a show to have on disk, in the order to fetch
-     * them (replacing any earlier list). A job that failed stays failed
-     * unless `retry` is set: someone asked for an episode again.
-     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null, quality?: string }, dir: string }} show
-     * @param {number[]} want
-     * @param {{ priority?: boolean, retry?: boolean }} [options] - priority: a room is open on this show
-     */
-    async want({ source, item, dir }, want, { priority = false, retry = false } = {}) {
-      let job = jobs.get(dir);
-      if (job === void 0) {
-        if (want.length === 0) return null;
-        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, quality: item.quality ?? "", status: "queued", error: null, failed: [], priority, want, createdAt: now() };
-        jobs.set(dir, job);
-      }
-      job.want = want;
-      job.priority = priority;
-      const onDisk = await have(dir);
-      const first = want.find((n) => !onDisk.has(n));
-      if (first === void 0) {
-        if (running === job) job.controller.abort("yield");
-        else if (!ACTIVE.has(job.status) || job.status === "failed") jobs.delete(dir);
-        save();
-        return null;
-      }
-      if (job.status === "failed" && retry) {
-        job.status = "queued";
-        job.error = null;
-      }
-      if (running === job) {
-        const [from2, to] = job.current ?? [0, -1];
-        if (!(first >= (job.at ?? from2) && first <= to)) job.controller.abort("yield");
-      }
-      save();
-      pump();
-      return job;
-    },
-    /** What is happening to a show folder, or null when nothing is. */
-    state(dir) {
-      const job = jobs.get(dir);
-      if (job === void 0) return null;
-      return { status: job.status, active: ACTIVE.has(job.status), total: job.episodes, error: job.error, failed: job.failed.length, source: job.source, wanted: job.want.length };
-    },
-    job: (dir) => jobs.get(dir),
-    /** Start a failed job again. */
-    retry(dir) {
-      const job = jobs.get(dir);
-      if (job === void 0) return null;
-      if (job.status === "failed") {
-        job.status = "queued";
-        job.error = null;
-      }
-      save();
-      pump();
-      return job;
-    },
-    /** Stop and forget a show's download. */
-    async cancel(dir) {
-      const job = jobs.get(dir);
-      if (job === void 0) return;
-      jobs.delete(dir);
-      job.controller?.abort("cancel");
-      save();
-      while (running === job) await new Promise((done) => setTimeout(done, 50));
-    },
-    async dispose() {
-      disposed = true;
-      running?.controller?.abort("stop");
-      while (running !== null) await new Promise((done) => setTimeout(done, 50));
-      await saving;
-    }
-  };
-}
-
 // src/hub.js
-import { randomBytes } from "node:crypto";
-import { mkdir as mkdir6, readFile as readFile7, rename as rename5, writeFile as writeFile4 } from "node:fs/promises";
-import { isAbsolute as isAbsolute3, join as join12, resolve as resolve3 } from "node:path";
+import { randomBytes as randomBytes2 } from "node:crypto";
+import { mkdir as mkdir7, readFile as readFile7, rename as rename5, writeFile as writeFile4 } from "node:fs/promises";
+import { isAbsolute as isAbsolute3, join as join13, resolve as resolve3 } from "node:path";
 
 // src/sync.js
 var DRIFT = Object.freeze({
@@ -12652,7 +12898,7 @@ var SWEEP_MS = 6e4;
 var PROGRESS_MS = 12e4;
 var MAX_NAME = 40;
 var localItem = (episode) => ({ title: episode.title, kind: "file", status: "preparing", sourcePath: episode.path, sourceSubtitles: episode.subtitles });
-var slotItem = (entry, status) => ({ title: entry.title, kind: "file", slot: entry.n, status: entry.path === null ? status : "preparing", sourcePath: entry.path, sourceSubtitles: [] });
+var slotItem = (entry, status) => ({ title: entry.title, kind: "file", slot: entry.n, status: entry.path === null ? status : "preparing", sourcePath: entry.path, sourceSubtitles: entry.subtitles ?? [] });
 var itemKey = (item) => item.slot ?? item.sourcePath;
 var serviceError = (code, message) => Object.assign(new Error(message), { code });
 var cleanText = (value, max) => typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max) : "";
@@ -12665,8 +12911,8 @@ function createRoomService(options) {
       logger.warn("watch log: %s", error.message);
     }
   };
-  const cacheDir = join12(stateDir, "cache");
-  const file = join12(stateDir, "rooms.json");
+  const cacheDir = join13(stateDir, "cache");
+  const file = join13(stateDir, "rooms.json");
   const rooms = /* @__PURE__ */ new Map();
   const peers = /* @__PURE__ */ new Map();
   const waiters = /* @__PURE__ */ new Map();
@@ -12676,8 +12922,8 @@ function createRoomService(options) {
   const sweepTimer = setInterval(() => sweep(), SWEEP_MS);
   const progressTimer = setInterval(() => progress(), PROGRESS_MS);
   async function load() {
-    await mkdir6(stateDir, { recursive: true });
-    for (const root of libraryRoots) await mkdir6(root, { recursive: true }).catch(() => {
+    await mkdir7(stateDir, { recursive: true });
+    for (const root of libraryRoots) await mkdir7(root, { recursive: true }).catch(() => {
     });
     let data = { rooms: [] };
     try {
@@ -12721,6 +12967,7 @@ function createRoomService(options) {
       cached: item.slot === void 0 || typeof item.sourcePath === "string",
       progress: item.progress ?? null,
       error: item.error ?? null,
+      reason: item.reason ?? null,
       duration: item.duration ?? null,
       watch: options.watchOf?.(item, room.showPath) ?? null,
       src: ready ? delivery.mediaUrl(roomId, index, item) : null,
@@ -12861,7 +13108,7 @@ function createRoomService(options) {
     if (message.t === "ping") return send(peer, { t: "pong", id: message.id, client: message.client, server: now() });
     if (message.t === "hello") {
       const known = viewers(roomId);
-      peer.clientId = cleanText(message.clientId, 64) || randomBytes(8).toString("base64url");
+      peer.clientId = cleanText(message.clientId, 64) || randomBytes2(8).toString("base64url");
       peer.name = cleanText(message.name, MAX_NAME) || "Guest";
       if (!known.includes(peer.name)) observe("joined", { room, viewer: peer.name });
       rooms.set(roomId, { ...room, opened: true, emptySince: null, touchedAt: now() });
@@ -12935,15 +13182,15 @@ function createRoomService(options) {
           maxHeight: tools.maxHeight,
           threads: tools.threads,
           onProgress: (fraction) => {
-            if (fraction - last < 0.05) return;
+            if (fraction - last < 0.02) return;
             last = fraction;
-            setItem(roomId, key, { progress: Math.round(fraction * 100) / 100 });
+            setItem(roomId, key, { progress: { step: "prepare", fraction: Math.round(fraction * 100) / 100 } });
           }
         });
         setItem(roomId, key, { status: "ready", progress: null, ...prepared });
       } catch (error) {
         logger.warn("could not prepare %s: %s", item.sourcePath, error.message);
-        setItem(roomId, key, { status: "failed", progress: null, error: error.message });
+        setItem(roomId, key, { status: "failed", progress: null, error: error.message, reason: null });
       }
     });
   }
@@ -13002,7 +13249,7 @@ function createRoomService(options) {
     async createRoom(input) {
       if (!delivery.available) throw serviceError("unsupported", delivery.reason);
       const items = await localItems(input.path, input.fromPanel === true);
-      const id = randomBytes(9).toString("base64url");
+      const id = randomBytes2(9).toString("base64url");
       const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : input.path.split("/").filter(Boolean).pop());
       const created = createRoom({ id, title, items, createdBy: cleanText(input.by, MAX_NAME), now: now() });
       const start = input.start;
@@ -13034,7 +13281,7 @@ function createRoomService(options) {
     },
     room(id) {
       const room = rooms.get(id);
-      return room === void 0 ? void 0 : { ...summary(room), items: room.items.map((item) => ({ title: item.title, status: item.status, error: item.error ?? null })) };
+      return room === void 0 ? void 0 : { ...summary(room), items: room.items.map((item) => ({ title: item.title, status: item.status, progress: item.progress ?? null, error: item.error ?? null, reason: item.reason ?? null, subtitles: (item.subtitles ?? []).map((sub) => sub.label) })) };
     },
     listRooms() {
       const occupied = (room) => present(room.id).size > 0;
@@ -13060,13 +13307,27 @@ function createRoomService(options) {
       return [...rooms.values()].filter((room) => room.showPath === target).map((room) => room.items[room.index]?.slot).filter((n) => n !== void 0);
     },
     syncShow,
-    /** Episodes someone waits on that could not be fetched: show them as failed, so a click on one tries again. */
-    failWaiting(path, message) {
+    /** Episodes someone waits on that could not be fetched: show them as failed (with the reason, when known), so a click on one tries again. */
+    failWaiting(path, message, reason = null) {
       const target = resolve3(path);
       for (const room of [...rooms.values()]) {
         if (room.showPath !== target) continue;
-        const items = room.items.map((item) => item.slot !== void 0 && item.sourcePath === null && item.status === "preparing" ? { ...item, status: "failed", error: message } : item);
+        const items = room.items.map((item) => item.slot !== void 0 && item.sourcePath === null && item.status === "preparing" ? { ...item, status: "failed", progress: null, error: message, reason } : item);
         if (items.some((item, n) => item !== room.items[n])) commit(updateItems(rooms.get(room.id), items));
+      }
+    },
+    /**
+     * How far the download of episode `number` of a show is, told to the viewers of the rooms waiting on it
+     * (a source reports it about once a second).
+     * @param {{ fraction: number | null, done: number, total: number | null, speed: number | null, eta: number | null }} progress
+     */
+    downloadProgress(path, number, progress2) {
+      const target = resolve3(path);
+      for (const room of [...rooms.values()]) {
+        if (room.showPath !== target) continue;
+        const item = room.items.find((entry) => entry.slot === number && entry.sourcePath === null && entry.status === "preparing");
+        if (item === void 0) continue;
+        setItem(room.id, number, { progress: { step: "download", ...progress2 } });
       }
     },
     /** The prepared file of a ready local item. */
@@ -13115,14 +13376,14 @@ function createWatchLog({ file, now = Date.now, logger }) {
   }
   async function read() {
     await tail;
-    let text2 = "";
+    let text3 = "";
     try {
-      text2 = await readFile8(file, "utf8");
+      text3 = await readFile8(file, "utf8");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
     const events = [];
-    for (const line of text2.split("\n")) {
+    for (const line of text3.split("\n")) {
       if (line.trim() === "") continue;
       try {
         events.push(JSON.parse(line));
@@ -13225,8 +13486,8 @@ function createJournal({ log, library, now = Date.now }) {
 }
 
 // src/shows.js
-import { mkdir as mkdir7, readFile as readFile9, readdir as readdir7, rename as rename6, rm as rm5, stat as stat8, statfs, writeFile as writeFile5 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname3, extname as extname6, join as join13, resolve as resolve4 } from "node:path";
+import { mkdir as mkdir8, readFile as readFile9, readdir as readdir7, rename as rename6, rm as rm6, stat as stat8, statfs, writeFile as writeFile5 } from "node:fs/promises";
+import { basename as basename5, dirname as dirname3, extname as extname6, join as join14, resolve as resolve4 } from "node:path";
 var DAY_MS = 864e5;
 var STOP_DIFF_S = 30;
 var REFINISH_MS = 36e5;
@@ -13261,8 +13522,8 @@ function groupSeasons(shows) {
 }
 function createLibrary(options) {
   const { roots, stateDir, covers, inUse, download, forget, logger, now = Date.now } = options;
-  const metaFile = join13(stateDir, "shows.json");
-  const cacheDir = join13(stateDir, "cache");
+  const metaFile = join14(stateDir, "shows.json");
+  const cacheDir = join14(stateDir, "cache");
   let meta = {};
   let saving = Promise.resolve();
   const listeners = /* @__PURE__ */ new Set();
@@ -13310,23 +13571,29 @@ function createLibrary(options) {
     const files = [];
     for (const name2 of naturalSort(await readdir7(path).catch(() => []))) {
       if (!isMedia(name2)) continue;
-      const file = await stat8(join13(path, name2)).catch(() => null);
+      const file = await stat8(join14(path, name2)).catch(() => null);
       if (file?.isFile()) files.push({ name: name2, size: file.size, mtimeMs: file.mtimeMs });
     }
     return files;
+  }
+  async function deleteEpisode(target, name2) {
+    await dropPrepared(cacheDir, join14(target, name2));
+    await rm6(join14(target, name2), { force: true });
+    for (const sub of matchSubtitles(name2, await readdir7(target).catch(() => []))) await rm6(join14(target, sub.name), { force: true });
+    await forgetSum(target, name2);
   }
   async function folderBytes(path) {
     const info = await stat8(path).catch(() => null);
     if (info === null) return 0;
     if (info.isFile()) return info.size;
     let total = 0;
-    for (const name2 of await readdir7(path).catch(() => [])) total += (await stat8(join13(path, name2)).catch(() => null))?.size ?? 0;
+    for (const name2 of await readdir7(path).catch(() => [])) total += (await stat8(join14(path, name2)).catch(() => null))?.size ?? 0;
     return total;
   }
   async function forgetSum(show, file) {
-    const sums = join13(show, SUMS);
-    const text2 = await readFile9(sums, "utf8").catch(() => null);
-    if (text2 !== null) await writeFile5(sums, text2.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
+    const sums = join14(show, SUMS);
+    const text3 = await readFile9(sums, "utf8").catch(() => null);
+    if (text3 !== null) await writeFile5(sums, text3.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
   }
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename5(path), ...fields });
   function deletesAt(path) {
@@ -13399,7 +13666,7 @@ function createLibrary(options) {
       pinned: entry.pinned === true,
       total: entry.source?.episodes ?? null,
       size: await folderBytes(path),
-      frame: files === null || files.length === 0 ? null : await covers.ofFrame(info.isFile() ? path : join13(path, files[0].name)),
+      frame: files === null || files.length === 0 ? null : await covers.ofFrame(info.isFile() ? path : join14(path, files[0].name)),
       source: entry.source ?? null,
       keep: entry.keep === true,
       watchedAt: entry.watchedAt ?? null,
@@ -13438,7 +13705,7 @@ function createLibrary(options) {
       for (const root of roots) {
         for (const name2 of await readdir7(root).catch(() => [])) {
           if (name2.startsWith(".")) continue;
-          const show = await describe(join13(root, name2));
+          const show = await describe(join14(root, name2));
           if (show !== null) shows.push(show);
         }
       }
@@ -13461,17 +13728,23 @@ function createLibrary(options) {
         title: slot.title,
         size: slot.file?.size ?? 0,
         cached: slot.file !== null,
-        watch: watchOfItem(target, { slot: isSourced(record(target)) ? slot.n : void 0, sourcePath: slot.file ? join13(target, slot.file.name) : null })
+        watch: watchOfItem(target, { slot: isSourced(record(target)) ? slot.n : void 0, sourcePath: slot.file ? join14(target, slot.file.name) : null })
       }));
     },
     /**
-     * The episodes of a sourced show for a room: one per number, with the file when it is on disk. Null for a show without a source.
-     * @returns {Promise<{ n: number, title: string | null, path: string | null }[] | null>}
+     * The episodes of a sourced show for a room: one per number, with the file and the subtitles beside it when it is on disk. Null for a show without a source.
+     * @returns {Promise<{ n: number, title: string | null, path: string | null, subtitles: { path: string, label: string }[] }[] | null>}
      */
     async directory(path) {
       const target = showPath(path);
       if (target === null || !isSourced(record(target))) return null;
-      return slotsOf(record(target), await episodeFiles(target) ?? []).map((slot) => ({ n: slot.n, title: slot.title, path: slot.file ? join13(target, slot.file.name) : null }));
+      const names = await readdir7(target).catch(() => []);
+      return slotsOf(record(target), await episodeFiles(target) ?? []).map((slot) => ({
+        n: slot.n,
+        title: slot.title,
+        path: slot.file ? join14(target, slot.file.name) : null,
+        subtitles: slot.file ? matchSubtitles(slot.file.name, names).map((sub) => ({ path: join14(target, sub.name), label: sub.label })) : []
+      }));
     },
     /** Paths of the shows that came from a source. */
     async sourcedShows() {
@@ -13512,7 +13785,7 @@ function createLibrary(options) {
           const n = episodeNumber(file.name);
           if (n === null) continue;
           const watchedAt = noteFor(entry, entry.progress, file.name)?.at ?? 0;
-          out.push({ key: `${path}\0${n}`, show: path, n, bytes: file.size + await preparedBytes(cacheDir, join13(path, file.name)), lastAt: Math.max(watchedAt, file.mtimeMs) });
+          out.push({ key: `${path}\0${n}`, show: path, n, bytes: file.size + await preparedBytes(cacheDir, join14(path, file.name)), lastAt: Math.max(watchedAt, file.mtimeMs) });
         }
       }
       return out;
@@ -13524,10 +13797,7 @@ function createLibrary(options) {
       for (const file of await episodeFiles(target) ?? []) {
         const n = episodeNumber(file.name);
         if (n === null || !numbers.includes(n)) continue;
-        const full = join13(target, file.name);
-        await dropPrepared(cacheDir, full);
-        await rm5(full, { force: true });
-        await forgetSum(target, file.name);
+        await deleteEpisode(target, file.name);
         gone.push(n);
       }
       if (gone.length > 0) note("library.cacheDropped", target, { episodes: gone, reason });
@@ -13569,14 +13839,14 @@ function createLibrary(options) {
     noteWorkFailed: (path) => update(path, { workTriedAt: now() }),
     /** Note a show coming from a source, before its files arrive. */
     async adopt(path, source, { pinned = false } = {}) {
-      await mkdir7(path, { recursive: true });
+      await mkdir8(path, { recursive: true });
       update(path, { source, addedAt: record(path).addedAt ?? now(), ...pinned ? { pinned: true } : {} });
     },
     async remove(path, { by = null, reason = "by hand" } = {}) {
       const target = requireShow(path);
       if (inUse(target)) throw libraryError("in_use", "a room is playing this show; close the room first");
       await forget(target);
-      await rm5(target, { recursive: true, force: true });
+      await rm6(target, { recursive: true, force: true });
       delete meta[target];
       await save();
       note("library.deleted", target, { by, reason });
@@ -13588,15 +13858,13 @@ function createLibrary(options) {
       if (inUse(target)) throw libraryError("in_use", "a room is playing this show; close the room first");
       const file = cleanName(name2);
       if (!isMedia(file)) throw libraryError("invalid", "not an episode");
-      await dropPrepared(cacheDir, join13(target, file));
-      await rm5(join13(target, file), { force: true });
-      await forgetSum(target, file);
+      await deleteEpisode(target, file);
       note("library.episodeDeleted", target, { episode: titleOf(file), by });
       const entry = record(target);
       if (isSourced(entry) && episodeNumber(file) !== null) update(target, { skip: [.../* @__PURE__ */ new Set([...entry.skip ?? [], episodeNumber(file)])] });
       const left = await episodeFiles(target);
       if (!isSourced(entry) && left !== null && left.length === 0 && download(target) === null) return this.remove(target, { by });
-      return { removed: join13(target, file) };
+      return { removed: join14(target, file) };
     },
     async rename(path, name2, { by = null } = {}) {
       const target = requireShow(path);
@@ -13604,7 +13872,7 @@ function createLibrary(options) {
       if (download(target)?.active) throw libraryError("in_use", "this show is still downloading");
       const isFile = (await stat8(target)).isFile();
       const clean = cleanName(name2);
-      const next = join13(dirname3(target), isFile && extname6(clean) === "" ? `${clean}${extname6(target)}` : clean);
+      const next = join14(dirname3(target), isFile && extname6(clean) === "" ? `${clean}${extname6(target)}` : clean);
       if (next === target) return { path: target };
       if (await stat8(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
       await rename6(target, next);
@@ -13772,9 +14040,9 @@ function createMediaHub(options) {
   const { stateDir, libraryRoots, logger, now = Date.now } = options;
   const backfillPause = options.backfillPauseMs ?? BACKFILL_PAUSE_MS;
   const sources = new Map(options.sources.map((source2) => [source2.id, source2]));
-  const covers = createCovers({ dir: join14(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
-  const log = createWatchLog({ file: join14(stateDir, LOG_NAME), now, logger });
-  const books = createBooks({ dir: join14(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
+  const covers = createCovers({ dir: join15(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
+  const log = createWatchLog({ file: join15(stateDir, LOG_NAME), now, logger });
+  const books = createBooks({ dir: join15(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
   let rooms;
   let cache;
   const downloads = createDownloads({
@@ -13786,6 +14054,7 @@ function createMediaHub(options) {
       return disk === null || disk.bavail * disk.bsize >= MIN_FREE_BYTES;
     },
     onFiles,
+    onProgress: (job, number, progress) => rooms.downloadProgress(job.dir, number, progress),
     logger,
     now
   });
@@ -13825,7 +14094,7 @@ function createMediaHub(options) {
   }, HOUR_MS);
   async function onFiles(job) {
     await rooms.syncShow(job.dir);
-    if (job.status === "failed") rooms.failWaiting(job.dir, job.error ?? "the download failed");
+    if (job.status === "failed") rooms.failWaiting(job.dir, job.error ?? "the download failed", job.reason ?? null);
     await cache.enforce();
   }
   let backfilling = false;
@@ -13900,7 +14169,7 @@ function createMediaHub(options) {
     const mark = createHash5("sha256").update(`${sourceId}
 ${item.id}`).digest("hex").slice(0, 8);
     for (const candidate of [name2, `${name2} (${mark})`]) {
-      const path = join14(libraryRoots[0], candidate);
+      const path = join15(libraryRoots[0], candidate);
       const exists2 = await stat9(path).then(() => true, () => false);
       const shows = (await library.list()).shows;
       const owner = shows.find((show) => show.path === path);
@@ -13928,10 +14197,13 @@ ${item.id}`).digest("hex").slice(0, 8);
     async createRoom(input) {
       let start = input.start ?? null;
       if (input.source === "local" && start === null && typeof input.path === "string") {
-        const show = library.showPath(input.path);
-        if (show !== null) start = await library.resumeFrom(show);
+        const show2 = library.showPath(input.path);
+        if (show2 !== null) start = await library.resumeFrom(show2);
       }
       if (input.source === "local" && typeof input.path === "string") follows.opened(library.showPath(input.path));
+      const show = typeof input.path === "string" ? library.showPath(input.path) : null;
+      const from2 = show === null ? null : library.workSource(show);
+      if (from2 && typeof input.person === "string" && from2.person !== input.person) library.mark(show, { source: { ...from2, person: input.person } });
       return rooms.createRoom({ ...input, start });
     },
     waitReady: (...args) => rooms.waitReady(...args),
@@ -14000,25 +14272,28 @@ ${item.id}`).digest("hex").slice(0, 8);
       if (candidates.length > 0 && failed.length === candidates.length) throw hubError("source_failed", failed.map((entry) => entry.message).join("; "));
       return { results: interleave(answers.map((answer) => answer.status === "fulfilled" ? answer.value.results : [])), next: null, failed };
     },
-    info: async (sourceId, id) => ({ ...covers.decorate(sourceId, await source(sourceId).info(id)), source: sourceId }),
+    /** A work's details; `person` and `language` say who asks (their account for its site) and in which language (subtitles). */
+    info: async (sourceId, id, asking = {}) => ({ ...covers.decorate(sourceId, await source(sourceId).info(id, asking)), source: sourceId }),
     coverFile: (key) => covers.file(key),
     /**
      * Put a work from a source into the library. `watch` opens a room on it
      * at once (its episode shows as preparing until it is fetched); either
      * way only the rolling cache's window is downloaded, unless `all` keeps
-     * the whole show offline. `quality` is kept with the show for a source that offers a choice (Link).
-     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string }} input
+     * the whole show offline. The show keeps how its episodes are fetched: the `quality` a source offers a choice of (Link),
+     * whose account (`person`, the one asking) and the subtitle languages chosen for the viewer's `language`.
+     * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string, person?: string, language?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, all = false, quality = "", by = "" }) {
-      const item = await source(sourceId).info(id);
+    async fetch({ source: sourceId, id, watch = false, all = false, quality = "", by = "", person = "", language = "" }) {
+      const item = await source(sourceId).info(id, { person, language });
       if (!(item.episodes > 0)) throw hubError("empty", `${item.title || id} has no episodes`);
       const disk = await statfs2(libraryRoots[0]).catch(() => null);
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError("no_space", "the library disk is almost full; delete something first");
       const dir = await folderFor(sourceId, item);
-      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...isQuality(quality) ? { quality } : {} }, { pinned: all });
+      const how = { ...isQuality(quality) ? { quality } : {}, person, language, ...item.subtitles !== void 0 ? { subtitles: item.subtitles } : {} };
+      await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all });
       library.setWork(dir, snapshotOf(item, now()));
       let room = null;
-      if (watch) room = (await rooms.createRoom({ source: "local", path: dir, title: item.title, by, start: await library.resumeFrom(dir) })).room;
+      if (watch) room = (await rooms.createRoom({ source: "local", path: dir, title: item.title, by, person, start: await library.resumeFrom(dir) })).room;
       else await cache.refresh(dir, { retry: true });
       const count = all ? item.episodes : Math.min(item.episodes, options.cache.ahead + 1);
       return { path: dir, title: item.title, episodes: item.episodes, estimate: count * (EPISODE_BYTES[item.kind] ?? EPISODE_BYTES.drama), room, download: downloads.state(dir) };
@@ -14089,28 +14364,22 @@ ${item.id}`).digest("hex").slice(0, 8);
   };
 }
 
-// src/shelf-routes.js
-import { createReadStream as createReadStream3 } from "node:fs";
-import { stat as stat10 } from "node:fs/promises";
-import { Readable } from "node:stream";
-
 // src/people.js
 import { createHash as createHash6 } from "node:crypto";
 var OWNER = "owner";
 function personOf(identityService) {
   const identity = typeof identityService?.current === "function" ? identityService.current() : null;
-  if (identity === null || typeof identity?.id !== "string" || identity.id === "") return { key: OWNER, name: "", verified: false };
+  if (identity === null || typeof identity?.id !== "string" || identity.id === "") return { key: OWNER, id: "", name: "", verified: false };
   const key = createHash6("sha256").update(`${identity.issuer ?? ""}
 ${identity.id}`).digest("hex").slice(0, 20);
-  return { key, name: typeof identity.name === "string" ? identity.name.slice(0, 80) : "", verified: true };
+  return { key, id: identity.id, name: typeof identity.name === "string" ? identity.name.slice(0, 80) : "", verified: true };
 }
 
-// src/shelf-routes.js
-var SHELF_PATH = "/api/media-hub/shelf";
-var HEADERS = { "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" };
-var STATUS2 = Object.freeze({ invalid: 400, not_found: 404, unsupported: 422, source_failed: 502, unavailable: 503 });
+// src/person-routes.js
+var PERSON_PATH = "/api/media-hub";
+var HEADERS = Object.freeze({ "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" });
 var json = (status, body2) => new Response(JSON.stringify(body2), { status, headers: { ...HEADERS, "content-type": "application/json; charset=utf-8" } });
-var failure = (error) => json(error?.status ?? STATUS2[error?.code] ?? 500, { error: { code: error?.code ?? "error", message: error?.message ?? String(error) } });
+var failure2 = (error) => json(error?.status ?? STATUS[error?.code] ?? 500, errorBody(error));
 async function body(request) {
   try {
     const value = await request.json();
@@ -14119,6 +14388,49 @@ async function body(request) {
     throw Object.assign(new Error("request body is not JSON"), { status: 400 });
   }
 }
+var pick4 = (value, keys) => Object.fromEntries(keys.filter((key) => value?.[key] !== void 0).map((key) => [key, value[key]]));
+var text2 = (value) => typeof value === "string" ? value : "";
+function createPersonRoutes({ hub, identity }) {
+  const handle = (fn) => async (request) => {
+    const current = hub();
+    if (current === void 0) return json(503, { error: { code: "unavailable", message: "The media hub is starting." } });
+    try {
+      return json(200, await fn(request, current, personOf(identity())));
+    } catch (error) {
+      return failure2(error);
+    }
+  };
+  const param = (request, name2) => new URL(request.url).searchParams.get(name2) ?? "";
+  return [
+    {
+      path: `${PERSON_PATH}/info`,
+      methods: ["GET"],
+      requestBody: "buffered",
+      fetch: handle((request, current, person) => current.info(param(request, "source"), param(request, "id"), { person: person.id, language: param(request, "language") }))
+    },
+    {
+      path: `${PERSON_PATH}/fetch`,
+      methods: ["POST"],
+      requestBody: "buffered",
+      fetch: handle(async (request, current, person) => {
+        const input = await body(request);
+        return current.fetch({ ...pick4(input, ["source", "id", "watch", "all", "quality", "by"]), language: text2(input.language), person: person.id });
+      })
+    },
+    {
+      path: `${PERSON_PATH}/rooms`,
+      methods: ["POST"],
+      requestBody: "buffered",
+      fetch: handle(async (request, current, person) => current.createRoom({ ...pick4(await body(request), ["path", "title", "by", "start"]), fromPanel: true, person: person.id }))
+    }
+  ];
+}
+
+// src/shelf-routes.js
+import { createReadStream as createReadStream3 } from "node:fs";
+import { stat as stat10 } from "node:fs/promises";
+import { Readable } from "node:stream";
+var SHELF_PATH = "/api/media-hub/shelf";
 async function fileResponse(request, { path, name: name2, type }) {
   const info = await stat10(path).catch(() => null);
   if (info === null || !info.isFile()) return json(404, { error: { code: "not_found", message: "the file is gone" } });
@@ -14139,7 +14451,7 @@ function createShelfRoutes({ books, identity }) {
     try {
       return await fn(request, shelves, personOf(identity()));
     } catch (error) {
-      return failure(error);
+      return failure2(error);
     }
   };
   const param = (request, name2) => new URL(request.url).searchParams.get(name2) ?? "";
@@ -14181,13 +14493,13 @@ function apply(ctx, config) {
     const stateDir = resolve6(config.stateDir);
     const service = createMediaHub({
       stateDir,
-      libraryRoots: [join15(stateDir, "library"), ...config.libraryRoots.map((root) => resolve6(root))],
+      libraryRoots: [join16(stateDir, "library"), ...config.libraryRoots.map((root) => resolve6(root))],
       delivery: createDelivery({ mode: config.delivery }),
       tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, maxHeight: config.maxHeight, threads: config.threads },
       webUrl: () => ctx.get("webApp")?.getAdvertisedUrl(),
       lifetime: { emptyMinutes: config.emptyMinutes, unopenedHours: config.unopenedHours },
       autoDeleteDays: config.autoDeleteDays,
-      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, proxies: createProxies(config.proxies), maxHeight: config.maxHeight } }),
+      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, proxies: createProxies(config.proxies), cookies: createCookies(config.cookies), maxHeight: config.maxHeight } }),
       coverCacheBytes: config.coverCacheMb * 1e6,
       books: {
         capBytes: config.bookCacheGb * 1e9,
@@ -14207,10 +14519,11 @@ function apply(ctx, config) {
       service.pruneCache(config.cacheDays).catch(() => {
       });
     }, DAY_MS3);
-    const shelfRoutes = createShelfRoutes({
-      books: () => current?.books,
-      identity: () => ctx.get("requestIdentity")
-    }).map((route) => ctx.connection.fetch.register(route));
+    const identity = () => ctx.get("requestIdentity");
+    const fetchRoutes = [
+      ...createShelfRoutes({ books: () => current?.books, identity }),
+      ...createPersonRoutes({ hub: () => current, identity })
+    ].map((route) => ctx.connection.fetch.register(route));
     const sockets = new import_websocket_server.default({ noServer: true, maxPayload: 16 * 1024, perMessageDeflate: false });
     const disposeHttp = ctx.webServer.register({
       kind: "prefix",
@@ -14236,7 +14549,7 @@ function apply(ctx, config) {
       clearInterval(prune);
       disposeUpgrade();
       disposeHttp();
-      await Promise.all(shelfRoutes.map((dispose) => dispose()));
+      await Promise.all(fetchRoutes.map((dispose) => dispose()));
       await loading;
       await service.dispose();
       sockets.close();

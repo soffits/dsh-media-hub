@@ -12,7 +12,7 @@
  */
 import { Cover } from './details.js'
 import { offeredFormats } from './formats.js'
-import { Confirm, Icon, Spinner, bytes, canChat, chatAbout, fill, h, React, shelf, shelfUrl } from './ui.js'
+import { Confirm, Icon, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
 
 const SHELF_POLL_MS = 2000
 
@@ -26,16 +26,6 @@ const loadShelf = () => {
   return shelfInfo
 }
 const forgetShelf = () => { shelfInfo = null }
-
-/** A language's name in the viewer's language (Intl.DisplayNames), else its code. */
-function languageName(t, code) {
-  if (!code) return ''
-  try {
-    return new Intl.DisplayNames([t.language], { type: 'language' }).of(code) ?? code
-  } catch {
-    return code
-  }
-}
 
 /** The filter row of a book search; `languages` are the codes to offer (src/i18n.js `languageChoices`), `onChange` gets the whole set. */
 export function BookFilters({ t, filters, languages, onChange }) {

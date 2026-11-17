@@ -56,6 +56,13 @@
 .vsync-overlay button{pointer-events:auto}
 .vsync-wait{display:flex;flex-direction:column;align-items:center;gap:14px;min-width:240px;max-width:min(360px,80%);padding:20px 24px;border-radius:14px;background:rgba(20,20,22,.82);backdrop-filter:blur(8px);color:rgba(255,255,255,.9);pointer-events:auto}
 .vsync-waitTitle{margin:0;font-size:15px;font-weight:500;line-height:22px;text-align:center}
+.vsync-preparing{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:min(360px,86%);text-align:center}
+.vsync-preparing p{margin:0;font-variant-numeric:tabular-nums}
+.vsync-progress{appearance:none;-webkit-appearance:none;align-self:stretch;width:100%;min-width:200px;height:4px;border:0;border-radius:2px;background:rgba(255,255,255,.18);overflow:hidden}
+.vsync-progress::-webkit-progress-bar{background:rgba(255,255,255,.18);border-radius:2px}
+.vsync-progress::-webkit-progress-value{background:rgba(255,255,255,.85);border-radius:2px;transition:width .4s}
+.vsync-progress::-moz-progress-bar{background:rgba(255,255,255,.85);border-radius:2px}
+.vsync-waitTitle{font-variant-numeric:tabular-nums}
 .vsync-waitList{list-style:none;margin:0;padding:0;align-self:stretch;display:flex;flex-direction:column;gap:8px}
 .vsync-waitMember{display:flex;align-items:center;gap:10px;font-size:13px;line-height:20px}
 .vsync-waitMember .vsync-spinner{width:14px;height:14px;border-color:rgba(255,255,255,.2);border-top-color:rgba(255,255,255,.85)}
@@ -120,6 +127,7 @@
 .vsync-blurb{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .vsync-actions{flex:none;display:inline-flex;align-items:center;gap:6px}
 .vsync-pending{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:28px}
+.vsync-account{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:28px;white-space:nowrap}
 /* Inline confirmation */
 .vsync-confirm{flex:none;display:inline-flex;align-items:center;gap:6px;max-width:100%}
 .vsync-confirmText{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

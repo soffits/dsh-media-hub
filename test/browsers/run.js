@@ -689,6 +689,11 @@ async function linkFlows({ a, home }) {
   await a.page.goto(`${new URL(a.page.url()).origin}/?vs-tab=discover&vs-source=link`)
   await a.page.locator('.vsync-segment').waitFor({ timeout: 20_000 })
   await dismissDialogs(a.page)
+  // A lookup that fails (the address fails, and the proxy it goes through is down) says why in words, never a bare status.
+  await a.page.locator('.vsync-searchField').fill('https://video.example/fail')
+  await a.page.locator('.vsync-search button[type=submit]').click()
+  await a.page.locator('.vsync-error').waitFor({ timeout: 20_000 })
+  assert.match(await a.page.locator('.vsync-error').textContent(), /connection this site goes through isn't working/)
   await a.page.locator('.vsync-searchField').fill('https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG')
   await a.page.locator('.vsync-search button[type=submit]').click()
   const card = a.page.locator('.vsync-results .vsync-card')
@@ -715,7 +720,7 @@ async function linkFlows({ a, home }) {
   await until('the show\'s poster is a frame of its episode', async () => ({ ok: await poster.evaluate(img => img.complete && img.naturalWidth > 0).catch(() => false) }), 30_000)
   await shot(a.page, 'link-library')
   await closeRooms(a.page)
-  log('link: lookup, quality, proxy on every call, thumbnail failed closed, frame poster')
+  log('link: failure in words, lookup, quality, proxy on every call, thumbnail failed closed, frame poster')
 }
 
 /** Search → watch together now, the room listing every episode, the watch log, deleting from the library. */
@@ -891,7 +896,7 @@ async function main() {
     await languageFlows({ browser, signIn: dsh.url, origin })
     await shot(a.page, 'home')
     const created = await a.page.evaluate(async (path) => {
-      const response = await fetch('media-hub/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'local', path, by: 'Alice' }) })
+      const response = await fetch('api/media-hub/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'local', path, by: 'Alice' }) })
       return response.json()
     }, show)
     assert.ok(created.room?.id, JSON.stringify(created))

@@ -45,7 +45,7 @@ export const RESERVED_IDS = Object.freeze(['local', LINK_SOURCE, ALL_SOURCES])
 /**
  * The sources this install offers, in tab order: the configured ones, then Link.
  * @param {{ id: string, label: string | Record<string, string>, kinds: { id: string, label: string | Record<string, string> }[], command: string[], env?: Record<string, string> }[]} definitions - the `sources` setting
- * @param {{ stateDir: string, logger: { warn: Function }, link: { ytDlp: string, proxies: object, maxHeight: number } }} options - each command runs in `<stateDir>/<id>`; `link` sets up Link (src/sources/link.js)
+ * @param {{ stateDir: string, logger: { warn: Function }, link: { ytDlp: string, proxies: object, cookies: object, maxHeight: number } }} options - each command runs in `<stateDir>/<id>`; `link` sets up Link (src/sources/link.js)
  */
 export function createSources(definitions, { stateDir, logger, link }) {
   const seen = new Set()

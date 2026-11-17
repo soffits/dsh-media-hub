@@ -44,13 +44,37 @@ const SourceConfig = z.object({
     .description('Extra environment variables for the command.'),
 })
 
+/** The hosts a per-host rule names; shared by `proxies` and `cookies` (src/hosts.js). */
+const hostFields = () => ({
+  hosts: z.array(z.string()).default([])
+    .description('Hosts it applies to: example.com (that host and every host under it), .example (every host ending so), * (every host).'),
+  hostsFile: z.string().default('')
+    .description('A file with more such patterns, one per line, # starting a comment; read again when it changes. While it cannot be read, requests to any host fail instead of going without the rule.'),
+})
+
 const ProxyRule = z.object({
   url: z.string().pattern(PROXY_URL)
     .description('The proxy: socks5h://host:port (names resolved by the proxy), socks5://, socks4://, http:// or https://.'),
-  hosts: z.array(z.string()).default([])
-    .description('Hosts it carries: example.com (that host and every host under it), .example (every host ending so), * (every host).'),
-  hostsFile: z.string().default('')
-    .description('A file with more such patterns, one per line, # starting a comment; read again when it changes. While it cannot be read, requests fail instead of going direct.'),
+  ...hostFields(),
+})
+
+const CookieAccount = z.object({
+  person: z.string().default('')
+    .description('Whose account this is: their sign-in id (the id the sign-in plugin gives, such as an OpenID subject). Empty makes it the default account, used by anyone without one of their own.'),
+  name: z.string().default('')
+    .description('The name shown for this account when someone looks up a link (never the cookies).'),
+  file: z.string()
+    .description('A Netscape cookies file of a signed-in session, kept fresh by whatever holds that session. The hub only reads it: yt-dlp gets a private copy for each run, so nothing is written back.'),
+  userAgent: z.string().default('')
+    .description('The User-Agent of the session the cookies belong to, sent with them, so the site sees the same device. Empty keeps yt-dlp\'s own.'),
+  share: z.boolean().default(false)
+    .description('Whether other people\'s requests may use this account when they have none of their own (a room started by its owner always does).'),
+})
+
+const CookieRule = z.object({
+  accounts: z.array(CookieAccount).default([])
+    .description('The signed-in accounts for these hosts. A request uses its person\'s own account, else the default one, else a shared one, in this order.'),
+  ...hostFields(),
 })
 
 /** Default sources, each hidden while its command is not installed: Fanqie (fanqie-cli) for short dramas, audiobooks and novels, and bookfetch (bookfetch-cli) for ebooks and papers. */
@@ -111,7 +135,9 @@ export const Config = z.object({
   ffmpeg: z.string().default('ffmpeg').description('ffmpeg command.'),
   ffprobe: z.string().default('ffprobe').description('ffprobe command.'),
   ytDlp: z.string().default('yt-dlp')
-    .description('yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file (cookies, for example) applies.'),
+    .description('yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file applies.'),
   proxies: z.array(ProxyRule).default([])
     .description('Which proxy each outbound request takes, by host: the first rule naming the host wins, any other host goes direct. Applies to every yt-dlp call (by the page\'s host) and every picture the hub fetches itself. Sources\' commands keep their own network setup.'),
+  cookies: z.array(CookieRule).default([])
+    .description('Signed-in accounts for sites, by host: the first rule naming a page\'s host gives its accounts, and yt-dlp reads that page with the chosen account\'s cookies and User-Agent. A show keeps the account of whoever fetched it, or started the room on it.'),
 })

@@ -8,7 +8,7 @@ import { ChatButton } from './books-view.js'
 import { Cover, WorkDetails, glance, infoOf } from './details.js'
 import { FollowButton } from './follow.js'
 import { useKnownWork } from './known.js'
-import { Confirm, EPISODE_BYTES, Icon, Spinner, bytes, chatAbout, displayName, fill, h, post, React } from './ui.js'
+import { Confirm, EPISODE_BYTES, Icon, React, Spinner, asPerson, bytes, chatAbout, displayName, fill, h } from './ui.js'
 
 /** Episodes fetched ahead of the one being watched; the Host's `cacheAhead` default, for the size hint. */
 const WINDOW_EPISODES = 6
@@ -35,7 +35,7 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
   React.useEffect(() => {
     if (!needInfo) return undefined
     let live = true
-    infoOf(source.id, result.id).then(value => { if (live && !value.error) setInfo(value) })
+    infoOf(source.id, result.id, t.language).then(value => { if (live && !value.error) setInfo(value) })
     return () => { live = false }
   }, [source.id, result.id, needInfo])
 
@@ -48,7 +48,7 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
     submitting.current = true
     setState({ step: watch ? 'opening' : 'saving' })
     const by = await displayName(t('guest'))
-    const answer = await post('fetch', { source: source.id, id: result.id, watch, all, quality, by })
+    const answer = await asPerson('fetch', { source: source.id, id: result.id, watch, all, quality, language: t.language, by })
     submitting.current = false
     if (answer.error) return setState({ step: 'error', message: answer.error })
     if (watch && answer.room) return onOpen(answer.room.id)
@@ -85,6 +85,7 @@ export function Result({ t, source, result, onOpen, onSaved, onFocus, defaultOpe
         : h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => fetchIt({ watch: true }) }, resume ? fill(t('search.continueEp'), { n: resume.index + 1 }) : t('search.open')))
   } else {
     actions = h(React.Fragment, null,
+      result.account && h('span', { className: 'vsync-account', title: t('link.accountHint') }, fill(t('link.account'), { name: result.account.name })),
       qualities.length > 1 && h(QualityPicker, { t, qualities, value: quality, onChange: setQuality }),
       h(FollowButton, { t, source: source.id, work: result }),
       h('button', { type: 'button', className: 'vsync-btn', disabled: episodes === null, title: t('search.saveAllHint'), onClick: () => setState({ step: 'confirm' }) }, t('search.saveAll')),

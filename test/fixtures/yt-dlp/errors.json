@@ -1,0 +1,6 @@
+{
+ "refused": "ERROR: [BiliBili] 1xx411c7mD: Unable to download webpage: HTTP Error 412: Precondition Failed (caused by <HTTPError 412: Precondition Failed>)",
+ "signIn": "ERROR: [vimeo] 999999999999: The web client only works when logged-in. Use --cookies, --cookies-from-browser, --username and --password, --netrc-cmd, or --netrc (vimeo) to provide account credentials. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually",
+ "missing": "ERROR: [generic] this-page-does-not-exist-404: Unable to download webpage: HTTP Error 404: Not Found (caused by <HTTPError 404: Not Found>)",
+ "proxyRefused": "ERROR: [generic] x: Unable to download webpage: SocksHTTPSConnection(host='github.com', port=443): Failed to establish a new connection: [Errno 111] Connection refused (caused by TransportError(\"SocksHTTPSConnection(host='github.com', port=443): Failed to establish a new connection: [Errno 111] Connection refused\"))"
+}

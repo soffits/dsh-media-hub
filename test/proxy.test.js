@@ -4,7 +4,8 @@ import { createServer } from 'node:http'
 import { createServer as createTcpServer, connect } from 'node:net'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { createProxies, hostMatches, parseHosts } from '../src/proxy.js'
+import { hostMatches, parseHosts } from '../src/hosts.js'
+import { createProxies, proxyAnswers } from '../src/proxy.js'
 import { tempDir } from './helpers.js'
 
 /** A small web server: /pic answers a few bytes, /moved redirects to it, /big answers more than tests allow. */
@@ -46,9 +47,9 @@ async function socksProxy(t) {
 }
 
 test('a pattern is a host with every host under it, a suffix, or every host', () => {
-  assert.ok(hostMatches('bilibili.example', 'bilibili.example'))
-  assert.ok(hostMatches('i0.cdn.bilibili.example', 'bilibili.example'))
-  assert.ok(!hostMatches('notbilibili.example', 'bilibili.example'))
+  assert.ok(hostMatches('site.example', 'site.example'))
+  assert.ok(hostMatches('i0.cdn.site.example', 'site.example'))
+  assert.ok(!hostMatches('notsite.example', 'site.example'))
   assert.ok(hostMatches('news.site.cn', '.cn'))
   assert.ok(!hostMatches('cn.example', '.cn'))
   assert.ok(hostMatches('anything.example', '*'))

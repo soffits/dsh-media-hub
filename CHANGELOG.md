@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- `cookies`: signed-in accounts for sites, by host, like `proxies` (`{ hosts, hostsFile, accounts }` rules). Each account is a Netscape cookies file with an optional User-Agent, belonging to a person (their sign-in id) or to everyone as the default, and optionally shared. A lookup or download uses the account of the person asking, else the default, else a shared one; a room uses the account of whoever opened it, for everyone in it. The Link card says which account a site is read with, and its qualities are what that account gets. yt-dlp reads a private copy of the cookies for each run, so the hub never changes the session it borrows, and cookie values are never logged or shown.
+- Looking up and fetching a work and opening a room moved under DSH's `/api` (`/api/media-hub/info`, `/fetch`, `/rooms`), where the sign-in plugin says who is asking. `POST /media-hub/api/rooms`, `GET /media-hub/api/info` and `POST /media-hub/api/fetch` are gone.
+- Errors say what happened in the viewer's language: a site that refused the request, one that wants a signed-in account, nothing at that address, or a proxy that isn't answering. yt-dlp's own output goes to the server log. A failed source is now HTTP 424 instead of 502, which proxies in front of DSH (Cloudflare among them) replaced with a page of their own, so the page only ever saw "HTTP 502". A response without the hub's JSON shows a sentence with its status instead of a bare code.
+- Link fetches subtitles with each episode: every language the video has subtitles in, plus generated ones in your language and the video's own when nothing covers them, converted to WebVTT. The player offers them in its captions menu by language name and turns on the one in your language. Subtitles of a show from any source now reach the room (they were dropped before), and go with their episode when it is deleted.
+- A room waiting on a download shows real progress, live for everyone in it: percent, size, speed and time left while yt-dlp fetches (video and audio counted together), then the preparing step, with a bar.
+
 ## 0.3.0
 
 - Link reads any video or playlist page yt-dlp reads (YouTube, Vimeo, Bilibili and over a thousand more sites): it shows as one work with its thumbnail, length, uploader and episodes (a playlist's videos), and plays like a show from a source, downloaded through the rolling cache and served by DSH to every viewer. A quality picker on the card (*Auto*, a height, *Audio only*) sets yt-dlp's format choice; the show keeps it. Following a playlist adds its new videos as episodes.

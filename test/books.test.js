@@ -141,8 +141,8 @@ test('the person behind a request: a verified identity gets its own key, without
   assert.equal(ann.verified, true)
   assert.equal(ann.name, 'Ann')
   assert.notEqual(ann.key, personOf({ current: () => ({ issuer: 'https://other.example', id: 'sub-1' }) }).key, 'the same id from another issuer is someone else')
-  assert.deepEqual(personOf(undefined), { key: 'owner', name: '', verified: false })
-  assert.deepEqual(personOf({ current: () => null }), { key: 'owner', name: '', verified: false })
+  assert.deepEqual(personOf(undefined), { key: 'owner', id: '', name: '', verified: false })
+  assert.deepEqual(personOf({ current: () => null }), { key: 'owner', id: '', name: '', verified: false })
 })
 
 test('shelf routes answer for the asking person only and serve the file as an attachment', async (t) => {

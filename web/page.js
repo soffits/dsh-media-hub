@@ -9,7 +9,7 @@ import { LibrarySection } from './library-view.js'
 import { clearNav, readNav, TABS, writeNav } from './nav.js'
 import { RoomView } from './room-view.js'
 import { WatchingTab, withNews } from './watching-view.js'
-import { Known, POLL_MS, api, h, React } from './ui.js'
+import { Known, POLL_MS, api, h, React, setWords } from './ui.js'
 
 /** Marks the history entries this page added, so a back control knows going back stays on the page. */
 const PUSHED = 'vsyncPushed'
@@ -86,6 +86,7 @@ function Home({ t, nav, go, onOpen, rooms, library, load }) {
 }
 
 export function Page({ t, initialRoom }) {
+  setWords(t)
   const [roomId, setRoomId] = React.useState(initialRoom)
   const [nav, go] = useNav()
   const [rooms, setRooms] = React.useState(undefined)

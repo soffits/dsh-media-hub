@@ -1,51 +1,43 @@
 /**
  * Which way an outbound request goes, from the `proxies` setting: a list of
- * rules, each a proxy URL and the hosts it carries. The first rule naming a
+ * host rules (src/hosts.js), each with a proxy URL. The first rule naming a
  * host wins; a host no rule names goes direct. Every request the hub makes
  * itself (pictures) and every yt-dlp call asks here, so no site is named in
  * code.
  *
  * A request may name the page it belongs to (a video's thumbnail): it takes
  * the first rule naming its own host or that page's host, so a picture on a
- * CDN nobody listed goes the way its site goes.
- *
- * Patterns: `example.com` is that host and every host under it, `.cn` every
- * host ending so, `*` every host. A rule's `hostsFile` (one pattern per line,
- * `#` comments) is read again whenever it changes; while it can't be read,
- * requests fail rather than go direct.
+ * CDN nobody listed goes the way its site goes. While a rule's hosts file
+ * can't be read, requests fail rather than go direct.
  */
 import { createWriteStream } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
+import { connect } from 'node:net'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { pipeline } from 'node:stream/promises'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { SocksProxyAgent } from 'socks-proxy-agent'
+import { createHostRules, hostOf } from './hosts.js'
 
 /** Proxy URL schemes, the ones yt-dlp takes too. */
 export const PROXY_URL = /^(socks4a?|socks5h?|https?):\/\/[^\s/]+\/?$/
 const MAX_REDIRECTS = 5
 const USER_AGENT = 'dsh-media-hub'
+const PROBE_TIMEOUT_MS = 3000
 
 const proxyError = (code, message) => Object.assign(new Error(message), { code })
 
-/** The host of a URL, lowercase and without a trailing dot, or '' when it is not one. */
-export function hostOf(url) {
-  try {
-    return new URL(url).hostname.toLowerCase().replace(/\.$/, '')
-  } catch {
-    return ''
-  }
-}
-
-/** Patterns from a hosts file's text: one per line, `#` starts a comment. */
-export const parseHosts = text => text.split('\n').map(line => line.split('#')[0].trim().toLowerCase()).filter(Boolean)
-
-export function hostMatches(host, pattern) {
-  if (host === '') return false
-  if (pattern === '*') return true
-  if (pattern.startsWith('.')) return host.endsWith(pattern)
-  return host === pattern || host.endsWith(`.${pattern}`)
+/** Whether a proxy accepts a connection at all: the signal that tells "the proxy is down" from "the site said no". */
+export function proxyAnswers(proxy, timeoutMs = PROBE_TIMEOUT_MS) {
+  const { hostname, port, protocol } = new URL(proxy)
+  const defaultPort = protocol.startsWith('socks') ? 1080 : protocol === 'https:' ? 443 : 80
+  return new Promise((resolve) => {
+    const socket = connect({ host: hostname.replace(/^\[|\]$/g, ''), port: Number(port) || defaultPort })
+    const done = (up) => { socket.destroy(); resolve(up) }
+    socket.setTimeout(timeoutMs, () => done(false))
+    socket.once('connect', () => done(true))
+    socket.once('error', () => done(false))
+  })
 }
 
 /**
@@ -53,33 +45,16 @@ export function hostMatches(host, pattern) {
  * @param {{ read?: (path: string) => Promise<string>, version?: (path: string) => Promise<number> }} [io] - tests replace the file system
  */
 export function createProxies(rules = [], io = {}) {
-  const read = io.read ?? (path => readFile(path, 'utf8'))
-  const version = io.version ?? (async path => (await stat(path)).mtimeMs)
-  /** hostsFile -> { version, patterns } */
-  const files = new Map()
+  const hostRules = createHostRules(rules, io)
   const agents = new Map()
-
-  async function patternsOf(rule) {
-    const listed = (rule.hosts ?? []).map(pattern => pattern.trim().toLowerCase()).filter(Boolean)
-    if (!rule.hostsFile) return listed
-    try {
-      const current = await version(rule.hostsFile)
-      if (files.get(rule.hostsFile)?.version !== current) files.set(rule.hostsFile, { version: current, patterns: parseHosts(await read(rule.hostsFile)) })
-    } catch (error) {
-      files.delete(rule.hostsFile)
-      throw proxyError('proxy_unavailable', `cannot read the proxy hosts file ${rule.hostsFile}: ${error.message}`)
-    }
-    return [...listed, ...files.get(rule.hostsFile).patterns]
-  }
 
   /** The proxy URL for a request to `url` on behalf of `page`, or '' to go direct. */
   async function route(url, page = '') {
-    const hosts = [hostOf(url), hostOf(page)].filter(Boolean)
-    for (const rule of rules) {
-      const patterns = await patternsOf(rule)
-      if (hosts.some(host => patterns.some(pattern => hostMatches(host, pattern)))) return rule.url
+    try {
+      return (await hostRules.match(url, page))?.url ?? ''
+    } catch (error) {
+      throw proxyError('proxy_unavailable', error.message)
     }
-    return ''
   }
 
   function agentFor(proxy) {

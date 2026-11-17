@@ -42,3 +42,28 @@ export function languageChoices(viewer, results, picked = '') {
     .map(code => chain(code).at(-2) ?? BASE)
   return [...new Set(codes)]
 }
+
+/** A tag's likely full form (language, script, region), or null for what is not a tag. */
+export function localeOf(tag) {
+  try {
+    return new Intl.Locale(tag).maximize()
+  } catch {
+    return null
+  }
+}
+
+/** The listed tag that best stands for `wanted`: the same tag, else the same language and script, else the same language. */
+export function bestTag(tags, wanted) {
+  if (!wanted) return null
+  const target = localeOf(wanted)
+  let best = null
+  let score = 0
+  for (const tag of tags) {
+    const locale = localeOf(tag)
+    const value = tag.toLowerCase() === wanted.toLowerCase() ? 3
+      : locale && target && locale.language === target.language && locale.script === target.script ? 2
+        : locale && target && locale.language === target.language ? 1 : 0
+    if (value > score) [best, score] = [tag, value]
+  }
+  return best
+}

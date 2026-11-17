@@ -21,4 +21,6 @@
 - **Paging for book searches**: `bookfetch source` answers one page per source; *Load more* would need offsets per source.
 - **Link size estimate**: *Download all* estimates a show by a per-kind average; a link knows its duration and the chosen height, which would give a far better number.
 - **Playlists that reorder**: Link numbers a playlist's videos by position when it downloads; a playlist that changes order (a chart) shifts which video an episode number means between runs. The entry ids in the work's snapshot could pin them.
-- **Link subtitles**: yt-dlp can fetch a video's subtitles (`--write-subs --sub-format vtt`); they would show in the player next to the file like any local subtitle.
+- **Subtitle languages for a playlist's videos**: a flat playlist lists no subtitles per video, so its episodes get only what there is in the viewer's language; asking each video's `-J` when it is about to download would give the full choice.
+- **Download progress from command sources**: the source protocol has no progress event, so only Link reports how far a download is; a `progress` line in the protocol would bring it to every source.
+- **The person behind the sync channel**: a room records who opened it by display name; the account a room fetches with comes from the request that opened it, so a room reopened by the assistant's tool (no signed-in person) uses the default account.

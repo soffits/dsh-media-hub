@@ -6,7 +6,7 @@ import { About, nextSeason } from './about-view.js'
 import { AvatarStack } from './avatars.js'
 import { Cover } from './details.js'
 import { useKnownWork } from './known.js'
-import { Confirm, Icon, api, base, clock, copyText, displayName, fill, h, post, React, roomLink, watchMark } from './ui.js'
+import { Confirm, Icon, ProgressBar, React, api, asPerson, base, clock, copyText, displayName, fill, h, languageName, progressFraction, progressText, roomLink, watchMark } from './ui.js'
 
 const TOAST_MS = 4000
 /** A wait shorter than this (a seek into what is already loaded) shows nothing. */
@@ -29,11 +29,12 @@ function WaitPanel({ t, view, item, onSkip, onContinue }) {
   const others = view.members.filter(member => member.clientId !== view.clientId && member.wait === 'loading')
   const names = others.map(member => member.name).join(', ')
   let title
-  if (item.status !== 'ready') title = item.progress ? fill(t('room.preparingProgress'), { n: Math.round(item.progress * 100) }) : t('room.preparing')
+  if (item.status !== 'ready') title = progressText(t, item.progress)
   else if (others.length > 0) title = fill(t('room.waitingFor'), { names })
   else title = t('room.loading')
   return h('div', { className: 'vsync-wait', role: 'status' },
     h('p', { className: 'vsync-waitTitle' }, title),
+    item.status !== 'ready' && h(ProgressBar, { progress: item.progress }),
     h('ul', { className: 'vsync-waitList' }, view.members.map(member => h('li', { key: member.clientId, className: 'vsync-waitMember', 'data-wait': member.wait },
       member.wait === 'ready' ? h('span', { className: 'vsync-waitMark' }, h(Icon.Check, { size: 14 })) : h('span', { className: 'vsync-spinner', 'aria-hidden': 'true' }),
       h('span', { className: 'vsync-waitName' }, member.clientId === view.clientId ? `${member.name} (${t('room.you')})` : member.name),
@@ -68,6 +69,8 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
         base: base(),
         roomId,
         name,
+        language: t.language,
+        trackLabel: label => languageName(t, label),
         stage: stage.current,
         onUpdate: setView,
         onEvent: event => toast(toastText(t, event)),
@@ -106,7 +109,7 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
   const watchSeason = async () => {
     if (seasonKnown.room !== null) return onOpen(seasonKnown.room.id)
     setSeasonBusy(true)
-    const answer = await post('fetch', { source: about.source, id: season.id, watch: true, all: false, by: await displayName(t('guest')) })
+    const answer = await asPerson('fetch', { source: about.source, id: season.id, watch: true, all: false, language: t.language, by: await displayName(t('guest')) })
     setSeasonBusy(false)
     if (answer.error) return toast(answer.error)
     return onOpen(answer.room.id)
@@ -114,9 +117,9 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
 
   let overlay = null
   if (view.connection === 'closed') overlay = h('p', null, t('room.closed'))
-  else if (item?.status === 'failed') overlay = h('p', null, t('room.failed'))
+  else if (item?.status === 'failed') overlay = h('p', null, item.reason ? t(`error.${item.reason}`) : t('room.failed'))
   else if (item && view.wait && (item.status !== 'ready' || view.wait.tap || (view.wait.held && view.wait.age >= WAIT_SHOWN_AFTER_MS))) overlay = h(WaitPanel, { t, view, item, onSkip: () => session.current?.skip(), onContinue: () => session.current?.continueLoading() })
-  else if (item?.status === 'preparing' || item?.status === 'remote') overlay = h('p', null, item.progress ? fill(t('room.preparingProgress'), { n: Math.round(item.progress * 100) }) : t('room.preparing'))
+  else if (item?.status === 'preparing' || item?.status === 'remote') overlay = h('div', { className: 'vsync-preparing', role: 'status' }, h('p', null, progressText(t, item.progress)), h(ProgressBar, { progress: item.progress }))
   else if (view.needsGesture) overlay = h('button', { type: 'button', className: 'vsync-btn vsync-btnLarge vsync-primary', onClick: () => session.current?.unlock() }, t('room.tapToJoin'))
   else if (room === null) overlay = h('p', null, t('room.connecting'))
 
@@ -168,7 +171,7 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
                   h('span', { className: 'vsync-episodeTitle' }, title),
                   mark.bar),
                 episode.status === 'preparing'
-                  ? h('span', { className: 'vsync-episodeState' }, episode.progress ? `${Math.round(episode.progress * 100)}%` : '…')
+                  ? h('span', { className: 'vsync-episodeState' }, progressFraction(episode.progress) === null ? '…' : `${Math.floor(progressFraction(episode.progress) * 100)}%`)
                   : mark.note))
             })),
             season && h('div', { className: 'vsync-nextSeason', 'data-last': String(room.index === room.items.length - 1) },

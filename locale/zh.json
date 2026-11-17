@@ -229,6 +229,20 @@
     "quality.label": "画质",
     "quality.auto": "自动",
     "quality.audio": "仅音频",
-    "quality.height": "{n}p"
+    "quality.height": "{n}p",
+    "error.blocked": "网站拒绝了这次请求，可能屏蔽了媒体中心所用的网络，稍后再试。",
+    "error.sign_in": "这个视频需要登录账号才能看，请让管理媒体中心的人添加一个。",
+    "error.not_found": "这个地址没有可播放的内容，检查一下链接。",
+    "error.proxy_down": "这个网站要走的线路现在不通，过一会儿再试。",
+    "error.failed": "网站没给出这个视频，稍后再试。",
+    "error.status": "服务器没能完成（HTTP {status}），再试一次。",
+    "error.network": "连不上服务器，检查网络后再试。",
+    "progress.downloading": "下载中",
+    "progress.downloadingPercent": "下载中 {n}%",
+    "progress.of": "{done} / {total}",
+    "progress.speed": "{speed}/秒",
+    "progress.left": "还剩 {time}",
+    "link.account": "使用 {name} 的账号",
+    "link.accountHint": "读取这个网站时用的账号，能选哪些画质由它决定"
   }
 }

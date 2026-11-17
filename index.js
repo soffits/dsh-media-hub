@@ -2,8 +2,10 @@
  * DeepSeek Harness Host plugin: the media hub (rooms for watching together, the library, sources, shelves).
  *
  * Mounts /media-hub on DSH's web server (media, subtitles, the page's
- * browser modules, a JSON API for rooms, the library and sources) and the
- * room WebSocket, all behind DSH's own login. Provides the `mediaHub`
+ * browser modules, a JSON API for rooms, the library and sources), the
+ * room WebSocket, and under DSH's /api what acts for the person asking
+ * (looking up and fetching works, opening rooms, shelves), all behind DSH's
+ * own login. Provides the `mediaHub`
  * service, which the assistant's tool (tools.js) looks up at call time.
  */
 import { join, resolve } from 'node:path'
@@ -12,7 +14,9 @@ import { Config } from './src/config.js'
 import { createDelivery } from './src/delivery.js'
 import { ROUTE, WS_PATH, admitOwner, createHandler, refuseUpgrade } from './src/http.js'
 import { createMediaHub } from './src/media.js'
+import { createPersonRoutes } from './src/person-routes.js'
 import { createShelfRoutes } from './src/shelf-routes.js'
+import { createCookies } from './src/cookies.js'
 import { createProxies } from './src/proxy.js'
 import { createSources } from './src/sources/index.js'
 import { commandExists } from './src/sources/process.js'
@@ -45,7 +49,7 @@ export function apply(ctx, config) {
       webUrl: () => ctx.get('webApp')?.getAdvertisedUrl(),
       lifetime: { emptyMinutes: config.emptyMinutes, unopenedHours: config.unopenedHours },
       autoDeleteDays: config.autoDeleteDays,
-      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, proxies: createProxies(config.proxies), maxHeight: config.maxHeight } }),
+      sources: createSources(config.sources, { stateDir, logger, link: { ytDlp: config.ytDlp, proxies: createProxies(config.proxies), cookies: createCookies(config.cookies), maxHeight: config.maxHeight } }),
       coverCacheBytes: config.coverCacheMb * 1e6,
       books: {
         capBytes: config.bookCacheGb * 1e9,
@@ -63,10 +67,11 @@ export function apply(ctx, config) {
     }).catch(error => logger.warn('could not start rooms: %s', error.message))
     const prune = setInterval(() => { service.pruneCache(config.cacheDays).catch(() => {}) }, DAY_MS)
 
-    const shelfRoutes = createShelfRoutes({
-      books: () => current?.books,
-      identity: () => ctx.get('requestIdentity'),
-    }).map(route => ctx.connection.fetch.register(route))
+    const identity = () => ctx.get('requestIdentity')
+    const fetchRoutes = [
+      ...createShelfRoutes({ books: () => current?.books, identity }),
+      ...createPersonRoutes({ hub: () => current, identity }),
+    ].map(route => ctx.connection.fetch.register(route))
 
     const sockets = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024, perMessageDeflate: false })
     const disposeHttp = ctx.webServer.register({
@@ -94,7 +99,7 @@ export function apply(ctx, config) {
       clearInterval(prune)
       disposeUpgrade()
       disposeHttp()
-      await Promise.all(shelfRoutes.map(dispose => dispose()))
+      await Promise.all(fetchRoutes.map(dispose => dispose()))
       await loading
       await service.dispose()
       sockets.close()
