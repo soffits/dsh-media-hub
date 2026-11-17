@@ -153,7 +153,8 @@ export function progressText(t, progress) {
   else if (progress.done) parts.push(bytes(t, progress.done))
   if (progress.speed) parts.push(fill(t('progress.speed'), { speed: bytes(t, progress.speed) }))
   if (Number.isFinite(progress.eta)) parts.push(fill(t('progress.left'), { time: clock(progress.eta) }))
-  return parts.join(' · ')
+  // Each part stays on one line ("228 kB/s"); a narrow screen breaks between them.
+  return parts.map(part => part.replace(/ /g, '\u00a0')).join(' · ')
 }
 
 /** A bar for an episode on its way, when how far is known. */
