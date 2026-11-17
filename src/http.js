@@ -8,7 +8,7 @@
  *   GET    /media-hub/api/rooms                open rooms
  *   DELETE /media-hub/api/rooms/<id>           close a room
  *   POST   /media-hub/api/rooms/<id>/together  open a room someone watches alone to others
- *   GET    /media-hub/api/rooms/<id>/work      the details of the work a room's show came from
+ *   GET    /media-hub/api/rooms/<id>/work      the details of the work a room's show came from:
  *   GET    /media-hub/api/library              shows, sizes, free space
  *   GET    /media-hub/api/library/episodes?path=
  *   DELETE /media-hub/api/library?path=[&episode=][&by=]   delete a show or one episode
@@ -248,7 +248,7 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         const route = `${req.method} ${parts.slice(1).join('/')}`
         const query = name => url.searchParams.get(name) ?? ''
         if (route === 'GET rooms') return sendJson(res, 200, { rooms: await hub.listRooms() })
-        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, await hub.roomWork(parts[2]))
+        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, hub.roomWork(parts[2]))
         if (req.method === 'DELETE' && parts[1] === 'rooms' && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]))
         if (req.method === 'POST' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'together') return sendJson(res, 200, hub.watchTogether(parts[2]))
         if (route === 'GET library') return sendJson(res, 200, await hub.library())

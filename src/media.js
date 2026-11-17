@@ -22,7 +22,7 @@ import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { createPicks, parseAnnotation, pendingRatings, ratingLine } from './presence.js'
 import { snapshotOf } from './work.js'
-import { createLiveWork } from './live-work.js'
+import { createWorkRefresh } from './work-refresh.js'
 
 const HOUR_MS = 3_600_000
 /** Downloads stop being started when the disk has less than this left. */
@@ -39,7 +39,7 @@ const hubError = (code, message) => Object.assign(new Error(message), { code })
  * @param {number} options.autoDeleteDays
  * @param {string[]} [options.notifyCommand] - run with a JSON line on stdin when a followed work gets a new season or episodes
  * @param {{ pauseMs?: number, random?: () => number }} [options.follow] - pacing of the checks of followed works (tests)
- * @param {number} [options.liveWorkWaitMs] - how long a page waits for a source's answer about a work before showing the saved offline copy
+ * @param {number} [options.workMaxAgeMs] - how old the saved copy of a source's work may get before it is asked for again in the background
  * @param {number} options.coverCacheBytes - the most disk cover pictures may use
  * @param {{ command: string[], env?: object }} [options.recommender] - where picks come from (src/presence.js)
  * @param {{ ahead: number, behind: number, capBytes: number }} options.cache - the rolling cache's window (episodes ahead of and behind where people are) and its cap in bytes (0 for none)
@@ -66,9 +66,8 @@ export function createMediaHub(options) {
     logger,
     now,
   })
-  const liveWork = createLiveWork({ source: id => sources.get(id), keep: (path, work) => library.keepWork(path, work), waitMs: options.liveWorkWaitMs, logger, now })
+  const refreshWork = createWorkRefresh({ source: id => sources.get(id), keep: (path, work) => library.keepWork(path, work), maxAgeMs: options.workMaxAgeMs, logger, now })
   const library = createLibrary({
-    liveWork,
     roots: libraryRoots,
     stateDir,
     autoDeleteDays: options.autoDeleteDays,
@@ -157,10 +156,11 @@ export function createMediaHub(options) {
     ...options.follow,
   })
 
-  /** A show's source and its work as the source says it now (see src/live-work.js). */
-  const liveEntry = async show => {
+  /** A show's source and its saved work; a copy missing or about a day old is asked for again in the background (src/work-refresh.js), never waited for. */
+  const shownEntry = (show) => {
     const entry = { source: library.workSource(show), work: library.workOf(show) }
-    return { ...entry, work: await liveWork(show, entry) }
+    refreshWork(show, entry)
+    return entry
   }
 
   /** A show's work with its pictures as routes of this plugin. */
@@ -223,7 +223,7 @@ export function createMediaHub(options) {
     /** Open rooms with a preview of what plays: the show's cover and a frame of the episode now on. */
     async listRooms() {
       return Promise.all(rooms.listRooms().map(async ({ file, ...room }) => {
-        const show = room.show === null ? null : withCovers(await liveEntry(room.show))
+        const show = room.show === null ? null : withCovers({ source: library.workSource(room.show), work: library.workOf(room.show) })
         return { ...room, cover: show?.work?.cover ?? null, frame: file === null ? null : await covers.ofFrame(file, room.duration > 30 ? Math.round(room.duration / 10) : 3) }
       }))
     },
@@ -262,14 +262,15 @@ export function createMediaHub(options) {
     // ---------------------------------------------------------- library
 
     async library() {
-      const list = await library.list({ live: true })
+      const list = await library.list()
+      for (const show of list.shows) if (show.source?.source) refreshWork(show.path, { source: show.source, work: show.work })
       return { ...list, shows: list.shows.map(withCovers) }
     },
     /** The details of the work a room's show came from, or null. */
-    async roomWork(id) {
+    roomWork(id) {
       const room = rooms.listRooms().find(entry => entry.id === id)
       if (room === undefined) throw hubError('not_found', 'no such room')
-      return { work: room.show === null ? null : withCovers(await liveEntry(room.show)).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null }
+      return { work: room.show === null ? null : withCovers(shownEntry(room.show)).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null }
     },
     episodes: path => library.episodes(path),
     removeShow: (path, by) => library.remove(path, { by }),

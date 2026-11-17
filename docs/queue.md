@@ -27,4 +27,3 @@
 - **Live duration while downloading**: an episode played as it downloads is an event playlist, so the player's timeline grows with what has arrived; the length is known from the start (probe) and could be shown.
 - **Browser suite after solo watching**: `npm run test:browsers` opens rooms with *Watch* and expects them in the Watching tab; rooms are now unlisted until *Watch together*, so its room-list steps need that click. Not rerun for 0.5.
 - **A person's own solo rooms**: an unlisted room is reached only by its link; the Watching tab could list the asking person's own (rooms would need to record the person, not only a display name).
-- **Episode titles in an open room are the saved copy**: a room's episode list is built when it opens or a show changes, and must not wait for a source, so it reads the offline copy of the work (refreshed by every live read of the library or About tab); the library's episode list shows the live titles.

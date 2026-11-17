@@ -143,7 +143,7 @@
     "library.offline": "离线",
     "library.notCached": "未缓存",
     "library.episodeN": "第 {n} 集",
-    "library.offlineCopy": "来源没有回应，显示的是 {date} 保存的副本。",
+    "library.oldCopy": "详情更新于 {date}。",
     "library.playFromFetch": "从这一集开始看（先下载它）",
     "library.downloadAll": "全部下载（离线）",
     "library.stopOffline": "不再离线保存",
