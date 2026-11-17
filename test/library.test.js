@@ -5,7 +5,6 @@ import { test } from 'node:test'
 import { isFastStart, matchSubtitles, naturalSort, planVideo, probe, scanSource } from '../src/library.js'
 import { prepareEpisode } from '../src/prepare.js'
 import { decodeText, srtToVtt } from '../src/subtitles.js'
-import { parseYouTube } from '../src/youtube-url.js'
 import { hasFfmpeg, makeVideo, tempDir } from './helpers.js'
 
 test('episodes sort naturally, in any script', () => {
@@ -53,16 +52,6 @@ test('the plan says what a browser needs', () => {
   assert.equal(planVideo('/a.mp4', { ...h264, height: 2160 }, { fastStart: true, maxHeight: 1080 }), 'transcode')
   assert.equal(planVideo('/a.webm', { ...h264, video: 'vp9', audio: 'opus' }, { fastStart: null, maxHeight: 1080 }), 'direct')
   assert.equal(planVideo('/a.m3u8', {}, { fastStart: null, maxHeight: 1080 }), 'direct')
-})
-
-test('YouTube links give a video or a playlist', () => {
-  assert.deepEqual(parseYouTube('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42'), { videoId: 'dQw4w9WgXcQ', listId: null })
-  assert.deepEqual(parseYouTube('https://youtu.be/dQw4w9WgXcQ?si=x'), { videoId: 'dQw4w9WgXcQ', listId: null })
-  assert.deepEqual(parseYouTube('https://www.youtube.com/shorts/dQw4w9WgXcQ'), { videoId: 'dQw4w9WgXcQ', listId: null })
-  assert.deepEqual(parseYouTube('https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG'), { videoId: null, listId: 'PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG' })
-  assert.deepEqual(parseYouTube('dQw4w9WgXcQ'), { videoId: 'dQw4w9WgXcQ', listId: null })
-  assert.equal(parseYouTube('https://example.com/watch?v=dQw4w9WgXcQ'), null)
-  assert.equal(parseYouTube('https://www.youtube.com/watch?v=short'), null)
 })
 
 test('fast start is read from the file layout', { skip: !hasFfmpeg && 'needs ffmpeg' }, async (t) => {

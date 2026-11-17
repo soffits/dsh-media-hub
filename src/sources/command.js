@@ -16,17 +16,16 @@
  * requires, for example) holds for the source, since nothing here talks to
  * the site.
  */
-import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { access, constants, mkdir, rm, stat } from 'node:fs/promises'
-import { basename, delimiter, isAbsolute, join } from 'node:path'
+import { mkdir, rm, stat } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import { BASE, pick } from '../i18n.js'
+import { commandExists, lastLine, parseLine, run } from './process.js'
 
 const SEARCH_LIMIT = 12
 const QUERY_TIMEOUT_MS = 60_000
 const COVER_TIMEOUT_MS = 30_000
-const MAX_OUTPUT = 16 * 1024 * 1024
 const ID = /^[^\s\0]{1,200}$/
 
 const sourceError = (code, message) => Object.assign(new Error(message), { code })
@@ -34,7 +33,8 @@ const text = value => (typeof value === 'string' || typeof value === 'number' ? 
 const numberOrNull = value => (Number.isFinite(value) ? value : null)
 
 const STATUSES = new Set(['finished', 'ongoing', 'stopped'])
-const COVER_URL = /^https?:\/\/[^\s]{1,2000}$/
+/** A web address a source may name: a cover picture, the work's page. */
+const WEB_URL = /^https?:\/\/[^\s]{1,2000}$/
 const MAX_TAGS = 12
 const MAX_META = 16
 const MAX_RELATED = 30
@@ -80,7 +80,9 @@ function metaOf(raw) {
 /** The optional descriptive fields a search hit and an info document share. */
 function factsOf(raw) {
   return {
-    cover: COVER_URL.test(text(raw.cover)) ? text(raw.cover) : null,
+    cover: WEB_URL.test(text(raw.cover)) ? text(raw.cover) : null,
+    url: WEB_URL.test(text(raw.url)) ? text(raw.url) : null,
+    duration: Number.isFinite(raw.duration) && raw.duration > 0 ? Math.round(raw.duration) : null,
     popularity: popularityOf(raw.popularity),
     status: STATUSES.has(text(raw.status)) ? text(raw.status) : '',
     tags: Array.isArray(raw.tags) ? raw.tags.map(text).filter(Boolean).slice(0, MAX_TAGS) : [],
@@ -129,75 +131,11 @@ export function parseInfo(document) {
   return { ...resultOf(document, null), id, episodes: listed > 0 ? listed : null, episodeTitles, related }
 }
 
-/** Whether `command` names an executable file, on the PATH or by path. */
-export async function commandExists(command, path = process.env.PATH ?? '') {
-  const candidates = isAbsolute(command) ? [command] : path.split(delimiter).filter(Boolean).map(dir => join(dir, command))
-  for (const candidate of candidates) {
-    try {
-      await access(candidate, constants.X_OK)
-      return true
-    } catch {
-      // Not in this folder.
-    }
-  }
-  return false
-}
-
 function sha256Of(path) {
   return new Promise((resolve, reject) => {
     const hash = createHash('sha256')
     createReadStream(path).on('data', chunk => hash.update(chunk)).on('error', reject).on('end', () => resolve(hash.digest('hex')))
   })
-}
-
-/**
- * Run the command in its own process group, so a cancel stops the whole
- * chain (a launcher, an interpreter, ffmpeg).
- */
-function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env } = {}) {
-  return new Promise((resolve, reject) => {
-    const [command, ...args] = argv
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], detached: true, cwd, env: { ...process.env, ...env } })
-    let stdout = ''
-    let stderr = ''
-    let pending = ''
-    let oversized = false
-    const stop = () => { try { process.kill(-child.pid, 'SIGTERM') } catch { /* already gone */ } }
-    const timer = timeoutMs ? setTimeout(stop, timeoutMs) : null
-    signal?.addEventListener('abort', stop, { once: true })
-    child.stdout.on('data', (chunk) => {
-      if (onStdoutLine === undefined) {
-        stdout += chunk
-        if (stdout.length > MAX_OUTPUT) { oversized = true; stop() }
-        return
-      }
-      pending += chunk
-      const lines = pending.split('\n')
-      pending = lines.pop()
-      for (const line of lines) onStdoutLine(line)
-    })
-    child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-8000) })
-    child.on('error', (error) => {
-      if (timer) clearTimeout(timer)
-      reject(error.code === 'ENOENT' ? sourceError('unavailable', `${command} is not installed`) : error)
-    })
-    child.on('close', (code) => {
-      if (timer) clearTimeout(timer)
-      signal?.removeEventListener('abort', stop)
-      if (onStdoutLine !== undefined && pending.trim() !== '') onStdoutLine(pending)
-      resolve({ code, stdout, stderr, oversized })
-    })
-  })
-}
-
-/** One stdout line as a JSON object, or null for anything else (a command may print other text). */
-function parseLine(line) {
-  try {
-    const event = JSON.parse(line)
-    return event !== null && typeof event === 'object' ? event : null
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -220,8 +158,6 @@ async function verify(dir, event, label, logger) {
   }
   return { ok: false, name }
 }
-
-const lastLine = text => text.trim().split('\n').filter(Boolean).pop() ?? ''
 
 /** The search filters a source can be asked for, by config name, and the flags they become. */
 export const FILTERS = Object.freeze(['language', 'format', 'year'])
@@ -290,7 +226,7 @@ export function createCommandSource(definition, { logger, cwd }) {
 
     /** Fetch a cover image into `file` through the command, which keeps its own network policy. Rejects when the command has no `cover` verb or cannot fetch it. */
     async cover(url, file) {
-      if (!COVER_URL.test(String(url))) throw sourceError('invalid', 'not a cover url')
+      if (!WEB_URL.test(String(url))) throw sourceError('invalid', 'not a cover url')
       const { code, stderr } = await run([...command, 'cover', '--output', file, '--', String(url)], { timeoutMs: COVER_TIMEOUT_MS, cwd: await workDir(), env })
       if (code !== 0) throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
     },

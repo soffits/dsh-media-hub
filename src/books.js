@@ -107,7 +107,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
       format: entry.format,
       title: entry.title,
       author: entry.author,
-      cover: entry.cover ? covers.register(entry.source, entry.cover) : null,
+      cover: entry.cover ? covers.ofSource(entry.source, entry.cover) : null,
       addedAt: entry.addedAt,
       state: file?.state ?? 'removed',
       error: file?.error ?? null,

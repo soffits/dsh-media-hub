@@ -13,7 +13,7 @@ import { tempDir } from './helpers.js'
 
 const FAKE = fileURLToPath(new URL('./fixtures/fake-source.mjs', import.meta.url))
 const quiet = { warn() {} }
-const covers = { register: (source, url) => (url ? `covers/${source}-x` : null) }
+const covers = { ofSource: (source, url) => (url ? `covers/${source}-x` : null) }
 
 function setup(t, { capBytes = 0, convert = false, log } = {}) {
   const dir = tempDir(t)

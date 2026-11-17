@@ -1,23 +1,34 @@
 /**
- * Cover pictures for search results. A source names a cover by URL (often on
- * a CDN in a country the owner does not want browsers to contact), so the
- * browser never gets that URL: results carry `covers/<key>` and this module
- * fetches the picture through the source's `cover` verb, which keeps the
- * source's own network policy (a launcher routing through a proxy keeps
- * doing so, and fails closed when the proxy is down). There is no fallback
- * that fetches by itself: a source with no `cover` verb, or one that fails,
- * simply has no picture.
+ * Every picture the page shows: a work's cover, a show's poster, a room's
+ * frame. One cache and one route (`covers/<key>`) for all of them, with the
+ * ways to make one:
  *
- * Pictures are cached under `<stateDir>/covers/<key>.img`, at most `maxFileBytes`
- * each and `capBytes` together; past the cap the least recently shown go.
+ * - `source`: a picture a source names by URL, fetched by that source (its
+ *   `cover`), which keeps the source's own network route: a command source
+ *   runs its `cover` verb, Link fetches through the `proxies` setting. The
+ *   browser never sees the URL, and nothing here fetches by itself: a source
+ *   that can't simply has no picture.
+ * - `frame`: a still of a local video (or an audio file's cover art), made
+ *   with ffmpeg.
+ *
+ * A route is handed out at once and the picture made the first time someone
+ * asks for it, at most `concurrency` at a time; one that could not be made is
+ * not tried again for a while, and the page shows its next choice or a
+ * placeholder. Pictures are kept under `<stateDir>/covers/<key>.img`, at most
+ * `maxFileBytes` each and `capBytes` together; past the cap the least
+ * recently shown go.
  */
 import { createHash } from 'node:crypto'
 import { mkdir, open, readdir, rename, rm, stat, utimes } from 'node:fs/promises'
 import { join } from 'node:path'
+import { isAudio } from './library.js'
+import { runFfmpeg } from './prepare.js'
 
 const KEY = /^[0-9a-f]{32}$/
 const FAILED_FOR_MS = 5 * 60_000
 const MAX_REMEMBERED = 5000
+/** Poster frames are this tall; the page shows them at most about this size. */
+const FRAME_HEIGHT = 180
 
 /** The image type a browser will show, from the file's first bytes, or null. */
 export function imageType(head) {
@@ -28,24 +39,51 @@ export function imageType(head) {
   return null
 }
 
-export const coverKey = (sourceId, url) => createHash('sha256').update(`${sourceId}\n${url}`).digest('hex').slice(0, 32)
+const keyOf = (...parts) => createHash('sha256').update(parts.join('\n')).digest('hex').slice(0, 32)
+export const coverKey = (sourceId, url) => keyOf(sourceId, url)
+
+/** A still of `input` `at` seconds in (an audio file's cover art), as a JPEG `output`; a video too short for `at` gives its first frame. */
+export async function grabFrame(input, output, at, { ffmpeg }) {
+  const frame = ['-map', '0:V:0', '-frames:v', '1', '-vf', `scale=-2:${FRAME_HEIGHT}`, '-q:v', '5', '-f', 'image2', '-c:v', 'mjpeg', output]
+  const attempts = isAudio(input) ? [['-y', '-i', input, ...frame]] : [['-y', '-ss', String(at), '-i', input, ...frame], ['-y', '-i', input, ...frame]]
+  let failure
+  for (const args of attempts) {
+    try {
+      await runFfmpeg(args, { ffmpeg, duration: null })
+      return
+    } catch (error) {
+      failure = error
+    }
+  }
+  throw failure
+}
 
 /**
- * @param {{ dir: string, capBytes?: number, maxFileBytes?: number, concurrency?: number, logger: { warn: Function }, now?: () => number }} options
- * @param {(sourceId: string) => { cover?: (url: string, file: string) => Promise<void> } | undefined} sourceOf
+ * @param {{ dir: string, capBytes?: number, maxFileBytes?: number, concurrency?: number, ffmpeg?: string, logger: { warn: Function }, now?: () => number }} options
+ * @param {(sourceId: string) => { cover?: (url: string, file: string, context: { page: string }) => Promise<void> } | undefined} sourceOf
  */
-export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurrency = 3, logger, now = Date.now }, sourceOf) {
-  /** key -> { sourceId, url }, so a request for a cover can be fetched when it is not cached yet. */
+export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurrency = 3, ffmpeg = 'ffmpeg', logger, now = Date.now }, sourceOf) {
+  /** key -> how to make it, so a request for a picture not cached yet can be made. */
   const known = new Map()
   const inFlight = new Map()
   const failed = new Map()
   const waiting = []
   let running = 0
 
+  const makers = {
+    async source({ sourceId, url, page }, file) {
+      const source = sourceOf(sourceId)
+      if (typeof source?.cover !== 'function') throw new Error(`${sourceId} has no pictures`)
+      await source.cover(url, file, { page })
+    },
+    frame: ({ file: input, at }, file) => grabFrame(input, file, at, { ffmpeg }),
+  }
+
   const remember = (key, entry) => {
     known.delete(key)
     known.set(key, entry)
     if (known.size > MAX_REMEMBERED) known.delete(known.keys().next().value)
+    return `covers/${key}`
   }
 
   const pump = () => {
@@ -72,13 +110,11 @@ export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurr
     }
   }
 
-  async function fetchOne(key, { sourceId, url }) {
-    const source = sourceOf(sourceId)
-    if (typeof source?.cover !== 'function') return false
+  async function make(key, entry) {
     await mkdir(dir, { recursive: true })
     const partial = join(dir, `.${key}.part`)
     try {
-      await source.cover(url, partial)
+      await makers[entry.by](entry, partial)
       const info = await stat(partial)
       if (info.size === 0 || info.size > maxFileBytes) throw new Error(`the picture is ${info.size} bytes`)
       const handle = await open(partial, 'r')
@@ -89,7 +125,7 @@ export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurr
       await trim()
       return true
     } catch (error) {
-      logger.warn('cover %s from %s: %s', key, sourceId, error.message)
+      logger.warn('picture %s (%s): %s', key, entry.by === 'source' ? entry.sourceId : entry.file, error.message)
       return false
     } finally {
       await rm(partial, { force: true })
@@ -97,16 +133,21 @@ export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurr
   }
 
   return {
-    /** The route a result's cover is served under; the URL itself stays here. */
-    register(sourceId, url) {
+    /** The route of a picture a source names by `url` (`page`: the work's own address, for the route a fetch takes); the URL itself stays here. */
+    ofSource(sourceId, url, page = null) {
       if (typeof url !== 'string' || url === '') return null
-      const key = coverKey(sourceId, url)
-      remember(key, { sourceId, url })
-      return `covers/${key}`
+      return remember(coverKey(sourceId, url), { by: 'source', sourceId, url, page: page ?? '' })
+    },
+
+    /** The route of a still of the media file `file`, `at` seconds in; a changed file gets a new one. */
+    async ofFrame(file, at = 3) {
+      const info = await stat(file).catch(() => null)
+      if (info === null || !info.isFile()) return null
+      return remember(keyOf('frame', file, info.size, info.mtimeMs, at), { by: 'frame', file, at })
     },
 
     /**
-     * The cached picture for a key (fetching it first when needed), or null.
+     * The cached picture for a key (making it first when needed), or null.
      * @returns {Promise<{ file: string, type: string } | null>}
      */
     async file(key) {
@@ -132,7 +173,7 @@ export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurr
       const entry = known.get(key)
       if (entry === undefined || (failed.get(key) ?? 0) > now()) return null
       if (!inFlight.has(key)) {
-        inFlight.set(key, queued(() => fetchOne(key, entry)).finally(() => inFlight.delete(key)))
+        inFlight.set(key, queued(() => make(key, entry)).finally(() => inFlight.delete(key)))
       }
       if (!await inFlight.get(key)) {
         failed.set(key, now() + FAILED_FOR_MS)
@@ -141,11 +182,14 @@ export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurr
       return cached()
     },
 
-    /** Replace each result's cover URL (and those of its related works) with a route. */
+    /** Replace a work's cover URL (and those of its related works) with a route. */
     decorate(sourceId, work) {
-      const covered = { ...work, cover: this.register(sourceId, work.cover) }
+      const covered = { ...work, cover: this.ofSource(sourceId, work.cover, work.url) }
       if (Array.isArray(work.related)) covered.related = work.related.map(other => this.decorate(sourceId, other))
       return covered
     },
+
+    /** Wait for the pictures being made, so nothing writes into the state folder after shutdown. */
+    settle: () => Promise.allSettled([...inFlight.values()]),
   }
 }

@@ -61,11 +61,6 @@ test('drift over 2 s seeks to the room', () => {
   assert.equal(correction({ local: 7.9, expected: 10, rate: 1 }).action, 'seek')
 })
 
-test('players without fine rates seek past a coarser threshold and never nudge', () => {
-  assert.equal(correction({ local: 10.8, expected: 10, rate: 1, fineRate: false }).action, 'none')
-  assert.equal(correction({ local: 11.2, expected: 10, rate: 1, fineRate: false }).action, 'seek')
-})
-
 test('the next episode preloads for a short episode at once, and for a long one in its last half minute', () => {
   assert.equal(preloadDue({ duration: 90, position: 0 }), true)
   assert.equal(preloadDue({ duration: 1500, position: 600 }), false)

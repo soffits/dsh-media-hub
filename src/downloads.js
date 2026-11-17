@@ -87,7 +87,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
         if (!(await hasSpace())) throw sourceError('no_space', 'the library disk is almost full; delete something first')
         job.current = range
         job.at = range[0]
-        const result = await source.download({ id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job) })
+        const result = await source.download({ id: job.id, dir: job.dir, from: range[0], to: range[1], quality: job.quality ?? '', signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job) })
         await notify(job)
         if (signal.aborted) break
         if (result.failed.length > 0) {
@@ -133,7 +133,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
      * Say which episodes of a show to have on disk, in the order to fetch
      * them (replacing any earlier list). A job that failed stays failed
      * unless `retry` is set: someone asked for an episode again.
-     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null }, dir: string }} show
+     * @param {{ source: string, item: { id: string, title: string, kind: string, episodes: number | null, quality?: string }, dir: string }} show
      * @param {number[]} want
      * @param {{ priority?: boolean, retry?: boolean }} [options] - priority: a room is open on this show
      */
@@ -141,7 +141,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       let job = jobs.get(dir)
       if (job === undefined) {
         if (want.length === 0) return null
-        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, status: 'queued', error: null, failed: [], priority, want, createdAt: now() }
+        job = { dir, source, id: item.id, title: item.title, kind: item.kind, episodes: item.episodes ?? null, quality: item.quality ?? '', status: 'queued', error: null, failed: [], priority, want, createdAt: now() }
         jobs.set(dir, job)
       }
       job.want = want

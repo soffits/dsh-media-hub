@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, utimesSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { createDelivery } from '../src/delivery.js'
 import { createMediaHub } from '../src/media.js'
 import { isNearEnd } from '../src/watchlog.js'
 import { makeVideo, quietLogger, socketServer, tempDir, viewer } from './helpers.js'
 
-const tools = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', ytDlp: 'yt-dlp', maxHeight: 1080, threads: 1 }
+const tools = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', maxHeight: 1080, threads: 1 }
 const sleep = ms => new Promise(done => setTimeout(done, ms))
 
 /** Wait until `check()` is truthy. */
@@ -492,6 +492,19 @@ test('shows saved before details were kept get them once, one request at a time;
   assert.equal(calls.filter(id => id === 'bad').length, 2, 'only the refresh by hand asked again')
   const refreshed = await hub.refreshWork(shows.find(show => show.work).path)
   assert.equal(refreshed.title.startsWith('Show'), true)
+})
+
+test('two works with one title get two folders in the library, whatever their ids look like', async (t) => {
+  const dir = tempDir(t)
+  const source = { ...workSource(1, []), info: async id => ({ id, title: 'Same title', kind: 'drama', episodes: 1, episodeTitles: [], related: [] }) }
+  const hub = makeHub(dir, source)
+  await hub.load()
+  t.after(() => hub.dispose())
+  const first = await hub.fetch({ source: 'stub', id: 'https://video.example/watch/1', watch: false })
+  const second = await hub.fetch({ source: 'stub', id: 'https://video.example/watch/2', watch: false })
+  assert.notEqual(first.path, second.path)
+  assert.deepEqual([dirname(first.path), dirname(second.path)], [join(dir, 'state', 'library'), join(dir, 'state', 'library')], 'both directly in the library')
+  assert.match(basename(second.path), /^Same title \([0-9a-f]{8}\)$/)
 })
 
 test('saving a work already in the library reuses its show: one folder, no second copy', async (t) => {
