@@ -22,6 +22,7 @@ import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { createPicks, parseAnnotation, pendingRatings, ratingLine } from './presence.js'
 import { snapshotOf } from './work.js'
+import { createChanges } from './changes.js'
 import { createWorkRefresh } from './work-refresh.js'
 
 const HOUR_MS = 3_600_000
@@ -39,6 +40,7 @@ const hubError = (code, message) => Object.assign(new Error(message), { code })
  * @param {number} options.autoDeleteDays
  * @param {string[]} [options.notifyCommand] - run with a JSON line on stdin when a followed work gets a new season or episodes
  * @param {{ pauseMs?: number, random?: () => number }} [options.follow] - pacing of the checks of followed works (tests)
+ * @param {number} [options.changeIntervalMs] - the most often open pages are told of changes
  * @param {number} [options.workMaxAgeMs] - how old the saved copy of a source's work may get before it is asked for again in the background
  * @param {number} options.coverCacheBytes - the most disk cover pictures may use
  * @param {{ command: string[], env?: object }} [options.recommender] - where picks come from (src/presence.js)
@@ -49,7 +51,8 @@ export function createMediaHub(options) {
   const sources = new Map(options.sources.map(source => [source.id, source]))
   const covers = createCovers({ dir: join(stateDir, 'covers'), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, id => sources.get(id))
   const log = createWatchLog({ file: join(stateDir, LOG_NAME), now, logger })
-  const books = createBooks({ dir: join(stateDir, 'books'), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now })
+  const changes = createChanges({ intervalMs: options.changeIntervalMs })
+  const books = createBooks({ changed: () => changes.notify('shelf'), dir: join(stateDir, 'books'), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now })
   let rooms
   let cache
   const downloads = createDownloads({
@@ -61,13 +64,14 @@ export function createMediaHub(options) {
       return disk === null || disk.bavail * disk.bsize >= MIN_FREE_BYTES
     },
     onFiles,
-    onProgress: (job, number, progress) => rooms.downloadProgress(job.dir, number, progress),
+    onProgress: (job, number, progress) => { rooms.downloadProgress(job.dir, number, progress); changes.notify('library') },
     onPartial: (job, number, partial) => rooms.streamEpisode(job.dir, number, partial),
     logger,
     now,
   })
   const refreshWork = createWorkRefresh({ source: id => sources.get(id), keep: (path, work) => library.keepWork(path, work), maxAgeMs: options.workMaxAgeMs, logger, now })
   const library = createLibrary({
+    changed: () => changes.notify('library'),
     roots: libraryRoots,
     stateDir,
     autoDeleteDays: options.autoDeleteDays,
@@ -79,12 +83,16 @@ export function createMediaHub(options) {
     logger,
     now,
   })
+  const journal = createJournal({ log, library, now })
   rooms = createRoomService({
     ...options,
     watchOf: (item, show) => library.watchOfItem(show, item),
     directory: path => library.directory(path),
     focus: (show, change) => { cache.refresh(show, change).catch(() => {}) },
-    observe: createJournal({ log, library, now }),
+    observe: (type, detail) => {
+      journal(type, detail)
+      if (type !== 'progress') changes.notify('rooms')
+    },
   })
   cache = createCache({ library, downloads, rooms, window: options.cache, logger })
   library.onChange((show) => {
@@ -107,6 +115,7 @@ export function createMediaHub(options) {
 
   /** Episodes landed in a downloading show, or its download ended: rooms on it follow the files. */
   async function onFiles(job) {
+    changes.notify('library')
     await rooms.syncShow(job.dir)
     if (job.status === 'failed') rooms.failWaiting(job.dir, job.error ?? 'the download failed', job.reason ?? null)
     await cache.enforce()
@@ -244,6 +253,7 @@ export function createMediaHub(options) {
     },
     async rate(input, person) {
       await log.append('rating', ratingLine(input, person))
+      changes.notify('library')
       return { ok: true }
     },
     picks: person => picks.list(person),
@@ -394,7 +404,11 @@ export function createMediaHub(options) {
     history: opts => log.history(opts),
     logFile: log.file,
 
+    /** Be told (with the kinds of what changed: `library`, `rooms`, `shelf`) when something a page shows changes; returns a way to stop. */
+    listenChanges: listener => changes.listen(listener),
+
     async dispose() {
+      changes.close()
       clearInterval(sweepTimer)
       follows.stop()
       await books.dispose()

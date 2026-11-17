@@ -9,7 +9,7 @@ import { LibrarySection } from './library-view.js'
 import { clearNav, readNav, TABS, writeNav } from './nav.js'
 import { RoomView } from './room-view.js'
 import { WatchingTab, withNews } from './watching-view.js'
-import { Known, P, POLL_MS, api, h, React, setWords } from './ui.js'
+import { Changes, K, Known, P, api, h, React, setWords } from './ui.js'
 
 /** Marks the history entries this page added, so a back control knows going back stays on the page. */
 const PUSHED = 'vsyncPushed'
@@ -89,16 +89,18 @@ export function Page({ t, initialRoom }) {
     if (lib.shows) setLibrary(lib)
   }, [])
 
-  React.useEffect(() => {
-    let live = true
-    const tick = () => { if (live) load() }
-    tick()
-    const timer = setInterval(tick, POLL_MS)
-    return () => { live = false; clearInterval(timer) }
-  }, [load])
+  // The plugin announces every change of what the page shows (src/changes.js); the page re-reads then, and once when the stream (re)connects. No timer.
+  const [shelf, setShelf] = React.useState(0)
+  const stream = K.useEventStream('api/media-hub/events', (message) => {
+    if (message.what?.includes('shelf')) setShelf(count => count + 1)
+    if (message.what?.some(kind => kind === 'library' || kind === 'rooms')) load()
+  })
+  React.useEffect(() => { if (stream === 'live') { load(); setShelf(count => count + 1) } }, [stream, load])
+  React.useEffect(() => { load() }, [load])
 
   const known = React.useMemo(() => ({ library, rooms, reload: load }), [library, rooms, load])
-  return h(Known.Provider, { value: known }, roomId === null
+  const changes = React.useMemo(() => ({ shelf }), [shelf])
+  return h(Changes.Provider, { value: changes }, h(Known.Provider, { value: known }, roomId === null
     ? h(Home, { t, nav, go, onOpen: setRoomId, rooms, library, load })
-    : h(RoomView, { key: roomId, t, roomId, onLeave: () => setRoomId(null), onOpen: setRoomId }))
+    : h(RoomView, { key: roomId, t, roomId, onLeave: () => setRoomId(null), onOpen: setRoomId })))
 }

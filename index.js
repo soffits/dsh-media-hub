@@ -15,6 +15,7 @@ import { createDelivery } from './src/delivery.js'
 import { ROUTE, WS_PATH, admitOwner, createHandler, refuseUpgrade } from './src/http.js'
 import { createMediaHub } from './src/media.js'
 import { createPersonRoutes } from './src/person-routes.js'
+import { createEventsRoute } from './src/events-route.js'
 import { createShelfRoutes } from './src/shelf-routes.js'
 import { createCookies } from './src/cookies.js'
 import { createProxies } from './src/proxy.js'
@@ -72,6 +73,7 @@ export function apply(ctx, config) {
     const fetchRoutes = [
       ...createShelfRoutes({ books: () => current?.books, identity }),
       ...createPersonRoutes({ hub: () => current, identity }),
+      createEventsRoute({ hub: () => current }),
     ].map(route => ctx.connection.fetch.register(route))
 
     const sockets = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024, perMessageDeflate: false })

@@ -580,6 +580,24 @@ test('pages read a work\'s saved copy at once; a missing or day-old copy is aske
   void saved
 })
 
+test('open pages are told when the notes change: a watch-state write, a refreshed copy', async (t) => {
+  const dir = tempDir(t)
+  let clock = 1_000
+  const hub = makeHub(dir, workSource(2, []), { changeIntervalMs: 10, now: () => clock })
+  await hub.load()
+  t.after(() => hub.dispose())
+  const saved = await hub.fetch({ source: 'stub', id: '1', watch: false })
+  await sleep(60)
+  const heard = []
+  hub.listenChanges(what => heard.push(...what))
+  await hub.keepShow(saved.path, 'me')
+  await until('a watch-state write is announced', async () => heard.includes('library'))
+  heard.length = 0
+  clock += 25 * 3_600_000
+  await hub.library()
+  await until('the background refresh of the copy is announced', async () => heard.includes('library'))
+})
+
 test('two works with one title get two folders in the library, whatever their ids look like', async (t) => {
   const dir = tempDir(t)
   const source = { ...workSource(1, []), info: async id => ({ id, title: 'Same title', kind: 'drama', episodes: 1, episodeTitles: [], related: [] }) }

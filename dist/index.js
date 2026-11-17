@@ -12671,7 +12671,8 @@ function runConverter(command, input, output) {
     });
   });
 }
-function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, now = Date.now }) {
+function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, changed = () => {
+}, now = Date.now }) {
   let state = { files: {}, shelves: {} };
   let saving = Promise.resolve();
   const running = /* @__PURE__ */ new Map();
@@ -12679,6 +12680,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, no
   let active = 0;
   let disposed = false;
   const save = () => {
+    changed();
     saving = saving.then(async () => {
       await mkdir6(dir, { recursive: true });
       const temporary = join12(dir, `.${STATE_FILE}.${process.pid}.tmp`);
@@ -14096,6 +14098,7 @@ function createLibrary(options) {
     }
   }
   function save() {
+    options.changed?.();
     const body2 = JSON.stringify({ shows: meta }, null, 1);
     saving = saving.then(async () => {
       await writeFile6(`${metaFile}.part`, body2);
@@ -14139,6 +14142,7 @@ function createLibrary(options) {
     await rm8(join15(target, name2), { force: true });
     for (const sub of matchSubtitles(name2, await readdir7(target).catch(() => []))) await rm8(join15(target, sub.name), { force: true });
     await forgetSum(target, name2);
+    options.changed?.();
   }
   async function folderBytes(path) {
     const info = await stat9(path).catch(() => null);
@@ -14606,6 +14610,39 @@ function createFollows({ library, source, refreshed, addSeason, record, notify, 
   };
 }
 
+// src/changes.js
+function createChanges({ intervalMs = 300 } = {}) {
+  const listeners = /* @__PURE__ */ new Set();
+  let pending = /* @__PURE__ */ new Set();
+  let timer = null;
+  let lastAt = 0;
+  function flush() {
+    timer = null;
+    lastAt = Date.now();
+    const what = [...pending];
+    pending = /* @__PURE__ */ new Set();
+    for (const listener of listeners) listener(what);
+  }
+  return {
+    notify(kind) {
+      pending.add(kind);
+      if (timer !== null) return;
+      timer = setTimeout(flush, Math.max(0, lastAt + intervalMs - Date.now()));
+      timer.unref?.();
+    },
+    /** @returns {() => void} stop listening */
+    listen(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    close() {
+      clearTimeout(timer);
+      timer = null;
+      listeners.clear();
+    }
+  };
+}
+
 // src/work-refresh.js
 var DAY_MS3 = 864e5;
 var HOUR_MS = 36e5;
@@ -14656,7 +14693,8 @@ function createMediaHub(options) {
   const sources = new Map(options.sources.map((source2) => [source2.id, source2]));
   const covers = createCovers({ dir: join16(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
   const log = createWatchLog({ file: join16(stateDir, LOG_NAME), now, logger });
-  const books = createBooks({ dir: join16(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
+  const changes = createChanges({ intervalMs: options.changeIntervalMs });
+  const books = createBooks({ changed: () => changes.notify("shelf"), dir: join16(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
   let rooms;
   let cache;
   const downloads = createDownloads({
@@ -14668,13 +14706,17 @@ function createMediaHub(options) {
       return disk === null || disk.bavail * disk.bsize >= MIN_FREE_BYTES;
     },
     onFiles,
-    onProgress: (job, number, progress) => rooms.downloadProgress(job.dir, number, progress),
+    onProgress: (job, number, progress) => {
+      rooms.downloadProgress(job.dir, number, progress);
+      changes.notify("library");
+    },
     onPartial: (job, number, partial) => rooms.streamEpisode(job.dir, number, partial),
     logger,
     now
   });
   const refreshWork = createWorkRefresh({ source: (id) => sources.get(id), keep: (path, work) => library.keepWork(path, work), maxAgeMs: options.workMaxAgeMs, logger, now });
   const library = createLibrary({
+    changed: () => changes.notify("library"),
     roots: libraryRoots,
     stateDir,
     autoDeleteDays: options.autoDeleteDays,
@@ -14686,6 +14728,7 @@ function createMediaHub(options) {
     logger,
     now
   });
+  const journal = createJournal({ log, library, now });
   rooms = createRoomService({
     ...options,
     watchOf: (item, show) => library.watchOfItem(show, item),
@@ -14694,7 +14737,10 @@ function createMediaHub(options) {
       cache.refresh(show, change).catch(() => {
       });
     },
-    observe: createJournal({ log, library, now })
+    observe: (type, detail) => {
+      journal(type, detail);
+      if (type !== "progress") changes.notify("rooms");
+    }
   });
   cache = createCache({ library, downloads, rooms, window: options.cache, logger });
   library.onChange((show) => {
@@ -14718,6 +14764,7 @@ function createMediaHub(options) {
     });
   }, HOUR_MS2);
   async function onFiles(job) {
+    changes.notify("library");
     await rooms.syncShow(job.dir);
     if (job.status === "failed") rooms.failWaiting(job.dir, job.error ?? "the download failed", job.reason ?? null);
     await cache.enforce();
@@ -14838,6 +14885,7 @@ ${item.id}`).digest("hex").slice(0, 8);
     },
     async rate(input, person) {
       await log.append("rating", ratingLine(input, person));
+      changes.notify("library");
       return { ok: true };
     },
     picks: (person) => picks.list(person),
@@ -14973,7 +15021,10 @@ ${item.id}`).digest("hex").slice(0, 8);
     // ---------------------------------------------------------- watch log
     history: (opts) => log.history(opts),
     logFile: log.file,
+    /** Be told (with the kinds of what changed: `library`, `rooms`, `shelf`) when something a page shows changes; returns a way to stop. */
+    listenChanges: (listener) => changes.listen(listener),
     async dispose() {
+      changes.close();
       clearInterval(sweepTimer);
       follows.stop();
       await books.dispose();
@@ -15067,6 +15118,55 @@ function createPersonRoutes({ hub, identity }) {
       })
     }
   ];
+}
+
+// src/events-route.js
+var EVENTS_PATH = "/api/media-hub/events";
+var HEARTBEAT_MS = 25e3;
+function createEventsRoute({ hub }) {
+  return {
+    path: EVENTS_PATH,
+    methods: ["GET"],
+    requestBody: "buffered",
+    fetch: async (request) => {
+      const current = hub();
+      if (current === void 0) return json(503, { error: { code: "unavailable", message: "The media hub is starting." } });
+      const encoder = new TextEncoder();
+      let stop = () => {
+      };
+      const stream = new ReadableStream({
+        start(controller) {
+          const write2 = (chunk) => {
+            try {
+              controller.enqueue(encoder.encode(chunk));
+            } catch {
+              stop();
+            }
+          };
+          write2("retry: 5000\n: open\n\n");
+          const unlisten = current.listenChanges((what) => write2(`data: ${JSON.stringify({ type: "change", what })}
+
+`));
+          const beat = setInterval(() => write2(": beat\n\n"), HEARTBEAT_MS);
+          stop = () => {
+            unlisten();
+            clearInterval(beat);
+          };
+          request.signal?.addEventListener("abort", () => {
+            stop();
+            try {
+              controller.close();
+            } catch {
+            }
+          }, { once: true });
+        },
+        cancel() {
+          stop();
+        }
+      });
+      return new Response(stream, { status: 200, headers: { ...HEADERS, "content-type": "text/event-stream; charset=utf-8", "cache-control": "private, no-cache, no-transform", "x-accel-buffering": "no" } });
+    }
+  };
 }
 
 // src/shelf-routes.js
@@ -15166,7 +15266,8 @@ function apply(ctx, config) {
     const identity = () => ctx.get("requestIdentity");
     const fetchRoutes = [
       ...createShelfRoutes({ books: () => current?.books, identity }),
-      ...createPersonRoutes({ hub: () => current, identity })
+      ...createPersonRoutes({ hub: () => current, identity }),
+      createEventsRoute({ hub: () => current })
     ].map((route) => ctx.connection.fetch.register(route));
     const sockets = new import_websocket_server.default({ noServer: true, maxPayload: 16 * 1024, perMessageDeflate: false });
     const disposeHttp = ctx.webServer.register({

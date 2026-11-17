@@ -12,9 +12,8 @@
  */
 import { Cover } from './details.js'
 import { offeredFormats } from './formats.js'
-import { Confirm, Icon, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
+import { Changes, Confirm, Icon, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
 
-const SHELF_POLL_MS = 2000
 
 export const FORMATS = ['', 'epub', 'pdf', 'txt', 'azw3', 'mobi']
 export const SIZES = ['', '5', '20', '50', '200']
@@ -67,22 +66,21 @@ export function ChatButton({ t, onClick }) {
 
 /** Waits until the shelf entry is no longer being fetched. */
 function useEntry(entryId) {
+  const changes = React.useContext(Changes)
   const [entry, setEntry] = React.useState(null)
   React.useEffect(() => {
     if (entryId === null) return undefined
     let live = true
-    let timer
-    const tick = async () => {
+    const read = async () => {
       const answer = await shelf()
       if (!live) return
       const found = answer.entries?.find(one => one.entry === entryId) ?? null
       setEntry(found)
-      if (found?.state === 'fetching') timer = setTimeout(tick, SHELF_POLL_MS)
-      else forgetShelf()
+      if (found?.state !== 'fetching') forgetShelf()
     }
-    tick()
-    return () => { live = false; clearTimeout(timer) }
-  }, [entryId])
+    read()
+    return () => { live = false }
+  }, [entryId, changes.shelf])
   return entry
 }
 
@@ -138,6 +136,7 @@ export function BookCard({ t, source, result }) {
 
 /** My books: what the signed-in person downloaded, to save again, fetch again or delete. */
 export function ShelfSection({ t }) {
+  const changes = React.useContext(Changes)
   const [state, setState] = React.useState(null)
   const [confirm, setConfirm] = React.useState(null)
   const load = React.useCallback(async () => {
@@ -145,23 +144,13 @@ export function ShelfSection({ t }) {
     setState(answer)
     return answer
   }, [])
-  React.useEffect(() => {
-    let live = true
-    let timer
-    const tick = async () => {
-      const answer = await load()
-      if (live && answer.entries?.some(entry => entry.state === 'fetching')) timer = setTimeout(tick, SHELF_POLL_MS)
-    }
-    tick()
-    return () => { live = false; clearTimeout(timer) }
-  }, [load])
+  React.useEffect(() => { load() }, [load, changes.shelf])
 
   const act = async (path, entry) => {
     setConfirm(null)
     await shelf(path, { entry: entry.entry })
     forgetShelf()
-    const answer = await load()
-    if (answer.entries?.some(one => one.state === 'fetching')) setTimeout(load, SHELF_POLL_MS)
+    await load()
   }
 
   if (state === null) return null

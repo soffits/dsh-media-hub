@@ -54,6 +54,7 @@ export function cleanName(value) {
  * @param {(path: string) => object | null} options.download - the download state of a show folder
  * @param {(path: string) => void} options.forget - stop anything working on a show being removed
  * @param {(type: string, fields: object) => void} [options.record] - library actions for the watch log
+ * @param {() => void} [options.changed] - told whenever the notes change or an episode file is deleted, so open pages re-read
  * @param {{ info: Function, warn: Function }} options.logger
  * @param {() => number} [options.now]
  */
@@ -96,6 +97,7 @@ export function createLibrary(options) {
   }
 
   function save() {
+    options.changed?.()
     const body = JSON.stringify({ shows: meta }, null, 1)
     saving = saving.then(async () => {
       await writeFile(`${metaFile}.part`, body)
@@ -149,6 +151,7 @@ export function createLibrary(options) {
     await rm(join(target, name), { force: true })
     for (const sub of matchSubtitles(name, await readdir(target).catch(() => []))) await rm(join(target, sub.name), { force: true })
     await forgetSum(target, name)
+    options.changed?.()
   }
 
   async function folderBytes(path) {

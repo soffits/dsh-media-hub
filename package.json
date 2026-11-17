@@ -1,6 +1,6 @@
 {
   "name": "@soffits/dsh-media-hub",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "A media hub for DeepSeek Harness: search shows, novels, ebooks and papers across sources, watch together in sync, and download books in the format you want onto your own shelf.",
   "type": "module",
   "license": "MIT",

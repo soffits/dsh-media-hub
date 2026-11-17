@@ -76,8 +76,9 @@ function runConverter(command, input, output) {
  * @param {{ command: string, available: () => Promise<boolean> }} options.converter
  * @param {{ register: (sourceId: string, url: string) => string | null }} options.covers
  * @param {{ warn: Function }} options.logger
+ * @param {() => void} [options.changed] - told whenever the shelves change, so open pages re-read
  */
-export function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, now = Date.now }) {
+export function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, changed = () => {}, now = Date.now }) {
   let state = { files: {}, shelves: {} }
   let saving = Promise.resolve()
   const running = new Map()
@@ -86,6 +87,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
   let disposed = false
 
   const save = () => {
+    changed()
     saving = saving.then(async () => {
       await mkdir(dir, { recursive: true })
       const temporary = join(dir, `.${STATE_FILE}.${process.pid}.tmp`)
