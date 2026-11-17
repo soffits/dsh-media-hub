@@ -546,7 +546,7 @@ async function bookFlows({ a, b, origin }) {
   await until('three books', async () => ({ ok: await cards.count() === 3, n: await cards.count() }), 20_000)
   const pride = cards.filter({ hasText: 'Pride and Prejudice' })
   assert.match(await pride.locator('.vsync-rowMeta').textContent(), /Jane Austen.*1813.*English.*Test Gutenberg/)
-  assert.deepEqual(await pride.locator('.vsync-tag').allTextContents(), ['EPUB · 300 B', 'TXT · 700 B'])
+  assert.deepEqual(await pride.locator('.vsync-tag').allTextContents(), ['EPUB · 300B', 'TXT · 700B'])
   await shot(page, 'books-results')
 
   // The hub filters what the source answered: Chinese leaves one book; a size cap drops the large one.
@@ -587,8 +587,13 @@ async function bookFlows({ a, b, origin }) {
     await page.setViewportSize({ width: 390, height: 844 })
     await shot(page, 'books-shelf-phone')
     await page.goto(`${origin}/?vs-tab=discover&vs-source=all&vs-kind=ebook`)
-    await page.locator('.vsync-filters').waitFor({ timeout: 20_000 })
+    // On a phone the filters fold behind one button.
+    const toggle = page.locator('.vsync-filterToggle')
+    await toggle.waitFor({ timeout: 20_000 })
     await dismissDialogs(page)
+    assert.equal(await page.locator('.vsync-filters').isVisible(), false)
+    await toggle.click()
+    await page.locator('.vsync-filters').waitFor({ timeout: 5000 })
     await shot(page, 'books-discover-phone')
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`${origin}/?vs-tab=library`)
@@ -605,6 +610,31 @@ async function bookFlows({ a, b, origin }) {
   await page.goto(`${origin}/?vs-tab=library`)
   await page.waitForSelector('.vsync-show', { timeout: 20_000 })
   log('books: all-sources search, filters, download, save as attachment, shelf on both browsers, delete')
+}
+
+/**
+ * The page in the viewer's language: a browser set to each shipped language (one per locale/<tag>.json) sees the
+ * sidebar entry, the tabs and the default source's name in it. The words are read from the locale files.
+ */
+async function languageFlows({ browser, signIn, origin }) {
+  const words = tag => JSON.parse(readFileSync(join(repo, 'locale', `${tag}.json`), 'utf8')).ui
+  for (const tag of readdirSync(join(repo, 'locale')).map(name => name.replace(/\.json$/, ''))) {
+    const ui = words(tag)
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: tag })
+    const page = await context.newPage()
+    await page.goto(signIn)
+    await page.waitForLoadState('networkidle').catch(() => {})
+    await dismissDialogs(page)
+    await page.goto(`${origin}/?vs-tab=discover&vs-source=fanqie&vs-kind=drama`)
+    await page.locator('.vsync-nav').waitFor({ timeout: 20_000 })
+    await dismissDialogs(page)
+    assert.deepEqual(await page.locator('.vsync-navTab').allTextContents(), [ui['tab.watching'], ui['tab.library'], ui['tab.discover']], tag)
+    assert.equal(await page.getByText(ui.panel, { exact: true }).count() > 0, true, `${tag}: sidebar entry`)
+    assert.ok((await page.locator('.vsync-seg').allTextContents()).includes(ui['source.name.fanqie']), `${tag}: source name`)
+    await shot(page, `language-${tag}`)
+    await context.close()
+  }
+  log('languages: the page follows the viewer\'s language for every locale file')
 }
 
 /** The Watching tab with something to continue: the started show, newest first, continuing it opens a room. */
@@ -813,6 +843,7 @@ async function main() {
     await a.page.waitForSelector('.vsync-nav', { timeout: 15_000 })
     await tabFlows({ a, origin })
     await bookFlows({ a, b, origin })
+    await languageFlows({ browser, signIn: dsh.url, origin })
     await shot(a.page, 'home')
     const created = await a.page.evaluate(async (path) => {
       const response = await fetch('media-hub/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'local', path, by: 'Alice' }) })

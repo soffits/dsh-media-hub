@@ -16,7 +16,6 @@ import { Confirm, Icon, Spinner, bytes, canChat, chatAbout, fill, h, React, shel
 
 const SHELF_POLL_MS = 2000
 
-export const LANGUAGES = ['', 'en', 'zh', 'ja', 'ko', 'fr', 'de', 'es', 'ru', 'it', 'pt']
 export const FORMATS = ['', 'epub', 'pdf', 'txt', 'azw3', 'mobi']
 export const SIZES = ['', '5', '20', '50', '200']
 
@@ -28,18 +27,20 @@ const loadShelf = () => {
 }
 const forgetShelf = () => { shelfInfo = null }
 
-/** The language name in the viewer's language ('zh' -> 中文 for a Chinese page), else the code. */
+/** A language's name in the viewer's language (Intl.DisplayNames), else its code. */
 function languageName(t, code) {
   if (!code) return ''
   try {
-    return new Intl.DisplayNames([t('time.locale')], { type: 'language' }).of(code) ?? code
+    return new Intl.DisplayNames([t.language], { type: 'language' }).of(code) ?? code
   } catch {
     return code
   }
 }
 
-/** The filter row of a book search; `onChange` gets the whole set. */
-export function BookFilters({ t, filters, onChange }) {
+/** The filter row of a book search; `languages` are the codes to offer (src/i18n.js `languageChoices`), `onChange` gets the whole set. */
+export function BookFilters({ t, filters, languages, onChange }) {
+  const [open, setOpen] = React.useState(false)
+  const active = Object.values(filters).filter(value => value !== '').length
   const set = patch => onChange({ ...filters, ...patch })
   const select = (label, value, options, render, key) => h('label', { className: 'vsync-filter' },
     h('span', null, label),
@@ -48,12 +49,16 @@ export function BookFilters({ t, filters, onChange }) {
   const year = (label, key) => h('label', { className: 'vsync-filter' },
     h('span', null, label),
     h('input', { className: 'vsync-field vsync-year', type: 'number', inputMode: 'numeric', min: 1, max: 9999, placeholder: '—', value: filters[key], onChange: event => set({ [key]: event.target.value }) }))
-  return h('div', { className: 'vsync-filters', role: 'group', 'aria-label': t('filter.label') },
-    select(t('filter.language'), filters.language, LANGUAGES, code => languageName(t, code), 'language'),
+  return h('div', { className: 'vsync-filterBox', 'data-open': String(open) },
+    // On phones the filters fold behind this button; wider screens always show them.
+    h('button', { type: 'button', className: 'vsync-btn vsync-filterToggle', 'aria-expanded': String(open), onClick: () => setOpen(!open) },
+      h(Icon.Chevron, { size: 12, open }), active > 0 ? fill(t('filter.labelActive'), { n: active }) : t('filter.label')),
+    h('div', { className: 'vsync-filters', role: 'group', 'aria-label': t('filter.label') },
+    select(t('filter.language'), filters.language, ['', ...languages], code => languageName(t, code), 'language'),
     select(t('filter.format'), filters.format, FORMATS, format => format.toUpperCase(), 'format'),
     year(t('filter.yearFrom'), 'yearFrom'),
     year(t('filter.yearTo'), 'yearTo'),
-    select(t('filter.size'), filters.maxMb, SIZES, mb => fill(t('filter.upTo'), { size: bytes(Number(mb) * 1e6) }), 'maxMb'))
+    select(t('filter.size'), filters.maxMb, SIZES, mb => fill(t('filter.upTo'), { size: bytes(t, Number(mb) * 1e6) }), 'maxMb')))
 }
 
 /** The facts of a book in a row: author, year, language, publisher, where the file comes from. */
@@ -61,12 +66,13 @@ function bookFacts(t, book, sourceLabel) {
   return [book.author, book.year, languageName(t, book.language), book.publisher, book.origin || sourceLabel].filter(Boolean)
 }
 
-function startChat(t, book, sourceLabel) {
+export function startChat(t, book, sourceLabel) {
   chatAbout(t('chat.aboutBook'), [book.title, bookFacts(t, book, sourceLabel).join(' · '), book.blurb], { source: book.source, id: book.id, kind: book.kind })
 }
 
+/** "Ask": a new conversation about the item. On phones only its icon shows; its name stays for screen readers. */
 export function ChatButton({ t, onClick }) {
-  return canChat() && h('button', { type: 'button', className: 'vsync-btn', title: t('chat.about'), onClick }, h(Icon.Chat, { size: 14 }), t('chat.ask'))
+  return canChat() && h('button', { type: 'button', className: 'vsync-btn vsync-ask', title: t('chat.about'), 'aria-label': t('chat.about'), onClick }, h(Icon.Chat, { size: 14 }), h('span', { className: 'vsync-askLabel' }, t('chat.ask')))
 }
 
 /** Waits until the shelf entry is no longer being fetched. */
@@ -122,7 +128,7 @@ export function BookCard({ t, source, result }) {
     status = h('span', { className: 'vsync-error', role: 'alert' }, entry?.error ?? request.message)
   }
 
-  const formatLabel = one => `${one.format.toUpperCase()}${one.bytes ? ` · ${bytes(one.bytes)}` : ''}${one.converted ? ` · ${t('book.converted')}` : ''}`
+  const formatLabel = one => `${one.format.toUpperCase()}${one.bytes ? ` · ${bytes(t, one.bytes)}` : ''}${one.converted ? ` · ${t('book.converted')}` : ''}`
   return h('li', { className: 'vsync-card vsync-book' },
     h(Cover, { result: { ...result, media: 'book' } }),
     h('div', { className: 'vsync-cardBody' },
@@ -131,8 +137,8 @@ export function BookCard({ t, source, result }) {
       offered.length > 0 && h('span', { className: 'vsync-tags' }, offered.filter(one => !one.converted).map(one => h('span', { key: one.format, className: 'vsync-tag' }, formatLabel(one)))),
       result.blurb && h('span', { className: 'vsync-blurb' }, result.blurb),
       h('div', { className: 'vsync-cardFoot' },
-        h(ChatButton, { t, onClick: () => startChat(t, { ...result, source: source.id }, source.label) }),
         h('span', { className: 'vsync-actions' },
+          h(ChatButton, { t, onClick: () => startChat(t, { ...result, source: source.id }, source.label) }),
           status,
           entry?.state !== 'ready' && request.step !== 'adding' && !(request.step === 'added' && entry?.state !== 'failed') && h(React.Fragment, null,
             offered.length > 1 && h('select', { className: 'vsync-field vsync-formatPick', 'aria-label': t('book.format'), value: chosen, onChange: event => setFormat(event.target.value) },
@@ -173,19 +179,19 @@ export function ShelfSection({ t }) {
   return h('section', { className: 'vsync-section vsync-shelf' },
     h('div', { className: 'vsync-sectionHead' },
       h('h2', null, t('shelf.title')),
-      h('span', { className: 'vsync-note' }, state.capBytes > 0 ? fill(t('shelf.usedOf'), { used: bytes(state.usedBytes), cap: bytes(state.capBytes) }) : bytes(state.usedBytes))),
+      h('span', { className: 'vsync-note' }, state.capBytes > 0 ? fill(t('shelf.usedOf'), { used: bytes(t, state.usedBytes), cap: bytes(t, state.capBytes) }) : bytes(t, state.usedBytes))),
     state.entries.length === 0
       ? h('p', { className: 'vsync-empty' }, t('shelf.empty'))
       : h('ul', { className: 'vsync-rows' }, state.entries.map(entry => h('li', { key: entry.entry, className: 'vsync-card vsync-book vsync-shelfEntry' },
         h(Cover, { result: { ...entry, media: 'book' }, small: true }),
         h('div', { className: 'vsync-cardBody' },
           h('div', { className: 'vsync-cardHead' }, h('span', { className: 'vsync-rowTitle' }, entry.title || entry.id)),
-          h('span', { className: 'vsync-rowMeta' }, [entry.author, entry.format.toUpperCase(), entry.bytes ? bytes(entry.bytes) : null, entry.converted ? t('book.converted') : null].filter(Boolean).map((part, n) => h('span', { key: n }, part))),
+          h('span', { className: 'vsync-rowMeta' }, [entry.author, entry.format.toUpperCase(), entry.bytes ? bytes(t, entry.bytes) : null, entry.converted ? t('book.converted') : null].filter(Boolean).map((part, n) => h('span', { key: n }, part))),
           entry.state === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, entry.error),
           entry.state === 'removed' && h('span', { className: 'vsync-note' }, t('shelf.removed')),
           h('div', { className: 'vsync-cardFoot' },
-            h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
             h('span', { className: 'vsync-actions' },
+              h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
               confirm === entry.entry
                 ? h(Confirm, { t, danger: true, question: t('shelf.deleteQuestion'), confirmLabel: t('shelf.delete'), onCancel: () => setConfirm(null), onConfirm: () => act('/remove', entry) })
                 : h(React.Fragment, null,

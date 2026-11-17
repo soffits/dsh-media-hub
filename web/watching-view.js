@@ -6,7 +6,7 @@
 import { Poster, showMeta } from './library-view.js'
 import { continueWatching } from './continue.js'
 import { RoomsSection } from './rooms-view.js'
-import { displayName, fill, h, post, React } from './ui.js'
+import { displayName, fill, h, plural, post, React } from './ui.js'
 
 function ContinueRow({ t, show, onOpen }) {
   const [error, setError] = React.useState(null)
@@ -41,7 +41,7 @@ function NewsRow({ t, show, onOpen, onChanged }) {
       h('span', { className: 'vsync-rowTitle' }, show.work?.title ?? show.name),
       h('span', { className: 'vsync-rowMeta' },
         show.newSeason && h('span', { key: 's' }, show.newSeason.from ? fill(t('follow.newSeasonOf'), { title: show.newSeason.from }) : t('follow.newSeason')),
-        show.newEpisodes && h('span', { key: 'e' }, fill(t('follow.newEpisodes'), { n: show.newEpisodes.n })))),
+        show.newEpisodes && h('span', { key: 'e' }, plural(t, 'follow.newEpisodes', show.newEpisodes.n)))),
     h('span', { className: 'vsync-actions' },
       h('button', { type: 'button', className: 'vsync-btn', onClick: dismiss }, t('follow.dismiss')),
       h(StartButton, { t, show, onOpen, onStarted: dismiss })))

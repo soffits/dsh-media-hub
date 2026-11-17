@@ -7,7 +7,7 @@
  */
 import { metaLabel, popularityText } from './format.js'
 import { useKnownWork } from './known.js'
-import { Icon, Spinner, api, base, fill, h, query, React } from './ui.js'
+import { Icon, Spinner, api, base, fill, h, plural, query, React } from './ui.js'
 
 const INFO_CONCURRENCY = 3
 
@@ -46,7 +46,7 @@ export function glance(t, result) {
   const status = { finished: 'search.finished', ongoing: 'search.ongoing', stopped: 'search.stopped' }[result.status]
   return [
     popularityText(t, result.popularity),
-    result.episodes > 0 && fill(t(result.kind === 'audio' ? 'search.chapters' : 'search.episodes'), { n: result.episodes }),
+    result.episodes > 0 && plural(t, result.kind === 'audio' ? 'search.chapters' : 'search.episodes', result.episodes),
     status && t(status),
     result.author,
   ].filter(Boolean)

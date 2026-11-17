@@ -11,26 +11,16 @@ export const META_KEYS = Object.freeze(['heat', 'followers', 'cast', 'duration',
 export const STATUSES = Object.freeze(['finished', 'ongoing', 'stopped'])
 export const RELATIONS = Object.freeze(['season', 'same-title', 'related'])
 
-const trimmed = value => String(Number(value.toFixed(1)))
-
-/**
- * A count the way the page language writes it: 万 and 亿 for Chinese
- * (3.7万, 1200万, 1.3亿), K, M and B otherwise (36.7K).
- */
+/** A count the way the page language writes it short, by Intl (36.7K, 3.7万, 36,7 k). */
 export function formatCount(count, locale) {
   if (!Number.isFinite(count) || count < 0) return ''
-  if (locale.toLowerCase().startsWith('zh')) {
-    if (count >= 1e8) return `${trimmed(count / 1e8)}亿`
-    if (count >= 1e4) return `${count >= 1e7 ? Math.round(count / 1e4) : trimmed(count / 1e4)}万`
-    return String(count)
-  }
   return new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(count)
 }
 
 /** "36.7万次播放" / "36.7K plays": the count with what it counts, or null when there is no count. */
 export function popularityText(t, popularity) {
   if (popularity === null || popularity === undefined) return null
-  const number = formatCount(popularity.count, t('time.locale'))
+  const number = formatCount(popularity.count, t.language)
   if (POPULARITY_LABELS.includes(popularity.label)) return t(`pop.${popularity.label}`).replace('{n}', number)
   return popularity.text || `${number} ${popularity.label}`
 }

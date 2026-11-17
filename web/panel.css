@@ -237,9 +237,8 @@
   .vsync-heading{padding-top:14px;margin-bottom:6px}
   .vsync-heading h1{font-size:17px;line-height:24px}
   .vsync-nav{position:sticky;top:0;z-index:5;margin:0 -20px 14px;padding:0 20px;background:var(--dsw-alias-bg-base)}
-  .vsync-search{flex-wrap:wrap}
-  .vsync-searchField{flex:1 1 100%}
-  .vsync-search .vsync-btnLarge{flex:1 1 100%;height:40px}
+  .vsync-searchField{flex:1 1 auto;min-width:0}
+  .vsync-search .vsync-btnLarge{flex:none;height:40px;padding-inline:14px}
   .vsync-segment{width:100%}
   .vsync-row{flex-wrap:wrap;align-items:flex-start}
   .vsync-row>.vsync-rowText{flex:1 1 0;min-width:0}
@@ -278,3 +277,46 @@
 .vsync-shelf{margin-top:24px}
 @media (width<=767px){.vsync-filter{flex:1 1 40%}.vsync-filter .vsync-field,.vsync-year{width:100%}.vsync-book .vsync-actions{justify-content:flex-start}}
 @media (pointer:coarse){.vsync-filter .vsync-field,.vsync-formatPick{font-size:16px}}
+/* Covers fill the card's height, cropped from the top; on phones they stay small and fixed (below). */
+@media (width>640px){
+  .vsync-card{align-items:stretch}
+  .vsync-card>.vsync-cover{height:auto;min-height:112px;align-self:stretch;object-position:top}
+  .vsync-card>.vsync-coverSmall{min-height:54px}
+}
+.vsync-filterToggle{display:none}
+.vsync-ask svg{flex:none}
+@media (width<=640px){
+  .vsync-card .vsync-cover{width:64px;height:86px;align-self:start}
+  .vsync-card .vsync-coverSmall{width:48px;height:64px}
+  .vsync-card:has(>.vsync-coverSmall){grid-template-columns:48px minmax(0,1fr)}
+  .vsync-card{grid-template-columns:64px minmax(0,1fr);row-gap:2px}
+  .vsync-card .vsync-cardBody>.vsync-tags,.vsync-card .vsync-cardBody>.vsync-blurb{display:none}
+  .vsync-card .vsync-rowMeta{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vsync-card .vsync-rowMeta>span{display:inline}
+  .vsync-card .vsync-cardFoot{flex-direction:row;flex-wrap:wrap;align-items:center}
+  .vsync-card .vsync-cardFoot .vsync-actions{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px}
+  .vsync-card .vsync-cardFoot .vsync-actions>*{flex:1 1 auto}
+  /* Ask is an icon in the card's corner, so the row under the title keeps the download and its format together in any language. */
+  .vsync-card{position:relative}
+  .vsync-card .vsync-cardHead{padding-right:40px}
+  .vsync-card .vsync-cardFoot .vsync-actions .vsync-ask{position:absolute;top:6px;right:6px;width:40px;padding:0;border:0;box-shadow:none;background:none}
+  .vsync-askLabel{display:none}
+  .vsync-card .vsync-cardFoot .vsync-actions .vsync-formatPick{flex:0 1 84px;min-width:64px;max-width:none}
+  /* A book has one action (download in a format): it sits beside the cover, under the title and the info line, so the
+     small cover leaves no gap. A show's several actions take the full width under the cover. */
+  .vsync-book .vsync-cardBody>.vsync-cardFoot{grid-column:2;margin-top:6px}
+  .vsync-card:not(.vsync-book) .vsync-cardFoot{display:contents}
+  .vsync-card:not(.vsync-book) .vsync-detailsToggle{grid-column:2;justify-self:start}
+  .vsync-card:not(.vsync-book) .vsync-cardFoot>.vsync-actions{grid-column:1 / -1;margin-top:8px}
+  .vsync-filterToggle{display:inline-flex;margin:0 0 8px}
+  .vsync-filterBox[data-open=false] .vsync-filters{display:none}
+  .vsync-filterBox[data-open=true] .vsync-filters{padding:10px;border-radius:12px;box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l3)}
+}
+/* Touch screens: every control at least 40 px tall. */
+@media (pointer:coarse){
+  .vsync-btn,.vsync-card .vsync-cardFoot .vsync-actions .vsync-btn{min-height:40px;height:auto}
+  .vsync-chip,.vsync-tab,.vsync-seg{min-height:40px;height:40px}
+  .vsync-navTab{height:44px}
+  .vsync-filter .vsync-field,.vsync-formatPick{height:40px}
+  .vsync-metaButton{min-height:40px}
+}

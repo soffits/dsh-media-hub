@@ -21,14 +21,17 @@ export function defaultStateDir(home = DSH_HOME, exists = existsSync) {
 
 export const DEFAULT_STATE_DIR = defaultStateDir()
 
+/** A name shown to people: one string, or `{ <tag>: text }` with a text per language, picked for the viewer (src/i18n.js). */
+const Label = z.union([z.string(), z.dict(z.string())])
+
 const SourceConfig = z.object({
   id: z.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/)
     .description('Stable id, lowercase letters, digits, - and _. Names the source in URLs and saved downloads, and the folder the command runs in (stateDir/<id>). Not local or youtube.'),
-  label: z.string().default('')
-    .description('Name on the source\'s tab. Empty uses the id.'),
+  label: Label.default('')
+    .description('Name on the source\'s tab: a string, or { <tag>: text } per language. Empty uses the page\'s own words for this source id (source.name.<id> in locale/), else the id.'),
   kinds: z.array(z.object({
     id: z.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description('What the command\'s search --kind takes.'),
-    label: z.string().description('Name of the filter chip.'),
+    label: Label.default('').description('Name of the category chip: a string, or { <tag>: text } per language. Empty uses the page\'s own words for this kind id (kind.<id> in locale/), else the id.'),
     media: z.union(MEDIA.map(media => z.const(media))).default('video')
       .description('What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format).'),
   })).description('What the source can search for; at least one.'),
@@ -44,16 +47,14 @@ const SourceConfig = z.object({
 const DEFAULT_SOURCES = Object.freeze([
   {
     id: 'fanqie',
-    label: 'Fanqie',
-    kinds: [{ id: 'drama', label: 'Short dramas', media: 'video' }, { id: 'audio', label: 'Audiobooks', media: 'audio' }, { id: 'novel', label: 'Novels', media: 'book' }],
+    kinds: [{ id: 'drama', media: 'video' }, { id: 'audio', media: 'audio' }, { id: 'novel', media: 'book' }],
     filters: [],
     command: ['fanqie'],
     env: {},
   },
   {
     id: 'bookfetch',
-    label: 'Books',
-    kinds: [{ id: 'ebook', label: 'Ebooks', media: 'book' }, { id: 'paper', label: 'Papers', media: 'book' }],
+    kinds: [{ id: 'ebook', media: 'book' }, { id: 'paper', media: 'book' }],
     filters: ['language', 'format', 'year'],
     command: ['bookfetch', 'source'],
     env: {},
@@ -61,8 +62,8 @@ const DEFAULT_SOURCES = Object.freeze([
 ])
 
 export const Config = z.object({
-  label: z.string().default('')
-    .description('Name of the sidebar entry. Empty uses the default in the viewer\'s language (Media).'),
+  label: Label.default('')
+    .description('Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer\'s tag, then its primary subtag, then en). Empty uses the page\'s own name in the viewer\'s language.'),
   libraryRoots: z.array(z.string()).default([])
     .description('Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The agent tool can open any path.'),
   delivery: z.union(DELIVERY_MODES.map(mode => z.const(mode))).default('origin')

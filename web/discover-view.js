@@ -17,15 +17,11 @@ import { LINK_SOURCE, browserStorage, pickKind, pickSource, readMemory, remember
 import { Result } from './result-card.js'
 import { sortModes, sortResults } from './sort.js'
 import { infoOf } from './details.js'
-import { Icon, Spinner, api, displayName, fill, h, post, query, React } from './ui.js'
+import { Icon, Spinner, api, displayName, fill, h, nameOf, post, query, React } from './ui.js'
 import { parseYouTube } from './youtube-url.js'
+import { languageChoices } from './i18n.js'
 
-/** A category's name: the page's own translation when it has one, else the label the source's configuration gives. */
-export function kindLabel(t, kind) {
-  const key = `kind.${kind.id}`
-  const text = t(key)
-  return text && text !== key ? text : kind.label
-}
+export const kindLabel = (t, kind) => nameOf(t, `kind.${kind.id}`, kind.label) || kind.id
 
 export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
   const [configured, setConfigured] = React.useState(null)
@@ -44,8 +40,8 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
     return () => latest.current.controller?.abort()
   }, [])
 
-  const sources = React.useMemo(() => withLink(withAll(configured ?? [], t('source.all')), t('source.link')), [configured, t])
-  const sourceOf = id => (configured ?? []).find(one => one.id === id)
+  const sources = React.useMemo(() => withLink(withAll((configured ?? []).map(one => ({ ...one, label: nameOf(t, `source.name.${one.id}`, one.label) || one.id })), t('source.all')), t('source.link')), [configured, t])
+  const sourceOf = id => sources.find(one => one.id === id)
   const storage = browserStorage()
   const memory = readMemory(storage)
   const source = configured === null ? null : pickSource(sources, nav.source, memory.source)
@@ -172,7 +168,7 @@ export function DiscoverView({ t, nav, onNav, onOpen, onSaved, onBack }) {
         onChange: event => type(event.target.value),
       }),
       h('button', { type: 'submit', className: 'vsync-btn vsync-btnLarge', disabled: (searching && loading.from === 'search') || text.trim() === '' || source === null }, searching && loading.from === 'search' ? h(Spinner) : null, isLink ? t('start.go') : t('search.go'))),
-    !isLink && isBook(kind) && h(BookFilters, { t, filters, onChange: filter }),
+    !isLink && isBook(kind) && h(BookFilters, { t, filters, languages: languageChoices(t.language, shown ? results.items : [], filters.language), onChange: filter }),
     error && h('p', { className: 'vsync-error', role: 'alert' }, error),
     !searching && shown && results.failed.length > 0 && h('p', { className: 'vsync-note', role: 'status' }, results.failed.map(one => fill(t('search.sourceFailed'), { source: sourceOf(one.source)?.label ?? one.source, message: one.message })).join(' ')),
     searching && !isLink && h('div', { className: 'vsync-skeleton', role: 'status', 'aria-busy': 'true', 'aria-label': t('search.loading') },

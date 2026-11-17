@@ -43,7 +43,8 @@
     "dist/*",
     "src/sync.js",
     "src/youtube-url.js",
-    "src/formats.js"
+    "src/formats.js",
+    "src/i18n.js"
   ],
   "dsh": {
     "bundle": {
@@ -64,7 +65,7 @@
   },
   "scripts": {
     "check": "for f in index.js tools.js client.js scripts/*.mjs src/*.js src/sources/*.js web/*.js test/*.js test/fixtures/*.mjs; do node --check \"$f\" || exit 1; done",
-    "test": "node --test test/*.test.js",
+    "test": "node --import ./test/fixtures/web-modules.mjs --test test/*.test.js",
     "test:browsers": "node scripts/build.mjs && node test/browsers/run.js",
     "build": "node scripts/build.mjs"
   },

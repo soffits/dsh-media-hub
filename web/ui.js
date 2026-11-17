@@ -3,6 +3,8 @@
  * to the Host half, formatting, icons and two small controls (an inline
  * confirmation and a menu). The page's other modules import this one.
  */
+import { pick } from './i18n.js'
+
 export let React
 export let h
 /** What the page knows of the library and the open rooms (web/known.js): set by Page, read anywhere a work is shown. */
@@ -75,7 +77,25 @@ export function profile() {
 
 export const displayName = fallback => profile().then(({ name }) => name || fallback)
 
+/**
+ * The name of something configured (a source, a category): its configured label in the viewer's language
+ * (one string, or `{ <tag>: text }`: src/i18n.js), else the page's own words under `key`, else ''.
+ */
+export function nameOf(t, key, label) {
+  const configured = pick(label, t.language).trim()
+  if (configured !== '') return configured
+  const own = t(key)
+  return own === key ? '' : own
+}
+
 export const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ''))
+
+/** A count in words: the `<key>.<category>` text the viewer's language's plural rules pick for `n` (Intl.PluralRules), else `<key>.other`. */
+export function plural(t, key, n) {
+  const exact = `${key}.${new Intl.PluralRules(t.language).select(n)}`
+  const text = t(exact)
+  return fill(text === exact ? t(`${key}.other`) : text, { n })
+}
 
 export function clock(seconds) {
   const s = Math.max(0, Math.floor(seconds ?? 0))
@@ -85,23 +105,25 @@ export function clock(seconds) {
   return hh > 0 ? `${hh}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`
 }
 
-const UNITS = ['B', 'KB', 'MB', 'GB', 'TB']
-export function bytes(value) {
+const BYTE_UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte']
+/** A size the way the viewer's language writes it (1.5 MB, 1,5 Mo): whole numbers from 10 up; plain bytes narrow (300B), as "300 byte" reads oddly. */
+export function bytes(t, value) {
   let n = Math.max(0, value ?? 0)
   let unit = 0
-  while (n >= 1000 && unit < UNITS.length - 1) {
+  while (n >= 1000 && unit < BYTE_UNITS.length - 1) {
     n /= 1000
     unit += 1
   }
-  return `${n >= 10 || unit === 0 ? Math.round(n) : n.toFixed(1)} ${UNITS[unit]}`
+  const digits = n >= 10 || unit === 0 ? 0 : 1
+  return new Intl.NumberFormat(t.language, { style: 'unit', unit: BYTE_UNITS[unit], unitDisplay: unit === 0 ? 'narrow' : 'short', maximumFractionDigits: digits }).format(n)
 }
 
 /** Rough size of one downloaded episode by kind, for "about N GB" before a download (src/sources/index.js keeps the same numbers). */
 export const EPISODE_BYTES = { drama: 15e6, audio: 8e6 }
 
 export const DAY_MS = 86_400_000
-export const day = (t, ms) => new Intl.DateTimeFormat(t('time.locale'), { month: 'short', day: 'numeric' }).format(new Date(ms))
-export const time = (t, ms) => new Intl.DateTimeFormat(t('time.locale'), { hour: '2-digit', minute: '2-digit' }).format(new Date(ms))
+export const day = (t, ms) => new Intl.DateTimeFormat(t.language, { month: 'short', day: 'numeric' }).format(new Date(ms))
+export const time = (t, ms) => new Intl.DateTimeFormat(t.language, { hour: '2-digit', minute: '2-digit' }).format(new Date(ms))
 
 export const roomLink = id => `${location.origin}${location.pathname}?${LINK_PARAM}=${encodeURIComponent(id)}`
 
