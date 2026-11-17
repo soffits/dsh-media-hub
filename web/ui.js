@@ -112,6 +112,12 @@ export function nameOf(t, key, label) {
 
 export const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ''))
 
+/** Like fill, with elements as values (a ticking time inside a sentence): the parts, in the language's own order. */
+export const fillNodes = (template, values) => template.split(/(\{\w+\})/).filter(Boolean).map((part, n) => {
+  const key = /^\{(\w+)\}$/.exec(part)?.[1]
+  return key !== undefined && key in values ? h(React.Fragment, { key: n }, values[key]) : part
+})
+
 /** A count in words: the `<key>.<category>` text the viewer's language's plural rules pick for `n` (Intl.PluralRules), else `<key>.other`. */
 export function plural(t, key, n) {
   const exact = `${key}.${new Intl.PluralRules(t.language).select(n)}`

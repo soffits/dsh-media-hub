@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- A new Watching tab. At the top, a card for the show someone is in now, or the one you watched last, over its blurred cover: who is in the room, the title, where it stands, a strip of its episodes (watched, now, on disk), and *Join … · episode n*, or *Continue* alone (still the default) with *Watch together* beside it, the room's link and *Ask*. Below it, news from followed works, the shared rooms as cards, and the other shows you started.
+- Optional parts, each switched in the new `presence` setting and off by default: *So far*, a recap without spoilers kept with a show and shown only to viewers past what it covers; *How was it?*, asked once about a show finished or removed in the last two weeks, where one tap writes a `rating` line into the watch log, per person; and *Picks*, works a recommender extension suggests, each with its reason, to watch together or follow (the new `recommender` setting and docs/recommender-protocol.md).
+- The tool's new `annotate` action keeps a recap or up to three suggested next steps with a library show; the steps show on the Continue card through @soffits/dsh-ui-actions, and starting one is written to the watch log.
+- The page is built from DSH's own components (tabs, buttons, tags, state dots, icons) and @soffits/dsh-ui-kit (cards, the episode strip, tiles, times, suggested steps), with buttons 40 px tall on touch screens.
+
 ## 0.5.1
 
 - Going back to an episode the cache already deleted, or jumping far ahead, no longer stays on loading. The episode you're on is now prepared at once, beside anything else; before, every episode that landed waited its turn in one line, so with sources that need a transcode (HEVC short dramas) the one you picked sat behind a dozen others. The next few episodes after yours are prepared one at a time, nearest first, and nothing outside that window is touched.

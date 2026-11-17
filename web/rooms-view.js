@@ -4,7 +4,7 @@
  */
 import { AvatarStack } from './avatars.js'
 import { Picture } from './details.js'
-import { Confirm, Icon, api, copyText, fill, h, React, roomLink, time } from './ui.js'
+import { Btn, Confirm, Icon, K, P, api, copyText, fill, h, React, roomLink, time } from './ui.js'
 
 function meta(t, room) {
   const parts = []
@@ -29,7 +29,7 @@ function RoomRow({ t, room, onOpen, onChanged }) {
     }
   }
   const share = room.duration > 0 ? Math.min(1, Math.max(0, room.position / room.duration)) : null
-  return h('li', { className: 'vsync-row vsync-roomRow' },
+  return h(K.Surface, { as: 'li', className: 'vsync-row vsync-roomCard' },
     h(Picture, { pictures: [room.frame, room.cover], className: 'vsync-preview', emptyClassName: 'vsync-glyph', icon: h(Icon.Film) }),
     h('span', { className: 'vsync-rowText' },
       h('span', { className: 'vsync-rowTitle' }, room.title),
@@ -50,16 +50,15 @@ function RoomRow({ t, room, onOpen, onChanged }) {
         },
       })
       : h('span', { className: 'vsync-actions' },
-        h('button', { type: 'button', className: 'vsync-icon', 'aria-label': copied ? t('room.copied') : t('room.copy'), title: copied ? t('room.copied') : t('room.copy'), onClick: copy }, h(Icon.Link)),
-        h('button', { type: 'button', className: 'vsync-icon', 'aria-label': t('room.close'), title: t('room.close'), onClick: () => setClosing(true) }, h(Icon.Close)),
-        h('button', { type: 'button', className: 'vsync-btn', onClick: () => onOpen(room.id) }, t('rooms.join'))))
+        h(Btn, { variant: 'ghost', 'aria-label': copied ? t('room.copied') : t('room.copy'), title: copied ? t('room.copied') : t('room.copy'), onClick: copy, icon: h(P.IconLinkOutlineRegular, { size: 16 }) }),
+        h(Btn, { variant: 'ghost', 'aria-label': t('room.close'), title: t('room.close'), onClick: () => setClosing(true), icon: h(P.IconCloseOutlineRegular, { size: 16 }) }),
+        h(Btn, { onClick: () => onOpen(room.id) }, t('rooms.join'))))
 }
 
+/** The shared rooms; nothing while there are none (the Continue card says what can be started). */
 export function RoomsSection({ t, rooms, onOpen, onChanged }) {
-  if (rooms === undefined) return null
+  if (rooms === undefined || rooms.length === 0) return null
   return h('section', { className: 'vsync-section', 'aria-labelledby': 'vsync-rooms' },
     h('h2', { id: 'vsync-rooms' }, t('rooms.heading')),
-    rooms.length === 0
-      ? h('p', { className: 'vsync-empty' }, t('rooms.none'))
-      : h('ul', { className: 'vsync-rows' }, rooms.map(room => h(RoomRow, { key: room.id, t, room, onOpen, onChanged }))))
+    h('ul', { className: 'vsync-cards' }, rooms.map(room => h(RoomRow, { key: room.id, t, room, onOpen, onChanged }))))
 }

@@ -9,7 +9,7 @@ import { LibrarySection } from './library-view.js'
 import { clearNav, readNav, TABS, writeNav } from './nav.js'
 import { RoomView } from './room-view.js'
 import { WatchingTab, withNews } from './watching-view.js'
-import { Known, POLL_MS, api, h, React, setWords } from './ui.js'
+import { Known, P, POLL_MS, api, h, React, setWords } from './ui.js'
 
 /** Marks the history entries this page added, so a back control knows going back stays on the page. */
 const PUSHED = 'vsyncPushed'
@@ -47,15 +47,6 @@ function Home({ t, nav, go, onOpen, rooms, library, load }) {
   // Coming back from a room, what the page shows is fresh, not up to one poll old.
   React.useEffect(() => { load() }, [load])
 
-  const tabs = React.useRef([])
-  const onKeyDown = (event) => {
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key]
-    if (step === undefined) return
-    event.preventDefault()
-    const next = TABS[(TABS.indexOf(nav.tab) + step + TABS.length) % TABS.length]
-    go({ tab: next })
-    tabs.current[TABS.indexOf(next)]?.focus()
-  }
   const count = tab => (tab === 'watching' && (rooms?.length ?? 0) + withNews(library).length > 0 ? (rooms?.length ?? 0) + withNews(library).length : null)
 
   return h('div', { className: 'vsync-scroll' },
@@ -63,21 +54,20 @@ function Home({ t, nav, go, onOpen, rooms, library, load }) {
       h('header', { className: 'vsync-heading' },
         h('h1', null, t('title')),
         h('p', { className: 'vsync-note' }, t('note'))),
-      h('div', { className: 'vsync-nav', role: 'tablist', 'aria-label': t('title'), onKeyDown },
-        TABS.map((tab, n) => h('button', {
-          key: tab,
-          ref: (node) => { tabs.current[n] = node },
+      h(P.SegmentedTabs, {
+        className: 'vsync-tabs',
+        label: t('title'),
+        value: nav.tab,
+        onChange: tab => go({ tab }),
+        items: TABS.map(tab => ({
+          value: tab,
           id: `vsync-tab-${tab}`,
-          type: 'button',
-          role: 'tab',
-          className: 'vsync-navTab',
-          'aria-selected': String(tab === nav.tab),
-          'aria-controls': `vsync-panel-${tab}`,
-          tabIndex: tab === nav.tab ? 0 : -1,
-          onClick: () => go({ tab }),
-        }, t(`tab.${tab}`), count(tab) !== null && h('span', { className: 'vsync-navCount' }, count(tab))))),
+          panelId: `vsync-panel-${tab}`,
+          label: [t(`tab.${tab}`), count(tab) !== null && h(P.Tag, { key: 'n', tone: 'quiet', className: 'vsync-tabCount' }, count(tab))],
+        })),
+      }),
       nav.tab === 'watching' && h('div', { id: 'vsync-panel-watching', role: 'tabpanel', 'aria-labelledby': 'vsync-tab-watching' },
-        h(WatchingTab, { t, rooms, library, onOpen, onChanged: load, onGo: tab => go({ tab }) })),
+        h(WatchingTab, { t, rooms, library, onOpen, onChanged: load, onGo: tab => go({ tab }), onOpenWork: (source, work) => go({ tab: 'discover', source, kind: work.kind ?? null, work: work.id }) })),
       nav.tab === 'library' && h('div', { id: 'vsync-panel-library', role: 'tabpanel', 'aria-labelledby': 'vsync-tab-library' },
         h(LibrarySection, { t, library, onOpen, onChanged: load, onOpenWork: (source, work) => go({ tab: 'discover', source, kind: work.kind ?? null, work: work.id }) }),
         h(ShelfSection, { t })),
