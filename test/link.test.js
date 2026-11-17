@@ -51,6 +51,7 @@ test('subtitles: every language of its own, and generated ones only for the view
   const logged = link(t)
   await logged.source.info(CAPTIONED)
   assert.ok(logged.calls().at(-1).includes('--write-subs'), 'yt-dlp lists some sites\' subtitles only when asked to write them')
+  assert.ok(!logged.calls().at(-1).includes('--write-auto-subs'), 'with it a lookup can list every translation pair, too large to read')
 })
 
 test('a playlist reads as a work whose videos are its episodes, with their total length', async (t) => {
