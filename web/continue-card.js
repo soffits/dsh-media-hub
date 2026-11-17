@@ -65,7 +65,7 @@ export function ContinueCard({ t, subject, presence, sources, onOpen, onChanged 
   /** A room for this show: the shared one when there is one, else a new one for this person alone. */
   const openRoom = async () => {
     if (room) return room.id
-    const answer = await asPerson('rooms', { path: show.path, by: await displayName(t('guest')) })
+    const answer = await asPerson('rooms', { source: 'local', path: show.path, by: await displayName(t('guest')) })
     if (answer.error) throw new Error(answer.error)
     return answer.room.id
   }

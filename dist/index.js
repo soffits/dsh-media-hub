@@ -14783,11 +14783,11 @@ ${item.id}`).digest("hex").slice(0, 8);
      */
     async createRoom(input) {
       let start = input.start ?? null;
-      if (input.source === "local" && start === null && typeof input.path === "string") {
+      if (start === null && typeof input.path === "string") {
         const show2 = library.showPath(input.path);
         if (show2 !== null) start = await library.resumeFrom(show2);
       }
-      if (input.source === "local" && typeof input.path === "string") follows.opened(library.showPath(input.path));
+      if (typeof input.path === "string") follows.opened(library.showPath(input.path));
       const show = typeof input.path === "string" ? library.showPath(input.path) : null;
       const from2 = show === null ? null : library.workSource(show);
       if (from2 && typeof input.person === "string" && from2.person !== input.person) library.mark(show, { source: { ...from2, person: input.person } });

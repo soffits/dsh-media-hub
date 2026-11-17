@@ -450,7 +450,8 @@ test('the watch log records who watched what and where they stopped; history sum
   assert.equal(history[0].stoppedAt.Carol.episode, 2)
   assert.ok(Math.abs(history[0].stoppedAt.Carol.position - 30) <= 1)
 
-  const again = await hub.createRoom({ source: 'local', path: show, by: 'Alice', fromPanel: true })
+  // As the page's person route asks: the path alone, no source.
+  const again = await hub.createRoom({ path: show, by: 'Alice', fromPanel: true })
   const reopened = hub.room(again.room.id)
   assert.equal(reopened.index, 1)
 

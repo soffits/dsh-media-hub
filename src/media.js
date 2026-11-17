@@ -223,11 +223,12 @@ export function createMediaHub(options) {
      */
     async createRoom(input) {
       let start = input.start ?? null
-      if (input.source === 'local' && start === null && typeof input.path === 'string') {
+      // A room on a library show continues where its viewers stopped, however it was asked for (page, person route, tool).
+      if (start === null && typeof input.path === 'string') {
         const show = library.showPath(input.path)
         if (show !== null) start = await library.resumeFrom(show)
       }
-      if (input.source === 'local' && typeof input.path === 'string') follows.opened(library.showPath(input.path))
+      if (typeof input.path === 'string') follows.opened(library.showPath(input.path))
       // A room fetches with the account of the person who opened it, for everyone in it.
       const show = typeof input.path === 'string' ? library.showPath(input.path) : null
       const from = show === null ? null : library.workSource(show)
