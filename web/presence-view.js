@@ -6,7 +6,7 @@
  */
 import { Picture } from './details.js'
 import { FollowButton } from './follow.js'
-import { Btn, Icon, K, P, asPerson, displayName, fillNodes, h, React } from './ui.js'
+import { Btn, Icon, K, P, React, asPerson, asPersonPaying, displayName, fillNodes, h } from './ui.js'
 
 /** The answers, in order, with the icon each one shows (DSH's own where it has one). */
 const ANSWERS = [
@@ -69,9 +69,10 @@ function PickCard({ t, pick, onOpen, onOpenWork }) {
   const together = async () => {
     setBusy(true)
     setError(null)
-    const answer = await asPerson('fetch', { source: work.source, id: work.id, watch: true, together: true, language: t.language, by: await displayName(t('guest')) })
+    const answer = await asPersonPaying('fetch', { source: work.source, id: work.id, watch: true, together: true, language: t.language, by: await displayName(t('guest')) })
     setBusy(false)
     if (answer.error) return setError(answer.error)
+    if (answer.declined) return undefined
     return onOpen(answer.room.id)
   }
   return h(K.Surface, { as: 'li', className: 'vsync-pickCard' },

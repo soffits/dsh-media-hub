@@ -21,6 +21,7 @@ import { isQuality } from './sources/link.js'
 import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { createPicks, parseAnnotation, pendingRatings, ratingLine } from './presence.js'
+import { createPoints } from './points.js'
 import { snapshotOf } from './work.js'
 import { createChanges } from './changes.js'
 import { createWorkRefresh } from './work-refresh.js'
@@ -44,6 +45,7 @@ const hubError = (code, message) => Object.assign(new Error(message), { code })
  * @param {number} [options.workMaxAgeMs] - how old the saved copy of a source's work may get before it is asked for again in the background
  * @param {number} options.coverCacheBytes - the most disk cover pictures may use
  * @param {{ command: string[], env?: object }} [options.recommender] - where picks come from (src/presence.js)
+ * @param {{ command: string[], env?: object, night: { from: string, to: string } }} [options.points] - the points extension that prices extras (src/points.js)
  * @param {{ ahead: number, behind: number, capBytes: number }} options.cache - the rolling cache's window (episodes ahead of and behind where people are) and its cap in bytes (0 for none)
  */
 export function createMediaHub(options) {
@@ -52,6 +54,7 @@ export function createMediaHub(options) {
   const covers = createCovers({ dir: join(stateDir, 'covers'), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, id => sources.get(id))
   const log = createWatchLog({ file: join(stateDir, LOG_NAME), now, logger })
   const changes = createChanges({ intervalMs: options.changeIntervalMs })
+  const points = createPoints(options.points ?? { command: [], night: { from: '01:00', to: '06:00' } }, { logger, now })
   const books = createBooks({ changed: () => changes.notify('shelf'), dir: join(stateDir, 'books'), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now })
   let rooms
   let cache
@@ -182,17 +185,34 @@ export function createMediaHub(options) {
   }
 
   /** A library folder for a work from a source: its title, or title plus a short mark of its id (ids may be addresses) when another show has that name. */
+  /**
+   * Whether a series is new here: neither it nor any of its seasons (`related`, relation `season`) was ever had, in the
+   * library now (by source and id) or anywhere in the watch log (by the folder it would have). Going on with a series,
+   * a later season included, is never new.
+   */
+  async function isNewSeries(sourceId, item) {
+    if (!(item.episodes > 1)) return false
+    const works = [item, ...(item.related ?? []).filter(other => other.relation === 'season' && other.id)]
+    const inLibrary = new Set((await library.list()).shows.filter(show => show.source).map(show => `${show.source.source}\n${show.source.id}`))
+    const logged = new Set((await log.read()).map(event => event.show).filter(Boolean))
+    return !works.some(work => inLibrary.has(`${sourceId}\n${work.id}`) || foldersFor(sourceId, work).some(path => logged.has(path)))
+  }
+
+  /** The folders a work may get in the library: its clean title, or that with a mark when the title is taken. */
+  function foldersFor(sourceId, work) {
+    const name = cleanName(work.title ?? '')
+    const mark = createHash('sha256').update(`${sourceId}\n${work.id}`).digest('hex').slice(0, 8)
+    return [name, `${name} (${mark})`].map(candidate => join(libraryRoots[0], candidate))
+  }
+
   async function folderFor(sourceId, item) {
-    const name = cleanName(item.title)
-    const mark = createHash('sha256').update(`${sourceId}\n${item.id}`).digest('hex').slice(0, 8)
-    for (const candidate of [name, `${name} (${mark})`]) {
-      const path = join(libraryRoots[0], candidate)
+    for (const path of foldersFor(sourceId, item)) {
       const exists = await stat(path).then(() => true, () => false)
       const shows = (await library.list()).shows
       const owner = shows.find(show => show.path === path)
       if (!exists || (owner?.source?.source === sourceId && owner.source.id === item.id)) return path
     }
-    throw hubError('exists', `${name} is already in the library`)
+    throw hubError('exists', `${cleanName(item.title)} is already in the library`)
   }
 
   return {
@@ -213,6 +233,9 @@ export function createMediaHub(options) {
      * `start` says otherwise.
      */
     async createRoom(input) {
+      // Opening a room starts watching: late at night that is a binge night for a person whose points price it.
+      const person = typeof input.person === 'string' ? input.person : ''
+      const tickets = await points.pay(person, points.wants({ starts: true }), { buy: input.buy ?? [] })
       let start = input.start ?? null
       // A room on a library show continues where its viewers stopped, however it was asked for (page, person route, tool).
       if (start === null && typeof input.path === 'string') {
@@ -224,7 +247,9 @@ export function createMediaHub(options) {
       const show = typeof input.path === 'string' ? library.showPath(input.path) : null
       const from = show === null ? null : library.workSource(show)
       if (from && typeof input.person === 'string' && from.person !== input.person) library.mark(show, { source: { ...from, person: input.person } })
-      return rooms.createRoom({ ...input, start })
+      const opened = await rooms.createRoom({ ...input, start })
+      await points.use(person, tickets, { room: opened.room?.id })
+      return opened
     },
     watchTogether: id => rooms.watchTogether(id),
     waitReady: (...args) => rooms.waitReady(...args),
@@ -329,18 +354,22 @@ export function createMediaHub(options) {
      * whose account (`person`, the one asking) and the viewer's `language`, for the captions chosen with each episode.
      * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string, person?: string, language?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = '', by = '', person = '', language = '' }) {
+    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = '', by = '', person = '', language = '', buy = [] }) {
       const item = await source(sourceId).info(id, { person, language })
       if (!(item.episodes > 0)) throw hubError('empty', `${item.title || id} has no episodes`)
+      const dir = await folderFor(sourceId, item)
+      const subject = `${sourceId}:${item.id}`
+      const isNew = points.enabled && await isNewSeries(sourceId, item)
       const disk = await statfs(libraryRoots[0]).catch(() => null)
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError('no_space', 'the library disk is almost full; delete something first')
-      const dir = await folderFor(sourceId, item)
+      const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { buy, subject })
       const how = { ...(isQuality(quality) ? { quality } : {}), person, language }
       await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all })
       library.setWork(dir, snapshotOf(item, now()))
       let room = null
       if (watch) room = (await rooms.createRoom({ source: 'local', path: dir, title: item.title, by, person, together, start: await library.resumeFrom(dir) })).room
       else await cache.refresh(dir, { retry: true })
+      await points.use(person, tickets, { room: room?.id, subject })
       const count = all ? item.episodes : Math.min(item.episodes, options.cache.ahead + 1)
       return { path: dir, title: item.title, episodes: item.episodes, estimate: count * (EPISODE_BYTES[item.kind] ?? EPISODE_BYTES.drama), room, download: downloads.state(dir) }
     },

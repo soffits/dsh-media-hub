@@ -120,3 +120,12 @@
 - **Saving to the device is a link the person taps**, not an automatic download after the fetch: phones only treat a download they started as theirs (iOS hands an epub to Apple Books).
 - **The state folder is not moved on the rename**: shows and the watch log name files by absolute path, so an existing `videosync` folder is used where it is.
 - **The assistant's tool keeps the name `videosync`**: renaming it would remove a tool from running sessions.
+
+## Points extras
+
+- Prices live outside the hub: a points extension (docs/points-protocol.md) keeps the shop, the tickets and who plays, like a recommender keeps taste. The hub only registers its items, checks for a ticket at the moment of the action, buys on the person's yes and records the use; it keeps no copy, so the person's one shop lists every extra and its price stays theirs. Prior art: entitlement checks (Stripe, RevenueCat) ask "does this person have access now" at the gate rather than an app keeping a flag.
+- Watching stays free; only two extras are priced, so relaxing is never locked behind points. A new series is one the hub has never had, neither it nor any of its seasons, in the library or the watch log: the library alone forgets deleted shows, and counting a later season as new would charge for going on with a series.
+- A binge night gates starting to watch late at night (opening a room, watching a work at once), never a room already playing: rooms are shared, a stop mid-episode would punish, and the other viewers may not play at all. The window is a setting on the host's clock; one ticket per night (bought once per evening's date) covers every start until `night.to`, when the extension's ticket expires.
+- The offer is one bar for the whole page (`PointsOffer`), reached through `asPersonPaying`, rather than an inline confirm in each card: six places start watching, and one place keeps the words and the flow the same everywhere.
+- The person is the sign-in id `requestIdentity` gives; the extension maps it to its own people. Nobody signed in, and the assistant's tool, are never asked: the assistant handles points with the person in chat.
+

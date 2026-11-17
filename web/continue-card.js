@@ -9,7 +9,7 @@ import { AvatarStack } from './avatars.js'
 import { Picture } from './details.js'
 import { currentEpisode, episodeStrip, stripCounts } from './continue.js'
 import { hasEpisodes, resumeLabel } from './format.js'
-import { Btn, Icon, K, P, api, asPerson, base, canChat, chatAbout, clock, copyText, displayName, fill, h, nameOf, plural, post, React, roomLink } from './ui.js'
+import { Btn, Icon, K, P, React, api, asPerson, asPersonPaying, base, canChat, chatAbout, clock, copyText, displayName, fill, h, nameOf, plural, post, roomLink } from './ui.js'
 
 const names = (t, list) => new Intl.ListFormat(t.language, { type: 'conjunction' }).format(list)
 const picture = key => (key ? new URL(key, base()).href : undefined)
@@ -64,20 +64,24 @@ export function ContinueCard({ t, subject, presence, sources, onOpen, onChanged 
     setBusy(false)
     if (failure) setError(failure)
   }
-  /** A room for this show: the shared one when there is one, else a new one for this person alone. */
+  /** A room for this show: the shared one when there is one, else a new one for this person alone (null: they said no to an extra). */
   const openRoom = async () => {
     if (room) return room.id
-    const answer = await asPerson('rooms', { source: 'local', path: show.path, by: await displayName(t('guest')) })
+    const answer = await asPersonPaying('rooms', { source: 'local', path: show.path, by: await displayName(t('guest')) })
     if (answer.error) throw new Error(answer.error)
-    return answer.room.id
+    return answer.declined ? null : answer.room.id
   }
   const go = () => run(async () => {
-    try { onOpen(await openRoom()) } catch (failure) { return failure.message }
+    try {
+      const id = await openRoom()
+      if (id !== null) onOpen(id)
+    } catch (failure) { return failure.message }
     return null
   })
   const together = () => run(async () => {
     try {
       const id = await openRoom()
+      if (id === null) return null
       const answer = await post(`rooms/${encodeURIComponent(id)}/together`, {})
       if (answer.error) return answer.error
       await copyText(roomLink(id), t('room.copy'))

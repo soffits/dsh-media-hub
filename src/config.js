@@ -113,6 +113,20 @@ const Recommender = z.object({
     .description('Extra environment variables for the command.'),
 })
 
+const Clock = z.string().pattern(/^([01]?\d|2[0-3]):[0-5]\d$/)
+
+const Points = z.object({
+  command: z.array(z.string()).default([])
+    .description('A points extension speaking docs/points-protocol.md (program and fixed arguments, the plugin adds the verbs). Empty means every extra is free.'),
+  env: z.dict(z.string()).default({})
+    .description('Extra environment variables for the command.'),
+  night: z.object({
+    from: Clock.default('01:00').description('When late night starts, on the host\'s clock (HH:MM).'),
+    to: Clock.default('06:00').description('When it ends; a binge night ticket lasts until then.'),
+  }).default({ from: '01:00', to: '06:00' })
+    .description('Starting to watch in this window is a binge night for people the extension keeps points for.'),
+})
+
 export const Config = z.object({
   label: Label.default('')
     .description('Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer\'s tag, then its primary subtag, then en). Empty uses the page\'s own name in the viewer\'s language.'),
@@ -154,6 +168,8 @@ export const Config = z.object({
     .description('What the Watching tab shows besides the open rooms and the library. Each part can be switched on or off.'),
   recommender: Recommender.default({ command: [], env: {} })
     .description('Where picks come from: a recommender extension. The hub has no taste of its own.'),
+  points: Points.default({ command: [], env: {}, night: { from: '01:00', to: '06:00' } })
+    .description('Extras a person\'s points pay for: starting a new series and a binge night, for the people a points extension plays with. Watching stays free; with no extension nothing changes.'),
   ffmpeg: z.string().default('ffmpeg').description('ffmpeg command.'),
   ffprobe: z.string().default('ffprobe').description('ffprobe command.'),
   ytDlp: z.string().default('yt-dlp')

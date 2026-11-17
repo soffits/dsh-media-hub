@@ -271,6 +271,14 @@
     "continue.continueAt": "从 {time} 继续",
     "continue.play": "播放",
     "library.continueAt": "从 {time} 继续",
-    "library.viewerStoppedAt": "{name}看到 {time}"
+    "library.viewerStoppedAt": "{name}看到 {time}",
+    "points.newSeries": "开一部新剧",
+    "points.bingeNight": "通宵追剧夜",
+    "points.offer": "{name}要 {cost} 分，你现在有 {balance} 分。",
+    "points.short": "{name}要 {cost} 分，还差 {gap} 分。",
+    "points.pending": "{name}还在等批准。",
+    "points.buy": "兑换",
+    "points.notNow": "先不了",
+    "points.ok": "好"
   }
 }

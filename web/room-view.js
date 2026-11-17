@@ -6,7 +6,7 @@ import { About, nextSeason } from './about-view.js'
 import { AvatarStack } from './avatars.js'
 import { Cover } from './details.js'
 import { useKnownWork } from './known.js'
-import { Confirm, Icon, ProgressBar, React, api, asPerson, base, captionText, clock, copyText, displayName, fill, h, post, progressFraction, progressText, roomLink, watchMark } from './ui.js'
+import { Confirm, Icon, ProgressBar, React, api, asPersonPaying, base, captionText, clock, copyText, displayName, fill, h, post, progressFraction, progressText, roomLink, watchMark } from './ui.js'
 
 const TOAST_MS = 4000
 /** A wait shorter than this (a seek into what is already loaded) shows nothing. */
@@ -116,9 +116,10 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
   const watchSeason = async () => {
     if (seasonKnown.room !== null) return onOpen(seasonKnown.room.id)
     setSeasonBusy(true)
-    const answer = await asPerson('fetch', { source: about.source, id: season.id, watch: true, all: false, language: t.language, by: await displayName(t('guest')) })
+    const answer = await asPersonPaying('fetch', { source: about.source, id: season.id, watch: true, all: false, language: t.language, by: await displayName(t('guest')) })
     setSeasonBusy(false)
     if (answer.error) return toast(answer.error)
+    if (answer.declined) return undefined
     return onOpen(answer.room.id)
   }
 

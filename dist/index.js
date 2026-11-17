@@ -11989,6 +11989,15 @@ var Recommender = Schema.object({
   command: Schema.array(Schema.string()).default([]).description("A command speaking docs/recommender-protocol.md (program and fixed arguments, the plugin adds the verbs). Empty means no picks."),
   env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command.")
 });
+var Clock = Schema.string().pattern(/^([01]?\d|2[0-3]):[0-5]\d$/);
+var Points = Schema.object({
+  command: Schema.array(Schema.string()).default([]).description("A points extension speaking docs/points-protocol.md (program and fixed arguments, the plugin adds the verbs). Empty means every extra is free."),
+  env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command."),
+  night: Schema.object({
+    from: Clock.default("01:00").description("When late night starts, on the host's clock (HH:MM)."),
+    to: Clock.default("06:00").description("When it ends; a binge night ticket lasts until then.")
+  }).default({ from: "01:00", to: "06:00" }).description("Starting to watch in this window is a binge night for people the extension keeps points for.")
+});
 var Config = Schema.object({
   label: Label.default("").description("Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer's tag, then its primary subtag, then en). Empty uses the page's own name in the viewer's language."),
   libraryRoots: Schema.array(Schema.string()).default([]).description(`Folders whose videos and episode folders anyone signed in may start a room from in the panel. The "library" folder inside the state folder is always included. The assistant's tool can open any path.`),
@@ -12010,6 +12019,7 @@ var Config = Schema.object({
   notifyCommand: Schema.array(Schema.string()).default([]).description("A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run."),
   presence: Presence.default({ continue: true, recap: false, ratings: false, picks: false }).description("What the Watching tab shows besides the open rooms and the library. Each part can be switched on or off."),
   recommender: Recommender.default({ command: [], env: {} }).description("Where picks come from: a recommender extension. The hub has no taste of its own."),
+  points: Points.default({ command: [], env: {}, night: { from: "01:00", to: "06:00" } }).description("Extras a person's points pay for: starting a new series and a binge night, for the people a points extension plays with. Watching stays free; with no extension nothing changes."),
   ffmpeg: Schema.string().default("ffmpeg").description("ffmpeg command."),
   ffprobe: Schema.string().default("ffprobe").description("ffprobe command."),
   ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file applies."),
@@ -12213,8 +12223,8 @@ async function readJson(req) {
     throw Object.assign(new Error("request body is not JSON"), { status: 400 });
   }
 }
-var STATUS = Object.freeze({ invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 });
-var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, message: error?.message ?? String(error) } });
+var STATUS = Object.freeze({ points: 402, invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 });
+var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, ...error?.points ? { points: error.points } : {}, message: error?.message ?? String(error) } });
 function createHandler({ connection, service, settings = () => ({ label: "", presence: {} }), localeDir = LOCALE_DIR, logger }) {
   let locales;
   return async (req, res) => {
@@ -14610,6 +14620,116 @@ function createFollows({ library, source, refreshed, addSeason, record, notify, 
   };
 }
 
+// src/points.js
+var EXTRAS = Object.freeze({
+  newSeries: Object.freeze({
+    key: "media:new_series",
+    name: "Start a new series",
+    cost: 30,
+    about: "Begin watching a series that is new to the library; going on with one stays free"
+  }),
+  bingeNight: Object.freeze({
+    key: "media:binge_night",
+    name: "Binge night",
+    cost: 40,
+    uses: 0,
+    about: "Start watching late at night, as often as you like, until morning"
+  })
+});
+var CLOCK = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+var minutes = (text3) => {
+  const [, h, m] = CLOCK.exec(text3);
+  return Number(h) * 60 + Number(m);
+};
+function inNight(night, date2) {
+  const now = date2.getHours() * 60 + date2.getMinutes();
+  const from2 = minutes(night.from);
+  const to = minutes(night.to);
+  return from2 <= to ? now >= from2 && now < to : now >= from2 || now < to;
+}
+function nightOf(night, date2) {
+  const evening = new Date(date2);
+  if (minutes(night.from) > minutes(night.to) && date2.getHours() * 60 + date2.getMinutes() < minutes(night.to)) evening.setDate(evening.getDate() - 1);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${evening.getFullYear()}-${pad(evening.getMonth() + 1)}-${pad(evening.getDate())}`;
+}
+var pointsError = (need) => Object.assign(new Error(`${need.name} costs ${need.cost} points`), { code: "points", status: 402, points: need });
+function createPoints(config, { logger, now = Date.now, run: run3 = run }) {
+  const enabled = config.command.length > 0;
+  const registered = /* @__PURE__ */ new Set();
+  async function ask(args) {
+    const { code, stdout, stderr } = await run3([...config.command, ...args, "--json"], { timeoutMs: 2e4, env: config.env });
+    const line = stdout.trim().split("\n").filter(Boolean).pop() ?? "";
+    if (code !== 0) throw Object.assign(new Error(`points extension failed: ${stderr.trim().split("\n").pop() ?? code}`), { code: "unavailable" });
+    return JSON.parse(line);
+  }
+  function itemArgs(extra2) {
+    const args = ["--name", extra2.name, "--cost", String(extra2.cost), "--about", extra2.about];
+    if (extra2.uses !== void 0) args.push("--uses", String(extra2.uses));
+    if (extra2 === EXTRAS.bingeNight) args.push("--until", config.night.to);
+    return args;
+  }
+  async function register(person) {
+    if (registered.has(person)) return true;
+    for (const extra2 of Object.values(EXTRAS)) {
+      const answer = await ask(["shop", person, "register", extra2.key, ...itemArgs(extra2)]);
+      if (answer.recorded === false) return false;
+    }
+    registered.add(person);
+    return true;
+  }
+  return {
+    enabled,
+    /** Which extras an action needs now: `isNew` for a new series, `starts` when it starts watching. */
+    wants({ isNew = false, starts = false }) {
+      if (!enabled) return [];
+      return [...isNew ? [EXTRAS.newSeries] : [], ...starts && inNight(config.night, new Date(now())) ? [EXTRAS.bingeNight] : []];
+    },
+    /** A purchase's source, the same on a retry: one per series, one binge ticket per night. */
+    sourceOf(extra2, subject) {
+      return extra2 === EXTRAS.bingeNight ? `media:binge:${nightOf(config.night, new Date(now()))}` : `media:series:${subject}`;
+    },
+    /**
+     * Make sure `person` holds a ticket for every extra in `wants`, buying the ones named in `buy`. Throws a
+     * `points` error (402) with the first missing one: item, name, cost, balance, gap, affordable, pending.
+     * Returns the tickets to use once the action went through.
+     */
+    async pay(person, wants, { buy = [], subject = "" } = {}) {
+      if (!enabled || wants.length === 0 || !person) return [];
+      try {
+        if (!await register(person)) return [];
+        const tickets = [];
+        for (const extra2 of wants) {
+          const source = this.sourceOf(extra2, subject);
+          let answer = await ask(["check", person, extra2.key]);
+          if (answer.recorded === false) return [];
+          if (!answer.valid && buy.includes(extra2.key) && answer.quote.affordable) {
+            await ask(["buy", person, extra2.key, "--source", source]);
+            answer = await ask(["check", person, extra2.key]);
+          }
+          if (!answer.valid) {
+            const q = answer.quote;
+            throw pointsError({ item: extra2.key, name: q.name, cost: q.cost, balance: q.balance, gap: q.gap, affordable: q.affordable, pending: answer.pending });
+          }
+          tickets.push({ extra: extra2, ticket: answer.ticket.id });
+        }
+        return tickets;
+      } catch (error) {
+        if (error.code === "points") throw error;
+        logger.warn("points: %s", error.message);
+        return [];
+      }
+    },
+    /** Record each ticket's use for the action that went through: a series once, a binge ticket per room opened. */
+    async use(person, tickets, { room, subject = "" }) {
+      for (const { extra: extra2, ticket } of tickets) {
+        const on = extra2 === EXTRAS.bingeNight ? `media:start:${room ?? subject}` : `media:series:${subject}`;
+        await ask(["use", person, ticket, "--source", on]).catch((error) => logger.warn("points: %s", error.message));
+      }
+    }
+  };
+}
+
 // src/changes.js
 function createChanges({ intervalMs = 300 } = {}) {
   const listeners = /* @__PURE__ */ new Set();
@@ -14694,6 +14814,7 @@ function createMediaHub(options) {
   const covers = createCovers({ dir: join16(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
   const log = createWatchLog({ file: join16(stateDir, LOG_NAME), now, logger });
   const changes = createChanges({ intervalMs: options.changeIntervalMs });
+  const points = createPoints(options.points ?? { command: [], night: { from: "01:00", to: "06:00" } }, { logger, now });
   const books = createBooks({ changed: () => changes.notify("shelf"), dir: join16(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
   let rooms;
   let cache;
@@ -14820,18 +14941,29 @@ function createMediaHub(options) {
     if (found === void 0) throw hubError("not_found", `no source ${String(id)}`);
     return found;
   }
-  async function folderFor(sourceId, item) {
-    const name2 = cleanName(item.title);
+  async function isNewSeries(sourceId, item) {
+    if (!(item.episodes > 1)) return false;
+    const works = [item, ...(item.related ?? []).filter((other) => other.relation === "season" && other.id)];
+    const inLibrary = new Set((await library.list()).shows.filter((show) => show.source).map((show) => `${show.source.source}
+${show.source.id}`));
+    const logged = new Set((await log.read()).map((event) => event.show).filter(Boolean));
+    return !works.some((work) => inLibrary.has(`${sourceId}
+${work.id}`) || foldersFor(sourceId, work).some((path) => logged.has(path)));
+  }
+  function foldersFor(sourceId, work) {
+    const name2 = cleanName(work.title ?? "");
     const mark = createHash6("sha256").update(`${sourceId}
-${item.id}`).digest("hex").slice(0, 8);
-    for (const candidate of [name2, `${name2} (${mark})`]) {
-      const path = join16(libraryRoots[0], candidate);
+${work.id}`).digest("hex").slice(0, 8);
+    return [name2, `${name2} (${mark})`].map((candidate) => join16(libraryRoots[0], candidate));
+  }
+  async function folderFor(sourceId, item) {
+    for (const path of foldersFor(sourceId, item)) {
       const exists2 = await stat10(path).then(() => true, () => false);
       const shows = (await library.list()).shows;
       const owner = shows.find((show) => show.path === path);
       if (!exists2 || owner?.source?.source === sourceId && owner.source.id === item.id) return path;
     }
-    throw hubError("exists", `${name2} is already in the library`);
+    throw hubError("exists", `${cleanName(item.title)} is already in the library`);
   }
   return {
     async load() {
@@ -14849,6 +14981,8 @@ ${item.id}`).digest("hex").slice(0, 8);
      * `start` says otherwise.
      */
     async createRoom(input) {
+      const person = typeof input.person === "string" ? input.person : "";
+      const tickets = await points.pay(person, points.wants({ starts: true }), { buy: input.buy ?? [] });
       let start = input.start ?? null;
       if (start === null && typeof input.path === "string") {
         const show2 = library.showPath(input.path);
@@ -14858,7 +14992,9 @@ ${item.id}`).digest("hex").slice(0, 8);
       const show = typeof input.path === "string" ? library.showPath(input.path) : null;
       const from2 = show === null ? null : library.workSource(show);
       if (from2 && typeof input.person === "string" && from2.person !== input.person) library.mark(show, { source: { ...from2, person: input.person } });
-      return rooms.createRoom({ ...input, start });
+      const opened = await rooms.createRoom({ ...input, start });
+      await points.use(person, tickets, { room: opened.room?.id });
+      return opened;
     },
     watchTogether: (id) => rooms.watchTogether(id),
     waitReady: (...args) => rooms.waitReady(...args),
@@ -14954,18 +15090,22 @@ ${item.id}`).digest("hex").slice(0, 8);
      * whose account (`person`, the one asking) and the viewer's `language`, for the captions chosen with each episode.
      * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string, person?: string, language?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = "", by = "", person = "", language = "" }) {
+    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = "", by = "", person = "", language = "", buy = [] }) {
       const item = await source(sourceId).info(id, { person, language });
       if (!(item.episodes > 0)) throw hubError("empty", `${item.title || id} has no episodes`);
+      const dir = await folderFor(sourceId, item);
+      const subject = `${sourceId}:${item.id}`;
+      const isNew = points.enabled && await isNewSeries(sourceId, item);
       const disk = await statfs2(libraryRoots[0]).catch(() => null);
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError("no_space", "the library disk is almost full; delete something first");
-      const dir = await folderFor(sourceId, item);
+      const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { buy, subject });
       const how = { ...isQuality(quality) ? { quality } : {}, person, language };
       await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all });
       library.setWork(dir, snapshotOf(item, now()));
       let room = null;
       if (watch) room = (await rooms.createRoom({ source: "local", path: dir, title: item.title, by, person, together, start: await library.resumeFrom(dir) })).room;
       else await cache.refresh(dir, { retry: true });
+      await points.use(person, tickets, { room: room?.id, subject });
       const count = all ? item.episodes : Math.min(item.episodes, options.cache.ahead + 1);
       return { path: dir, title: item.title, episodes: item.episodes, estimate: count * (EPISODE_BYTES[item.kind] ?? EPISODE_BYTES.drama), room, download: downloads.state(dir) };
     },
@@ -15063,6 +15203,7 @@ async function body(request) {
 }
 var pick4 = (value, keys) => Object.fromEntries(keys.filter((key) => value?.[key] !== void 0).map((key) => [key, value[key]]));
 var text2 = (value) => typeof value === "string" ? value : "";
+var buying = (value) => Array.isArray(value) ? value.filter((key) => typeof key === "string").slice(0, 4) : [];
 function createPersonRoutes({ hub, identity }) {
   const handle = (fn) => async (request) => {
     const current = hub();
@@ -15087,14 +15228,17 @@ function createPersonRoutes({ hub, identity }) {
       requestBody: "buffered",
       fetch: handle(async (request, current, person) => {
         const input = await body(request);
-        return current.fetch({ ...pick4(input, ["source", "id", "watch", "together", "all", "quality", "by"]), language: text2(input.language), person: person.id });
+        return current.fetch({ ...pick4(input, ["source", "id", "watch", "together", "all", "quality", "by"]), language: text2(input.language), person: person.id, buy: buying(input.buy) });
       })
     },
     {
       path: `${PERSON_PATH}/rooms`,
       methods: ["POST"],
       requestBody: "buffered",
-      fetch: handle(async (request, current, person) => current.createRoom({ ...pick4(await body(request), ["path", "title", "by", "start"]), fromPanel: true, person: person.id }))
+      fetch: handle(async (request, current, person) => {
+        const input = await body(request);
+        return current.createRoom({ ...pick4(input, ["path", "title", "by", "start"]), fromPanel: true, person: person.id, buy: buying(input.buy) });
+      })
     },
     {
       path: `${PERSON_PATH}/ratings`,
@@ -15250,6 +15394,7 @@ function apply(ctx, config) {
       },
       notifyCommand: config.notifyCommand,
       recommender: config.recommender,
+      points: config.points,
       cache: { ahead: config.cacheAhead, behind: config.cacheBehind, capBytes: config.cacheLimitGb * 1e9 },
       logger
     });

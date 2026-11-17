@@ -54,7 +54,7 @@ async function request(url, init = {}) {
   try {
     const response = await fetch(url, init.body === undefined ? init : { ...init, headers: { 'content-type': 'application/json' } })
     const data = await response.json().catch(() => ({}))
-    if (!response.ok) return { error: failureText(data.error, response.status), code: data.error?.code, reason: data.error?.reason ?? null }
+    if (!response.ok) return { error: failureText(data.error, response.status), code: data.error?.code, reason: data.error?.reason ?? null, ...(data.error?.points ? { points: data.error.points } : {}) }
     return data
   } catch (error) {
     return { error: words === null ? error.message : words('error.network') }
@@ -69,6 +69,24 @@ export const post = (path, body) => api(path, { method: 'POST', body: JSON.strin
 /** What acts for the person asking lives under DSH's own /api, where the signed-in person is known (src/person-routes.js). */
 const personUrl = path => new URL(`api/media-hub/${path}`, document.baseURI)
 export const asPerson = (path, body, init = {}) => request(personUrl(path), body === undefined ? init : { ...init, method: 'POST', body: JSON.stringify(body) })
+
+/** Where the page offers an extra the person's points pay for (page.js `PointsOffer`): resolves true to buy it. */
+let offer = null
+export function setOffer(value) { offer = value }
+
+/**
+ * An action that may need a ticket (a new series, a binge night; src/points.js): when the hub answers `points`, the
+ * page offers the purchase where the person is, and on yes asks again buying it. A no answers `{ declined: true }`.
+ */
+export async function asPersonPaying(path, body) {
+  const buy = []
+  for (;;) {
+    const answer = await asPerson(path, buy.length === 0 ? body : { ...body, buy })
+    if (answer.code !== 'points' || !answer.points || offer === null || buy.includes(answer.points.item)) return answer
+    if (!(await offer(answer.points))) return { declined: true }
+    buy.push(answer.points.item)
+  }
+}
 
 /** The shelf's routes, under the same /api (src/shelf-routes.js). */
 export const shelfUrl = (path = '') => personUrl(`shelf${path}`)
