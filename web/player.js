@@ -138,7 +138,7 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
 
   /** A playlist that may still grow (an episode being fetched) starts where the room is, not at its newest segment. */
   async function attachHls(url, startAt) {
-    const { default: Hls } = await import(new URL('hls.mjs', base).href)
+    const { default: Hls } = await import(new URL('./hls.mjs', import.meta.url).href)
     if (!Hls.isSupported()) throw new Error('This browser cannot play HLS.')
     hls = new Hls({ startPosition: startAt })
     hls.loadSource(url)

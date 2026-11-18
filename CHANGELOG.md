@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.2
+
+- hls.js now loads. The page asked for it at the wrong address, so a browser that needed it (any Chromium one, since 0.10.1) never got past loading. Episodes that are still being made play there again.
+
 ## 0.10.1
 
 - Replaying an episode that has to be transcoded now plays in Chrome, Brave and Edge. Their own HLS player can't take an episode that's still being made and stopped with "could not parse"; the page now uses hls.js there. Safari and iPhone keep their own player.
