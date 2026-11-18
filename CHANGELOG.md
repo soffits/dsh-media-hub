@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.0
 
 - Spending points moved to the points plugin, [@soffits/dsh-points](https://github.com/soffits/dsh-points): when an extra costs points, its dialog shows the price, your points and what's left, and buys it there. The hub's own offer bar is gone. Setup changes: install @soffits/dsh-points and move the ledger command from this plugin's `points.command` to its `command`; `points.night` is now `bingeNight`; `docs/points-protocol.md` is replaced by the points plugin's ledger protocol. The fetch and room routes no longer take `buy`.
 
