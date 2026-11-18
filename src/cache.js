@@ -103,8 +103,8 @@ export function createCache({ library, downloads, rooms, window: size, logger })
      */
     requality: (path, quality) => serial(async () => {
       library.setQuality(path, quality)
-      await downloads.cancel(path)
       const info = await library.cacheInfo(path)
+      downloads.switchHow(path, info.source)
       const places = rooms.focusesOf(path)
       const from = Math.max(...(places.length > 0 ? places : [info.focus ?? 0]))
       const ahead = [...info.cached].filter(n => n > from)

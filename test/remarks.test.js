@@ -23,8 +23,8 @@ async function until(what, check, timeoutMs = 5000) {
   assert.fail(`timed out: ${what}`)
 }
 
-function fakeSource(t, log) {
-  return createCommandSource({ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], env: { FAKE_SOURCE_LOG: log, FAKE_SOURCE_EPISODES: '6', FAKE_SOURCE_DELAY_MS: '5' } }, { logger: quietLogger, cwd: join(tempDir(t), 'work') })
+function fakeSource(t, log, delayMs = 5) {
+  return createCommandSource({ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], env: { FAKE_SOURCE_LOG: log, FAKE_SOURCE_EPISODES: '6', FAKE_SOURCE_DELAY_MS: String(delayMs) } }, { logger: quietLogger, cwd: join(tempDir(t), 'work') })
 }
 
 const logOf = log => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : [])
@@ -113,14 +113,14 @@ test('a room reads its episode\'s danmaku and its work\'s comments from copies k
 test('picking a quality in a room fetches what lies ahead again in it, for everyone; the episode being watched stays', async (t) => {
   const dir = tempDir(t)
   const log = join(dir, 'log')
-  const hub = makeHub(dir, fakeSource(t, log))
+  const hub = makeHub(dir, fakeSource(t, log, 150))
   await hub.load()
   t.after(() => hub.dispose())
   const { room, path } = await hub.fetch({ source: 'stub', id: ID, watch: true, by: 'Ann' })
   const onDisk = () => readdirSync(path).filter(name => name.endsWith('.mp4')).length
-  await until('the window is on disk', () => onDisk() === 3)
+  await until('the first episode is on disk, the next still coming', () => existsSync(join(path, '01 第1集.mp4')))
   await assert.rejects(hub.roomQuality(room.id, '480'), { code: 'invalid' })
-  assert.deepEqual(await hub.roomQuality(room.id, '720'), { quality: '720' })
+  assert.deepEqual(await hub.roomQuality(room.id, '720'), { quality: '720' }, 'a download under way does not hold the change up')
   assert.equal(hub.roomWork(room.id).quality, '720')
   await until('the episodes ahead come again in the new quality', () => logOf(log).at(-1) === '2-3@720' && onDisk() === 3)
   assert.equal(existsSync(join(path, '01 第1集.mp4')), true)

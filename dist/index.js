@@ -12636,6 +12636,18 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
       pump();
       return job;
     },
+    /**
+     * Fetch a show's episodes another way from now on (`how`, as `howOf` gives it): a run under way stops and goes
+     * back in the queue, to start again that way. It does not wait for the run to end, so it is safe to call from a
+     * step that the run's own progress waits on (the rolling cache's).
+     */
+    switchHow(dir, how) {
+      const job = jobs.get(dir);
+      if (job === void 0) return;
+      job.how = howOf(how);
+      if (running === job) job.controller.abort("yield");
+      save();
+    },
     /** Stop and forget a show's download. */
     async cancel(dir) {
       const job = jobs.get(dir);
@@ -12724,8 +12736,8 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
      */
     requality: (path, quality) => serial(async () => {
       library.setQuality(path, quality);
-      await downloads.cancel(path);
       const info = await library.cacheInfo(path);
+      downloads.switchHow(path, info.source);
       const places = rooms.focusesOf(path);
       const from2 = Math.max(...places.length > 0 ? places : [info.focus ?? 0]);
       const ahead = [...info.cached].filter((n) => n > from2);

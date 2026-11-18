@@ -205,6 +205,19 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       return job
     },
 
+    /**
+     * Fetch a show's episodes another way from now on (`how`, as `howOf` gives it): a run under way stops and goes
+     * back in the queue, to start again that way. It does not wait for the run to end, so it is safe to call from a
+     * step that the run's own progress waits on (the rolling cache's).
+     */
+    switchHow(dir, how) {
+      const job = jobs.get(dir)
+      if (job === undefined) return
+      job.how = howOf(how)
+      if (running === job) job.controller.abort('yield')
+      save()
+    },
+
     /** Stop and forget a show's download. */
     async cancel(dir) {
       const job = jobs.get(dir)
