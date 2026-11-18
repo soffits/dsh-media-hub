@@ -307,13 +307,9 @@
     "continue.play": "Play",
     "library.continueAt": "continue at {time}",
     "library.viewerStoppedAt": "{name} stopped at {time}",
-    "points.newSeries": "Starting a new series",
-    "points.bingeNight": "A binge night",
-    "points.offer": "{name} costs {cost} points. You have {balance}.",
-    "points.short": "{name} costs {cost} points: {gap} more to go.",
-    "points.pending": "{name} is waiting for approval.",
-    "points.buy": "Buy",
-    "points.notNow": "Not now",
-    "points.ok": "OK"
+    "points.newSeries": "Start a new series",
+    "points.newSeriesAbout": "Begin watching a series that is new to the library. Going on with one stays free.",
+    "points.bingeNight": "Binge night",
+    "points.bingeNightAbout": "Start watching late at night, as often as you like, until morning."
   }
 }

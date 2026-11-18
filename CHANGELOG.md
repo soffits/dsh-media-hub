@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.0
+
+- Spending points moved to the points plugin, [@soffits/dsh-points](https://github.com/soffits/dsh-points): when an extra costs points, its dialog shows the price, your points and what's left, and buys it there. The hub's own offer bar is gone. Setup changes: install @soffits/dsh-points and move the ledger command from this plugin's `points.command` to its `command`; `points.night` is now `bingeNight`; `docs/points-protocol.md` is replaced by the points plugin's ledger protocol. The fetch and room routes no longer take `buy`.
+
 ## 0.14.0
 
 - Danmaku in rooms: the episode's danmaku fly over the picture in time with it, for sources that have them (Fanqie's short dramas). A *Danmaku* switch sits under the player, and its settings button sets their opacity, how much of the picture they cover and their size, kept per browser. The new full-screen button keeps them on the picture (on iPhone the player covers the page).

@@ -58,7 +58,8 @@ export function apply(ctx, config) {
       },
       notifyCommand: config.notifyCommand,
       recommender: config.recommender,
-      points: config.points,
+      points: () => ctx.get('points'),
+      bingeNight: config.bingeNight,
       cache: { ahead: config.cacheAhead, behind: config.cacheBehind, capBytes: config.cacheLimitGb * 1e9 },
       logger,
     })

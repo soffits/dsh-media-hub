@@ -46,6 +46,12 @@ window.__ModuleLoader__.load({
       available: () => uiActions !== null,
       start: about => uiActions?.chat({ source: '@soffits/dsh-media-hub', sourceName: sourceName(), ...about }),
     }
+    /** The points plugin's offer (ctx.points from @soffits/dsh-points), when it is installed. */
+    let pointsService = null
+    const points = {
+      available: () => pointsService !== null,
+      offer: request => pointsService.offer(request),
+    }
     /** DSH's locale store, set in apply before anything renders, so the page renders again when the viewer switches language. */
     let localeStore
     const activeLanguage = () => localeStore.getSnapshot().active
@@ -87,6 +93,7 @@ window.__ModuleLoader__.load({
       pageModule ??= Promise.all([import(web('ui.js')), import(web('page.js'))]).then(([ui, page]) => {
         ui.init(React, { primitives, kit })
         ui.setChat(chat)
+        ui.setPoints(points)
         return page
       })
       return pageModule
@@ -142,6 +149,12 @@ window.__ModuleLoader__.load({
             kitStore.set(scope.uiKit)
             return () => kitStore.set(null)
           }, 'media-hub: kit')
+        })
+        ctx.inject(['points'], (scope) => {
+          scope.effect(() => {
+            pointsService = scope.points
+            return () => { pointsService = null }
+          }, 'media-hub: points')
         })
         ctx.inject(['uiActions'], (scope) => {
           scope.effect(() => {

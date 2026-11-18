@@ -308,12 +308,8 @@
     "library.continueAt": "reprendre à {time}",
     "library.viewerStoppedAt": "{name} s’est arrêté·e à {time}",
     "points.newSeries": "Commencer une nouvelle série",
-    "points.bingeNight": "Une nuit de marathon",
-    "points.offer": "{name} coûte {cost} points. Vous en avez {balance}.",
-    "points.short": "{name} coûte {cost} points : encore {gap} à gagner.",
-    "points.pending": "{name} attend un accord.",
-    "points.buy": "Acheter",
-    "points.notNow": "Pas maintenant",
-    "points.ok": "OK"
+    "points.newSeriesAbout": "Commencer une série qui n’est pas encore dans la bibliothèque. Continuer une série reste gratuit.",
+    "points.bingeNight": "Nuit de marathon",
+    "points.bingeNightAbout": "Lancer des épisodes tard dans la nuit, autant que vous voulez, jusqu’au matin."
   }
 }

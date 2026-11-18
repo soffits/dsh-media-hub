@@ -363,10 +363,6 @@
 .vsync-pageTabs,.vsync-ccActions,.vsync-rateAnswers,.vsync-ccLive,.vsync-sectionMeta,.vsync-sectionHead h2,.vsync-actions,.vsync-tabCount,.vsync-ccStrip,.vsync-rateHead .uk-tile{user-select:none;-webkit-user-select:none}
 .vsync-page img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
 .vsync-ccActions .uk-touch .uk-touch,.vsync-rateAnswers .uk-touch{font-size:13px}
-/* Points offer: an extra's price at the moment of the action */
-.vsync-pointsOffer{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:12px;max-width:min(560px,calc(100% - 32px));padding:10px 12px 10px 16px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));box-shadow:var(--dsw-shadow-lv3)}
-.vsync-pointsText{flex:1;min-width:0;font-size:13px;line-height:19px;color:var(--dsw-alias-label-primary)}
-@media (width<=767px){.vsync-pointsOffer{flex-wrap:wrap;bottom:12px}.vsync-pointsOffer>.vsync-actions{margin-left:auto}}
 /* Player bar, danmaku, full screen */
 .vsync-playerBar{flex:none;display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border-bottom:.5px solid var(--dsw-alias-border-l4)}
 .vsync-grow{flex:1}

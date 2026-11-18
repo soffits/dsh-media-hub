@@ -8,7 +8,7 @@ import { LibrarySection } from './library-view.js'
 import { clearNav, readNav, TABS, writeNav } from './nav.js'
 import { RoomView } from './room-view.js'
 import { WatchingTab, withNews } from './watching-view.js'
-import { Changes, K, Known, P, api, fill, h, React, setOffer, setWords } from './ui.js'
+import { Changes, K, Known, P, api, h, React, setWords } from './ui.js'
 
 /** Marks the history entries this page added, so a back control knows going back stays on the page. */
 const PUSHED = 'vsyncPushed'
@@ -73,33 +73,6 @@ function Home({ t, nav, go, onOpen, rooms, library, load }) {
         h(DiscoverView, { t, nav, onNav: go, onOpen, onSaved: load, onBack: () => (history.state?.[PUSHED] ? history.back() : go({ work: null }, { replace: true })) }))))
 }
 
-/** The page's words for the extras the hub sells (src/points.js EXTRAS), by item key; another item keeps its shop name. */
-const EXTRA_WORDS = Object.freeze({ 'media:new_series': 'points.newSeries', 'media:binge_night': 'points.bingeNight' })
-
-/**
- * The offer of an extra at the moment of the action: its price and the person's balance, and Buy when they can.
- * One at a time; `asPersonPaying` (ui.js) waits for the answer.
- */
-function PointsOffer({ t }) {
-  const [ask, setAsk] = React.useState(null)
-  React.useEffect(() => {
-    setOffer(points => new Promise(resolve => setAsk({ points, resolve })))
-    return () => setOffer(null)
-  }, [])
-  if (ask === null) return null
-  const { points, resolve } = ask
-  const done = (yes) => { setAsk(null); resolve(yes) }
-  const name = EXTRA_WORDS[points.item] ? t(EXTRA_WORDS[points.item]) : points.name
-  const key = points.pending ? 'points.pending' : points.affordable ? 'points.offer' : 'points.short'
-  return h('div', { className: 'vsync-pointsOffer', role: 'alertdialog', 'aria-live': 'polite' },
-    h('span', { className: 'vsync-pointsText' }, fill(t(key), { name, cost: points.cost, balance: points.balance, gap: points.gap })),
-    h('span', { className: 'vsync-actions' },
-      points.affordable && !points.pending
-        ? [h('button', { key: 'no', type: 'button', className: 'vsync-btn', onClick: () => done(false) }, t('points.notNow')),
-           h('button', { key: 'yes', type: 'button', className: 'vsync-btn vsync-primary', autoFocus: true, onClick: () => done(true) }, t('points.buy'))]
-        : h('button', { type: 'button', className: 'vsync-btn', autoFocus: true, onClick: () => done(false) }, t('points.ok'))))
-}
-
 export function Page({ t, initialRoom }) {
   setWords(t)
   const [roomId, setRoomId] = React.useState(initialRoom)
@@ -132,6 +105,5 @@ export function Page({ t, initialRoom }) {
   return h(Changes.Provider, { value: changes }, h(Known.Provider, { value: known }, h(React.Fragment, null,
     roomId === null
       ? h(Home, { t, nav, go, onOpen: setRoomId, rooms, library, load })
-      : h(RoomView, { key: roomId, t, roomId, onLeave: () => setRoomId(null), onOpen: setRoomId }),
-    h(PointsOffer, { t }))))
+      : h(RoomView, { key: roomId, t, roomId, onLeave: () => setRoomId(null), onOpen: setRoomId }))))
 }
