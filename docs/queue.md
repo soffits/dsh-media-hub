@@ -28,3 +28,6 @@
 - **Browser suite after solo watching**: `npm run test:browsers` opens rooms with *Watch* and expects them in the Watching tab; rooms are now unlisted until *Watch together*, so its room-list steps need that click. Not rerun for 0.5.
 - **A person's own solo rooms**: an unlisted room is reached only by its link; the Watching tab could list the asking person's own (rooms would need to record the person, not only a display name).
 - **Flaky on main**: `a show kept offline is fetched whole and never trimmed…` and `an episode deleted by hand stays gone…` in test/media.test.js fail in about a third of runs, with or without the change stream (timing of the rolling cache).
+- Danmaku text keeps a site's emoticon codes as written (Fanqie's `[偷笑]`); a source could send them as pictures or Unicode instead. *rare*
+- When an episode's danmaku crowd one moment, Danmaku overlaps lines instead of dropping the extra ones as the phone apps do. *likely, cosmetic*
+- Link could offer danmaku too: yt-dlp writes Bilibili's as a `danmaku` subtitle track (XML).
