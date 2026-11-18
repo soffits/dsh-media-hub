@@ -78,6 +78,8 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
   const [danmaku, setDanmaku] = React.useState({ index: null, items: NO_DANMAKU })
   const [qualityBusy, setQualityBusy] = React.useState(false)
   const screen = useFullScreen(playerBox)
+  const toggleFull = React.useRef(screen.toggle)
+  toggleFull.current = screen.toggle
   const session = React.useRef(null)
   const [view, setView] = React.useState({ connection: 'connecting', room: null, members: [], needsGesture: false })
   const [toasts, setToasts] = React.useState([])
@@ -107,6 +109,7 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
         stage: stage.current,
         onUpdate: setView,
         onEvent: event => toast(toastText(t, event)),
+        onFullScreen: () => toggleFull.current(),
       })
     }
     start().catch(error => toast(error.message))

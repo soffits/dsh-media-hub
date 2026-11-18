@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.2
+
+- A click on the picture plays or pauses, for everyone in the room, and a double click goes full screen with the danmaku. On a phone the first tap still shows the controls.
+
 ## 0.15.1
 
 - On a phone the player's settings open under the player bar and scroll when they are taller than the screen; above it they ran under the page's header.

@@ -16,6 +16,7 @@ import { DRIFT, clockOffset, correction, expectedPosition, preloadDue } from './
 import { canStart, offerTap, shouldPrime } from './readiness.js'
 import { playsHlsNatively } from './hls-engine.js'
 import { defaultCaption, parseCaption } from './captions.js'
+import { DOUBLE_CLICK_MS, pictureClick } from './picture-click.js'
 
 /** Reconcile the player with the room this often. */
 const TICK_MS = 500
@@ -52,7 +53,7 @@ const PRIME_LIMIT_MS = 5000
 const swapKeepsPlayPermission = () => !('webkitSupportsPresentationMode' in HTMLVideoElement.prototype)
 
 /** An HTML <video> as a media hub player, with hls.js where the browser's own HLS is not the one to use (web/hls-engine.js). */
-function createVideoPlayer(stage, events, { base, language, trackLabel }) {
+function createVideoPlayer(stage, events, { base, language, trackLabel, onFullScreen }) {
   let video = null
   let hls = null
   let src = null
@@ -100,6 +101,29 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
       if (!reports()) return
       if (expect.rate !== null && Math.abs(el.playbackRate - expect.rate) < 1e-6) return
       events.onRate?.(el.playbackRate)
+    })
+    // A click on the picture plays or pauses (through the element, so the room hears it like any play or pause),
+    // a double click goes full screen; the browser keeps taps and its own control bar.
+    let press = null
+    let clickTimer = null
+    el.addEventListener('pointerdown', (event) => { press = { pointerType: event.pointerType, paused: el.paused } })
+    el.addEventListener('click', (event) => {
+      if (!front() || press === null) return
+      const pressed = press
+      const y = event.clientY - el.getBoundingClientRect().top
+      clearTimeout(clickTimer)
+      clickTimer = setTimeout(() => {
+        if (pictureClick({ pointerType: pressed.pointerType, y, height: el.clientHeight, toggledByBrowser: el.paused !== pressed.paused }) === 'toggle') {
+          if (el.paused) Promise.resolve(el.play()).catch(() => {})
+          else el.pause()
+        }
+      }, DOUBLE_CLICK_MS)
+    })
+    el.addEventListener('dblclick', (event) => {
+      if (!front() || press?.pointerType !== 'mouse') return
+      clearTimeout(clickTimer)
+      event.preventDefault()
+      onFullScreen?.()
     })
     el.addEventListener('ended', () => { if (front()) events.onEnded?.() })
     el.addEventListener('loadedmetadata', () => { if (front() && Number.isFinite(el.duration)) events.onDuration?.(el.duration) })
@@ -328,7 +352,7 @@ function tabClientId() {
  * @param {(view: object) => void} options.onUpdate - connection, room, members, needsGesture, drift
  * @param {(event: object) => void} options.onEvent - { kind: 'action', last } | { kind: 'joined' | 'left', name }
  */
-export function joinRoom({ base, roomId, name, language = '', trackLabel = label => label, stage, onUpdate, onEvent }) {
+export function joinRoom({ base, roomId, name, language = '', trackLabel = label => label, stage, onUpdate, onEvent, onFullScreen }) {
   const clientId = tabClientId()
   const samples = []
   let offset = null
@@ -566,7 +590,7 @@ export function joinRoom({ base, roomId, name, language = '', trackLabel = label
 
   function ensurePlayer() {
     if (player !== null) return player
-    player = createVideoPlayer(stage, events, { base, language, trackLabel })
+    player = createVideoPlayer(stage, events, { base, language, trackLabel, onFullScreen })
     loadedIndex = null
     return player
   }
