@@ -120,18 +120,19 @@ test('Discover picks come from the recommender per source and kind, none without
   assert.deepEqual(await off.picks({ key: 'p' }, { source: 'fanqie', kind: 'drama' }), { picks: [], loading: false })
 })
 
-test('picks are asked of the recommender with the source, kind and language, kept as a copy, narrowed to the source and kind and shown at once', async () => {
+test('picks are made from the trending copies, handed to the recommender on stdin, kept as one copy, and shown at once', async () => {
   const { copies } = await copiesAt()
   const dir = await mkdtemp(join(tmpdir(), 'recommender-'))
   const script = join(dir, 'recommender.mjs')
   await writeFile(script, `#!/usr/bin/env node
+import { readFileSync, appendFileSync } from 'node:fs'
 const args = process.argv.slice(3)
 const flag = name => (args.includes('--' + name) ? args[args.indexOf('--' + name) + 1] : undefined)
+const { candidates } = JSON.parse(readFileSync(0, 'utf8'))
+appendFileSync(${JSON.stringify(join(dir, 'calls'))}, 'call\\n')
 const work = (source, id, kind) => ({ source, id, title: 'W' + id, kind, episode_count: 12, cover: 'https://x/c.jpg' })
 process.stdout.write(JSON.stringify({ picks: [
-  { work: work(flag('source') ?? 'fanqie', '1', flag('kind') ?? 'drama'), why: 'in ' + flag('language') + ' for ' + flag('person') },
-  { work: work('plain', '2', 'drama'), why: 'another source' },
-  { work: work('fanqie', '3', 'novel'), why: 'another kind' },
+  { work: work('fanqie', candidates[0].lists[0].results[0].id.replace('fanqie-', ''), candidates[0].kind), why: candidates.length + ' candidate lists, in ' + flag('language') + ' for ' + flag('person') },
   { work: work('gone', '4', 'drama'), why: 'not configured' },
 ] }))
 `)
@@ -139,16 +140,15 @@ process.stdout.write(JSON.stringify({ picks: [
   const hub = fakeHub()
   const discover = createDiscover({ copies, sources: hub.sources, covers: hub.covers, recommender: { command: [process.execPath, script], env: {}, hasSource: id => hub.sources.has(id) } })
   const person = { key: 'p', id: 'sub-1' }
-  const first = await discover.picks(person, { source: 'fanqie', kind: 'drama', language: 'en' })
+  const first = await discover.picks(person, { language: 'en' })
   assert.deepEqual([first.picks, first.loading], [[], true])
-  await settle(); await settle()
-  const shown = await discover.picks(person, { source: 'fanqie', kind: 'drama', language: 'en' })
-  assert.deepEqual(shown.picks.map(pick => [pick.work.source, pick.work.id, pick.why]), [['fanqie', '1', 'in en for sub-1']])
+  await settle(); await settle(); await settle()
+  const shown = await discover.picks(person, { language: 'en' })
+  assert.deepEqual(shown.picks.map(pick => [pick.work.source, pick.work.id, pick.why]), [['fanqie', '1', '1 candidate lists, in en for sub-1']])
   assert.equal(shown.picks[0].work.episodes, 12)
   assert.equal(shown.picks[0].work.cover, '/c/fanqie')
-  const unnarrowed = await discover.picks(person, { language: 'en' })
-  await settle(); await settle()
-  const watching = await discover.picks(person, { language: 'en' })
-  assert.equal(unnarrowed.loading, true)
-  assert.deepEqual(watching.picks.map(pick => pick.work.id), ['1', '2', '3'])
+  await discover.picks(person, { language: 'en' })
+  await discover.picks(person, { language: 'en' })
+  assert.equal((await readFile(join(dir, 'calls'), 'utf8')).trim().split('\n').length, 1, 'opened three times, the recommender ran once')
+  assert.deepEqual(hub.asked, ['fanqie:drama'], 'and the source was asked once')
 })

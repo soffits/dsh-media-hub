@@ -20,13 +20,14 @@ const HOUR_MS = 3_600_000
  * @param {{ warn: Function }} options.logger
  * @param {number} [options.maxAgeMs]
  * @param {number} [options.retryMs]
- * @param {number} [options.parallel]
+ * @param {number} [options.parallel] - asks at once; one that is made from other copies (`ensure`) waits for them, so keep it above the number of such asks that can run together
  * @param {() => number} [options.now]
  */
-export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs = HOUR_MS, parallel = 2, now = Date.now }) {
+export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs = HOUR_MS, parallel = 4, now = Date.now }) {
   /** @type {Map<string, { at: number, value: unknown }>} */
   const copies = new Map()
-  const flying = new Set()
+  /** @type {Map<string, Promise<void>>} */
+  const flying = new Map()
   const failedAt = new Map()
   const waiting = []
   let running = 0
@@ -52,7 +53,8 @@ export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs
   }
 
   function ask(key, produce) {
-    flying.add(key)
+    let settled
+    flying.set(key, new Promise((resolve) => { settled = resolve }))
     waiting.push(async () => {
       try {
         copies.set(key, { at: now(), value: await produce() })
@@ -65,12 +67,25 @@ export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs
         changed()
       } finally {
         flying.delete(key)
+        settled()
       }
     })
     pump()
   }
 
   return {
+    /**
+     * Like `get`, but a missing copy is waited for (the first ask), for what another copy is made from; an old one still answers at once.
+     * @param {string} key
+     * @param {() => Promise<unknown>} produce
+     */
+    async ensure(key, produce) {
+      const first = await this.get(key, produce)
+      if (first.value !== null || !flying.has(key)) return first
+      await flying.get(key)
+      return this.get(key, produce)
+    },
+
     /**
      * @param {string} key
      * @param {() => Promise<unknown>} produce - the outside answer, asked only when the copy is missing or old

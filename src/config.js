@@ -83,7 +83,7 @@ const CookieRule = z.object({
 const DEFAULT_SOURCES = Object.freeze([
   {
     id: 'fanqie',
-    kinds: [{ id: 'drama', media: 'video', trending: true }, { id: 'audio', media: 'audio', trending: true }, { id: 'novel', media: 'book', trending: true }],
+    kinds: [{ id: 'drama', media: 'video', trending: true }, { id: 'audio', media: 'audio' }, { id: 'novel', media: 'book', trending: true }],
     filters: [],
     command: ['fanqie'],
     env: {},

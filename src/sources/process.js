@@ -25,11 +25,15 @@ export async function commandExists(command, path = process.env.PATH ?? '') {
   return false
 }
 
-/** Run `argv`; resolves with the exit code, stdout (unless read by line), the tail of stderr and whether stdout overflowed. */
-export function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env } = {}) {
+/** Run `argv` (with `input` on its stdin when given); resolves with the exit code, stdout (unless read by line), the tail of stderr and whether stdout overflowed. */
+export function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } = {}) {
   return new Promise((resolve, reject) => {
     const [command, ...args] = argv
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], detached: true, cwd, env: { ...process.env, ...env } })
+    const child = spawn(command, args, { stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'], detached: true, cwd, env: { ...process.env, ...env } })
+    if (input !== undefined) {
+      child.stdin.on('error', () => {})
+      child.stdin.end(input)
+    }
     let stdout = ''
     let stderr = ''
     let pending = ''

@@ -3,7 +3,7 @@
  * switched in the `presence` setting:
  *
  *   ratings  "How was it?" for a show finished or removed lately, one tap into the watch log
- *   picks    works a recommender extension suggests, each with its reason (docs/recommender-protocol.md); Discover shows them per source and category too
+ *   picks    works a recommender extension suggests, each with its reason (docs/recommender-protocol.md)
  *   recap    a summary without spoilers kept with a show, written from outside (the tool's `annotate`)
  *
  * and the suggested next steps kept with a show (also written through `annotate`), drawn by
@@ -26,7 +26,7 @@ const STEP_ID = /^[a-z0-9][a-z0-9_-]{0,31}$/
 const MAX_LABEL_CHARS = 120
 const MAX_PROMPT_CHARS = 2000
 
-export const PICKS_LIMIT = 6
+export const PICKS_LIMIT = 8
 const PICKS_TIMEOUT_MS = 60_000
 const MAX_WHY_CHARS = 280
 
@@ -133,14 +133,15 @@ export function parsePicks(document, hasSource, limit = PICKS_LIMIT) {
 }
 
 /**
- * Ask the configured recommender command for one person's picks, narrowed to a source and kind and written in a language when given.
+ * Ask the configured recommender command for one person's picks, written in a language when given. What the sources
+ * themselves put forward (`candidates`: `[{ source, kind, lists }]`, their trending copies) goes to it on stdin, so it
+ * needs no outside call of its own for them.
  * @param {{ command: string[], env?: object, cwd?: string, hasSource: (id: string) => boolean }} options
- * @param {{ person: { id?: string }, source?: string, kind?: string, language?: string, limit?: number }} request
+ * @param {{ person: { id?: string }, language?: string, limit?: number, candidates?: object[] }} request
  */
-export async function recommend({ command, env = {}, cwd, hasSource }, { person, source, kind, language, limit = PICKS_LIMIT }) {
-  const argv = [...command, 'recommend', '--json', '--limit', String(limit),
-    ...(person.id ? ['--person', person.id] : []), ...(source ? ['--source', source] : []), ...(kind ? ['--kind', kind] : []), ...(language ? ['--language', language] : [])]
-  const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env })
+export async function recommend({ command, env = {}, cwd, hasSource }, { person, language, limit = PICKS_LIMIT, candidates = [] }) {
+  const argv = [...command, 'recommend', '--json', '--limit', String(limit), ...(person.id ? ['--person', person.id] : []), ...(language ? ['--language', language] : [])]
+  const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env, input: JSON.stringify({ candidates }) })
   if (result.code !== 0) throw new Error(`exit ${result.code}: ${result.stderr.trim().split('\n').pop() ?? ''}`)
   return parsePicks(JSON.parse(result.stdout), hasSource, limit)
 }
