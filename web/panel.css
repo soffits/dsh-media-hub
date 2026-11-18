@@ -369,6 +369,9 @@
 .vsync-danmakuToggle[aria-checked=true]{color:var(--dsw-alias-state-business-primary);box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-state-business-primary)}
 .vsync-danmakuToggle[aria-checked=false]{color:var(--dsw-alias-label-tertiary)}
 .vsync-popover{position:absolute;right:0;bottom:calc(100% + 6px);z-index:30;box-sizing:border-box;width:min(320px,calc(100vw - 24px));display:flex;flex-direction:column;gap:14px;padding:14px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-shadow-lv3)}
+.vsync-playerBar .vsync-popover{max-height:min(480px,calc(100dvh - 160px));overflow-y:auto}
+@media (width<=900px){.vsync-playerBar .vsync-popover{top:calc(100% + 6px);bottom:auto}}
+.vsync-player:fullscreen .vsync-playerBar .vsync-popover,.vsync-player[data-covering=true] .vsync-playerBar .vsync-popover{top:auto;bottom:calc(100% + 6px)}
 .vsync-setting{display:flex;flex-direction:column;gap:6px}
 .vsync-settingLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
 .vsync-settingChoices{display:flex;flex-wrap:wrap;gap:6px}
