@@ -36,8 +36,6 @@ export async function body(request) {
 
 const pick = (value, keys) => Object.fromEntries(keys.filter(key => value?.[key] !== undefined).map(key => [key, value[key]]))
 const text = value => (typeof value === 'string' ? value : '')
-/** The extras the person said yes to buying (src/points.js), by item key. */
-const buying = value => (Array.isArray(value) ? value.filter(key => typeof key === 'string').slice(0, 4) : [])
 
 /**
  * @param {{ hub: () => object | undefined, identity: () => object | undefined }} options
@@ -68,7 +66,7 @@ export function createPersonRoutes({ hub, identity }) {
       requestBody: 'buffered',
       fetch: handle(async (request, current, person) => {
         const input = await body(request)
-        return current.fetch({ ...pick(input, ['source', 'id', 'watch', 'together', 'all', 'quality', 'by']), language: text(input.language), person: person.id, buy: buying(input.buy) })
+        return current.fetch({ ...pick(input, ['source', 'id', 'watch', 'together', 'all', 'quality', 'by']), language: text(input.language), person: person.id })
       }),
     },
     {
@@ -77,7 +75,7 @@ export function createPersonRoutes({ hub, identity }) {
       requestBody: 'buffered',
       fetch: handle(async (request, current, person) => {
         const input = await body(request)
-        return current.createRoom({ ...pick(input, ['path', 'title', 'by', 'start']), fromPanel: true, person: person.id, buy: buying(input.buy) })
+        return current.createRoom({ ...pick(input, ['path', 'title', 'by', 'start']), fromPanel: true, person: person.id })
       }),
     },
     {

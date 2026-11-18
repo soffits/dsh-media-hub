@@ -22,7 +22,8 @@ import { createRemarks } from './remarks.js'
 import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { parseAnnotation, pendingRatings, ratingLine } from './presence.js'
-import { createPoints } from './points.js'
+import { createExtras } from './points.js'
+import { LOCALE_DIR, readLocales } from './locales.js'
 import { snapshotOf } from './work.js'
 import { createChanges } from './changes.js'
 import { createCopies } from './copies.js'
@@ -49,7 +50,8 @@ const hubError = (code, message) => Object.assign(new Error(message), { code })
  * @param {number} [options.discoverMaxAgeMs] - the same for what Discover shows: a source's trending lists and the recommender's picks
  * @param {number} options.coverCacheBytes - the most disk cover pictures may use
  * @param {{ command: string[], env?: object }} [options.recommender] - where picks come from (src/presence.js)
- * @param {{ command: string[], env?: object, night: { from: string, to: string } }} [options.points] - the points extension that prices extras (src/points.js)
+ * @param {() => object | undefined} [options.points] - the points plugin's service right now, if installed (src/points.js)
+ * @param {{ from: string, to: string }} [options.bingeNight] - starting to watch in this window is a binge night
  * @param {{ ahead: number, behind: number, capBytes: number }} options.cache - the rolling cache's window (episodes ahead of and behind where people are) and its cap in bytes (0 for none)
  */
 export function createMediaHub(options) {
@@ -58,7 +60,7 @@ export function createMediaHub(options) {
   const covers = createCovers({ dir: join(stateDir, 'covers'), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, id => sources.get(id))
   const log = createWatchLog({ file: join(stateDir, LOG_NAME), now, logger })
   const changes = createChanges({ intervalMs: options.changeIntervalMs })
-  const points = createPoints(options.points ?? { command: [], night: { from: '01:00', to: '06:00' } }, { logger, now })
+  const points = createExtras({ points: options.points ?? (() => undefined), night: options.bingeNight ?? { from: '01:00', to: '06:00' }, locales: () => readLocales(LOCALE_DIR, logger), now })
   const books = createBooks({ changed: () => changes.notify('shelf'), dir: join(stateDir, 'books'), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now })
   let rooms
   let cache
@@ -245,7 +247,7 @@ export function createMediaHub(options) {
     async createRoom(input) {
       // Opening a room starts watching: late at night that is a binge night for a person whose points price it.
       const person = typeof input.person === 'string' ? input.person : ''
-      const tickets = await points.pay(person, points.wants({ starts: true }), { buy: input.buy ?? [] })
+      const tickets = await points.pay(person, points.wants({ starts: true }))
       let start = input.start ?? null
       // A room on a library show continues where its viewers stopped, however it was asked for (page, person route, tool).
       if (start === null && typeof input.path === 'string') {
@@ -398,7 +400,7 @@ export function createMediaHub(options) {
      * whose account (`person`, the one asking) and the viewer's `language`, for the captions chosen with each episode.
      * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string, person?: string, language?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = '', by = '', person = '', language = '', buy = [] }) {
+    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = '', by = '', person = '', language = '' }) {
       const item = await source(sourceId).info(id, { person, language })
       if (!(item.episodes > 0)) throw hubError('empty', `${item.title || id} has no episodes`)
       const dir = await folderFor(sourceId, item)
@@ -406,7 +408,7 @@ export function createMediaHub(options) {
       const isNew = points.enabled && await isNewSeries(sourceId, item)
       const disk = await statfs(libraryRoots[0]).catch(() => null)
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError('no_space', 'the library disk is almost full; delete something first')
-      const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { buy, subject })
+      const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { subject })
       const how = { ...(isQuality(quality) ? { quality } : {}), person, language }
       await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all })
       library.setWork(dir, snapshotOf(item, now()))

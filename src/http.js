@@ -40,7 +40,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { PREFIX } from './delivery.js'
 import { parseFilters } from './filters.js'
-import { readLocales } from './locales.js'
+import { LOCALE_DIR, readLocales } from './locales.js'
 import { VENDORED } from './vendored.js'
 
 export const ROUTE = `/${PREFIX}`
@@ -72,7 +72,6 @@ const WEB_TYPES = Object.freeze({ '.js': 'text/javascript; charset=utf-8', '.mjs
 /** Browser files outside web/, by the name they are served under; everything in web/ is served by its own name. */
 const here = fileURLToPath(new URL('.', import.meta.url))
 const WEB_DIR = resolve(here, '../web')
-const LOCALE_DIR = resolve(here, '../locale')
 /** The modules that also run in the browser, by the name they are served under. `here` is src/ or dist/ (the built entries), both one level below the plugin's folder. */
 export const MODULES = Object.freeze({
   'sync.js': resolve(here, '../src/sync.js'),

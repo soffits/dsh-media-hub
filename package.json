@@ -57,6 +57,7 @@
         "@deepseek-ai/dsh-client-locale",
         "@soffits/dsh-ui-actions",
         "@soffits/dsh-ui-kit",
+        "@soffits/dsh-points",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-sidebar"
       ]

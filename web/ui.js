@@ -70,21 +70,21 @@ export const post = (path, body) => api(path, { method: 'POST', body: JSON.strin
 const personUrl = path => new URL(`api/media-hub/${path}`, document.baseURI)
 export const asPerson = (path, body, init = {}) => request(personUrl(path), body === undefined ? init : { ...init, method: 'POST', body: JSON.stringify(body) })
 
-/** Where the page offers an extra the person's points pay for (page.js `PointsOffer`): resolves true to buy it. */
-let offer = null
-export function setOffer(value) { offer = value }
+/** The points plugin's offer (ctx.points from @soffits/dsh-points, set by client.js; `available` is false without it). */
+let points = null
+export function setPoints(value) { points = value }
 
 /**
  * An action that may need a ticket (a new series, a binge night; src/points.js): when the hub answers `points`, the
- * page offers the purchase where the person is, and on yes asks again buying it. A no answers `{ declined: true }`.
+ * points plugin offers it where the person is, and after a yes the action is asked again. A no answers `{ declined: true }`.
  */
 export async function asPersonPaying(path, body) {
-  const buy = []
+  const offered = new Set()
   for (;;) {
-    const answer = await asPerson(path, buy.length === 0 ? body : { ...body, buy })
-    if (answer.code !== 'points' || !answer.points || offer === null || buy.includes(answer.points.item)) return answer
-    if (!(await offer(answer.points))) return { declined: true }
-    buy.push(answer.points.item)
+    const answer = await asPerson(path, body)
+    if (answer.code !== 'points' || !answer.points || points?.available() !== true || offered.has(answer.points.item)) return answer
+    offered.add(answer.points.item)
+    if (!(await points.offer(answer.points).catch(() => false))) return { declined: true }
   }
 }
 

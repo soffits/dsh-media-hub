@@ -6,7 +6,7 @@ import { createDelivery } from '../src/delivery.js'
 import { createMediaHub } from '../src/media.js'
 import { isNearEnd } from '../src/watchlog.js'
 import { fileURLToPath } from 'node:url'
-import { hasFfmpeg, makeVideo, pointsExtension, quietLogger, socketServer, tempDir, viewer } from './helpers.js'
+import { fakePoints, hasFfmpeg, makeVideo, quietLogger, socketServer, tempDir, viewer } from './helpers.js'
 
 const tools = { ffmpeg: 'ffmpeg', ffprobe: 'ffprobe', maxHeight: 1080, threads: 1 }
 const HELD_FFMPEG = fileURLToPath(new URL('./fixtures/held-ffmpeg.mjs', import.meta.url))
@@ -706,44 +706,45 @@ test('a download that fails says why to the room waiting on it and to the librar
   assert.equal(show.download.reason, 'sign_in')
 })
 
-test('with a points extension, starting a series new to the hub is an extra; going on with it, a later season of it or a film is not', async (t) => {
+test('with the points plugin, starting a series new to the hub is an extra; going on with it, a later season of it or a film is not', async (t) => {
   const dir = tempDir(t)
-  const ext = pointsExtension(t, { ann: 100 }, { from: '00:00', to: '00:01' })
+  const points = fakePoints({ ann: 100 })
   const calls = []
   const films = { ...workSource(1, calls), id: 'films' }
   const plain = workSource(3, calls)
   // 42 and 77 are two seasons of one series, each listing the other; 50 and 51 stand alone
   const series = { ...plain, info: async id => ({ ...(await plain.info(id)), related: { 42: [{ id: '77', title: 'Next', relation: 'season' }], 77: [{ id: '42', title: 'First', relation: 'season' }] }[id] ?? [] }) }
-  const hub = makeHub(dir, series, { sources: [series, films], points: ext.config })
+  const hub = makeHub(dir, series, { sources: [series, films], points: () => points, bingeNight: { from: '00:00', to: '00:01' } })
   await hub.load()
   t.after(() => hub.dispose())
-  await assert.rejects(hub.fetch({ source: 'stub', id: '42', person: 'ann' }), error => error.code === 'points' && error.points.cost === 30)
+  await assert.rejects(hub.fetch({ source: 'stub', id: '42', person: 'ann' }), error => error.code === 'points' && error.points.item === 'media:new_series')
   assert.equal((await hub.library()).shows.length, 0, 'nothing is saved before the yes')
-  await hub.fetch({ source: 'stub', id: '42', watch: false, person: 'ann', buy: ['media:new_series'] })
+  points.buy('ann', 'media:new_series', 'media:series:stub:42')
   await hub.fetch({ source: 'stub', id: '42', watch: false, person: 'ann' })
+  await hub.fetch({ source: 'stub', id: '42', watch: false, person: 'ann' })        // going on with it
   await hub.fetch({ source: 'stub', id: '77', watch: false, person: 'ann' })        // 42's next season (related, relation season)
   await hub.fetch({ source: 'films', id: '9', watch: false, person: 'ann' })        // one episode
   await hub.fetch({ source: 'stub', id: '50', watch: false })                       // nobody signed in
   await assert.rejects(hub.fetch({ source: 'stub', id: '51', watch: false, person: 'ann' }), error => error.code === 'points')
-  const state = ext.state()
-  assert.deepEqual(state.calls.filter(c => c[0] === 'buy' || c[0] === 'use').map(c => [c[0], c.at(-1)]),
+  assert.deepEqual(points.calls.filter(c => c[0] === 'buy' || c[0] === 'use').map(c => [c[0], c.at(-1)]),
     [['buy', 'media:series:stub:42'], ['use', 'media:series:stub:42']])
-  assert.equal(state.players.ann, 70)
+  assert.equal(points.players.ann, 70)
 })
 
 test('late at night, starting to watch is a binge night: one ticket for the whole night, used per room; a room is never stopped', async (t) => {
   const dir = tempDir(t)
-  const ext = pointsExtension(t, { ann: 100 }, { from: '01:00', to: '06:00' })
+  const points = fakePoints({ ann: 100 })
   const films = { ...workSource(1, []), id: 'films' }
-  const hub = makeHub(dir, films, { sources: [films], points: ext.config, now: () => new Date(2026, 10, 18, 2, 0).getTime() })
+  const hub = makeHub(dir, films, { sources: [films], points: () => points, bingeNight: { from: '01:00', to: '06:00' }, now: () => new Date(2026, 10, 18, 2, 0).getTime() })
   await hub.load()
   t.after(() => hub.dispose())
   const saved = await hub.fetch({ source: 'films', id: '9', watch: false, person: 'ann' })     // saving isn't watching
   await assert.rejects(hub.createRoom({ source: 'local', path: saved.path, person: 'ann' }), error => error.points?.item === 'media:binge_night')
-  const first = await hub.createRoom({ source: 'local', path: saved.path, person: 'ann', buy: ['media:binge_night'] })
+  points.buy('ann', 'media:binge_night', 'media:binge:2026-11-18')
+  const first = await hub.createRoom({ source: 'local', path: saved.path, person: 'ann' })
   const second = await hub.createRoom({ source: 'local', path: saved.path, person: 'ann' })
   await hub.createRoom({ source: 'local', path: saved.path })                                    // the assistant's tool: nobody in particular
-  const calls = ext.state().calls.filter(c => c[0] === 'buy' || c[0] === 'use').map(c => [c[0], c.at(-1)])
+  const calls = points.calls.filter(c => c[0] === 'buy' || c[0] === 'use').map(c => [c[0], c.at(-1)])
   assert.deepEqual(calls, [['buy', 'media:binge:2026-11-18'], ['use', `media:start:${first.room.id}`], ['use', `media:start:${second.room.id}`]])
-  assert.equal(ext.state().players.ann, 60)
+  assert.equal(points.players.ann, 60)
 })

@@ -1,7 +1,11 @@
 /** The page's words, read from `locale/<tag>.json`: every file there is a language, so adding one needs no code. */
 import { readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { BASE, TAG } from './i18n.js'
+
+/** The plugin's locale folder, beside src/ and dist/ alike. */
+export const LOCALE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../locale')
 
 /**
  * `{ <tag>: { <key>: text } }` from each `<tag>.json` in `dir` (its `ui` table; `meta` is DSH's plugin

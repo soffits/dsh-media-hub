@@ -8271,11 +8271,11 @@ var require_socksclient = __commonJS({
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve7) {
-          resolve7(value);
+        return value instanceof P ? value : new P(function(resolve8) {
+          resolve8(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve7, reject) {
+      return new (P || (P = Promise))(function(resolve8, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -8291,7 +8291,7 @@ var require_socksclient = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve7(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve8(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -8325,13 +8325,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnection(options, callback) {
-        return new Promise((resolve7, reject) => {
+        return new Promise((resolve8, reject) => {
           try {
             (0, helpers_1.validateSocksClientOptions)(options, ["connect"]);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve7(err);
+              return resolve8(err);
             } else {
               return reject(err);
             }
@@ -8342,16 +8342,16 @@ var require_socksclient = __commonJS({
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(null, info);
-              resolve7(info);
+              resolve8(info);
             } else {
-              resolve7(info);
+              resolve8(info);
             }
           });
           client.once("error", (err) => {
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(err);
-              resolve7(err);
+              resolve8(err);
             } else {
               reject(err);
             }
@@ -8368,13 +8368,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnectionChain(options, callback) {
-        return new Promise((resolve7, reject) => __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve8, reject) => __awaiter(this, void 0, void 0, function* () {
           try {
             (0, helpers_1.validateSocksClientChainOptions)(options);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve7(err);
+              return resolve8(err);
             } else {
               return reject(err);
             }
@@ -8400,14 +8400,14 @@ var require_socksclient = __commonJS({
             }
             if (typeof callback === "function") {
               callback(null, { socket: sock });
-              resolve7({ socket: sock });
+              resolve8({ socket: sock });
             } else {
-              resolve7({ socket: sock });
+              resolve8({ socket: sock });
             }
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              resolve7(err);
+              resolve8(err);
             } else {
               reject(err);
             }
@@ -8970,7 +8970,7 @@ var require_build = __commonJS({
 });
 
 // index.js
-import { join as join18, resolve as resolve6 } from "node:path";
+import { join as join18, resolve as resolve7 } from "node:path";
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -9465,8 +9465,8 @@ function validateVolatileSchema(schema, path = [], blocked = false, seen = /* @_
   if (schema.inner && (schema.type !== "lazy" || schema.inner[kSchema])) validateVolatileSchema(schema.inner, [...path, "*"], true, seen);
   if (schema.list) for (let index = 0; index < schema.list.length; index++) validateVolatileSchema(schema.list[index], [...path, String(index)], true, seen);
 }
-Schema.extend = function extend(type, resolve7) {
-  resolvers[type] = resolve7;
+Schema.extend = function extend(type, resolve8) {
+  resolvers[type] = resolve8;
 };
 Schema.resolve = function resolve(data, schema, options = {}, strict = false) {
   if (!schema) return [data];
@@ -10013,7 +10013,7 @@ import { URL as URL2 } from "url";
 var import_debug = __toESM(require_src(), 1);
 var debug = (0, import_debug.default)("https-proxy-agent:parse-proxy-response");
 function parseProxyResponse(socket) {
-  return new Promise((resolve7, reject) => {
+  return new Promise((resolve8, reject) => {
     let buffersLength = 0;
     const buffers = [];
     function read() {
@@ -10079,7 +10079,7 @@ function parseProxyResponse(socket) {
       }
       debug("got proxy server response: %o %o", firstLine, headers);
       cleanup();
-      resolve7({
+      resolve8({
         connect: {
           statusCode,
           statusText,
@@ -10383,12 +10383,12 @@ var SocksProxyAgent = class extends Agent2 {
     let { host } = opts;
     const { port, lookup: lookupFn = dns.lookup } = opts;
     if (shouldLookup) {
-      host = await new Promise((resolve7, reject) => {
+      host = await new Promise((resolve8, reject) => {
         lookupFn(host, {}, (err, address) => {
           if (err) {
             reject(err);
           } else {
-            resolve7(typeof address === "string" ? address : address[0].address);
+            resolve8(typeof address === "string" ? address : address[0].address);
           }
         });
       });
@@ -10511,11 +10511,11 @@ var proxyError = (code, message) => Object.assign(new Error(message), { code });
 function proxyAnswers(proxy, timeoutMs = PROBE_TIMEOUT_MS) {
   const { hostname, port, protocol } = new URL(proxy);
   const defaultPort = protocol.startsWith("socks") ? 1080 : protocol === "https:" ? 443 : 80;
-  return new Promise((resolve7) => {
+  return new Promise((resolve8) => {
     const socket = connect4({ host: hostname.replace(/^\[|\]$/g, ""), port: Number(port) || defaultPort });
     const done = (up) => {
       socket.destroy();
-      resolve7(up);
+      resolve8(up);
     };
     socket.setTimeout(timeoutMs, () => done(false));
     socket.once("connect", () => done(true));
@@ -10541,9 +10541,9 @@ function createProxies(rules = [], io = {}) {
     const protocol = new URL(url).protocol;
     if (protocol !== "https:" && protocol !== "http:") throw proxyError("invalid", `not a web address: ${url}`);
     const agent = agentFor(await route(url, page));
-    return new Promise((resolve7, reject) => {
+    return new Promise((resolve8, reject) => {
       const send = protocol === "https:" ? httpsRequest : httpRequest;
-      const req = send(url, { agent, headers: { "user-agent": USER_AGENT, accept: "image/*,*/*;q=0.5" }, timeout: timeoutMs }, resolve7);
+      const req = send(url, { agent, headers: { "user-agent": USER_AGENT, accept: "image/*,*/*;q=0.5" }, timeout: timeoutMs }, resolve8);
       req.on("timeout", () => req.destroy(proxyError("timeout", `no answer from ${hostOf(url)} in ${timeoutMs / 1e3} s`)));
       req.on("error", reject);
       req.end();
@@ -10660,7 +10660,7 @@ async function commandExists(command, path = process.env.PATH ?? "") {
   return false;
 }
 function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } = {}) {
-  return new Promise((resolve7, reject) => {
+  return new Promise((resolve8, reject) => {
     const [command, ...args] = argv;
     const child = spawn(command, args, { stdio: [input === void 0 ? "ignore" : "pipe", "pipe", "pipe"], detached: true, cwd, env: { ...process.env, ...env } });
     if (input !== void 0) {
@@ -10705,7 +10705,7 @@ function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } = {}) {
       if (timer) clearTimeout(timer);
       signal?.removeEventListener("abort", stop);
       if (onStdoutLine !== void 0 && pending.trim() !== "") onStdoutLine(pending);
-      resolve7({ code, stdout, stderr, oversized });
+      resolve8({ code, stdout, stderr, oversized });
     });
   });
 }
@@ -10852,9 +10852,9 @@ function parseComments(document2) {
   return { total: countOrNull(document2.total), items, next: next !== "" && next.length <= MAX_CURSOR && items.length > 0 ? next : null };
 }
 function sha256Of(path) {
-  return new Promise((resolve7, reject) => {
+  return new Promise((resolve8, reject) => {
     const hash = createHash("sha256");
-    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve7(hash.digest("hex")));
+    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve8(hash.digest("hex")));
   });
 }
 async function verify(dir, event, label, logger) {
@@ -11407,9 +11407,9 @@ async function streamEpisode({ files, growing, dir, ffmpeg = "ffmpeg", ffprobe =
   child.stderr.on("data", (chunk) => {
     errors = (errors + chunk).slice(-4e3);
   });
-  const exited = new Promise((resolve7, reject) => {
+  const exited = new Promise((resolve8, reject) => {
     child.on("error", reject);
-    child.on("close", (code) => code === 0 ? resolve7() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
+    child.on("close", (code) => code === 0 ? resolve8() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
   });
   const running = settledFlag(exited);
   let told = false;
@@ -11547,7 +11547,7 @@ async function dropPrepared(cacheDir, path) {
   if (key !== null) await rm4(join6(cacheDir, key), { recursive: true, force: true });
 }
 function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
-  return new Promise((resolve7, reject) => {
+  return new Promise((resolve8, reject) => {
     const child = spawn3("nice", ["-n", "10", ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-progress", "pipe:1", ...args], { stdio: ["ignore", "pipe", "pipe"], signal });
     let errors = "";
     child.stderr.on("data", (chunk) => {
@@ -11558,7 +11558,7 @@ function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
       if (match && duration && onProgress) onProgress(Math.min(1, Number(match[1]) / 1e6 / duration));
     });
     child.on("error", reject);
-    child.on("close", (code) => code === 0 ? resolve7() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
+    child.on("close", (code) => code === 0 ? resolve8() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
   });
 }
 var remuxArgs = (input, output) => ["-y", "-i", input, "-map", "0:V:0?", "-map", "0:a:0?", "-sn", "-dn", "-c", "copy", "-movflags", "+faststart", "-f", "mp4", output];
@@ -12085,13 +12085,9 @@ var Recommender = Schema.object({
   env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command.")
 });
 var Clock = Schema.string().pattern(/^([01]?\d|2[0-3]):[0-5]\d$/);
-var Points = Schema.object({
-  command: Schema.array(Schema.string()).default([]).description("A points extension speaking docs/points-protocol.md (program and fixed arguments, the plugin adds the verbs). Empty means every extra is free."),
-  env: Schema.dict(Schema.string()).default({}).description("Extra environment variables for the command."),
-  night: Schema.object({
-    from: Clock.default("01:00").description("When late night starts, on the host's clock (HH:MM)."),
-    to: Clock.default("06:00").description("When it ends; a binge night ticket lasts until then.")
-  }).default({ from: "01:00", to: "06:00" }).description("Starting to watch in this window is a binge night for people the extension keeps points for.")
+var BingeNight = Schema.object({
+  from: Clock.default("01:00").description("When late night starts, on the host's clock (HH:MM)."),
+  to: Clock.default("06:00").description("When it ends; a binge night ticket lasts until then.")
 });
 var Config = Schema.object({
   label: Label.default("").description("Name of the sidebar entry: a string, or { <tag>: text } per language (the viewer's tag, then its primary subtag, then en). Empty uses the page's own name in the viewer's language."),
@@ -12114,7 +12110,7 @@ var Config = Schema.object({
   notifyCommand: Schema.array(Schema.string()).default([]).description("A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run."),
   presence: Presence.default({ continue: true, recap: false, ratings: false, picks: false }).description("What the Watching tab shows besides the open rooms and the library. Each part can be switched on or off."),
   recommender: Recommender.default({ command: [], env: {} }).description("Where picks come from: a recommender extension. The hub has no taste of its own."),
-  points: Points.default({ command: [], env: {}, night: { from: "01:00", to: "06:00" } }).description("Extras a person's points pay for: starting a new series and a binge night, for the people a points extension plays with. Watching stays free; with no extension nothing changes."),
+  bingeNight: BingeNight.default({ from: "01:00", to: "06:00" }).description("Starting to watch in this window is a binge night, an extra that costs points for the people the points plugin (@soffits/dsh-points) plays with, like starting a series new to the hub. Without that plugin every extra is free."),
   ffmpeg: Schema.string().default("ffmpeg").description("ffmpeg command."),
   ffprobe: Schema.string().default("ffprobe").description("ffprobe command."),
   ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file applies."),
@@ -12125,9 +12121,9 @@ var Config = Schema.object({
 // src/http.js
 import { createReadStream as createReadStream2, existsSync as existsSync2 } from "node:fs";
 import { readFile as readFile5, stat as stat6 } from "node:fs/promises";
-import { dirname as dirname3, extname as extname5, isAbsolute as isAbsolute2, relative, resolve as resolve2, sep } from "node:path";
+import { dirname as dirname4, extname as extname5, isAbsolute as isAbsolute2, relative, resolve as resolve3, sep } from "node:path";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // src/filters.js
 var LANGUAGE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/;
@@ -12173,7 +12169,9 @@ function interleave(lists) {
 
 // src/locales.js
 import { readdir as readdir4, readFile as readFile4 } from "node:fs/promises";
-import { join as join10 } from "node:path";
+import { dirname as dirname3, join as join10, resolve as resolve2 } from "node:path";
+import { fileURLToPath } from "node:url";
+var LOCALE_DIR = resolve2(dirname3(fileURLToPath(import.meta.url)), "../locale");
 async function readLocales(dir, logger) {
   const names = (await readdir4(dir).catch(() => [])).filter((name2) => name2.endsWith(".json")).sort();
   const locales = {};
@@ -12224,25 +12222,24 @@ var MEDIA_TYPES = Object.freeze({
   ".jpg": "image/jpeg"
 });
 var WEB_TYPES = Object.freeze({ ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" });
-var here = fileURLToPath(new URL(".", import.meta.url));
-var WEB_DIR = resolve2(here, "../web");
-var LOCALE_DIR = resolve2(here, "../locale");
+var here = fileURLToPath2(new URL(".", import.meta.url));
+var WEB_DIR = resolve3(here, "../web");
 var MODULES = Object.freeze({
-  "sync.js": resolve2(here, "../src/sync.js"),
-  "formats.js": resolve2(here, "../src/formats.js"),
-  "i18n.js": resolve2(here, "../src/i18n.js"),
-  "captions.js": resolve2(here, "../src/captions.js")
+  "sync.js": resolve3(here, "../src/sync.js"),
+  "formats.js": resolve3(here, "../src/formats.js"),
+  "i18n.js": resolve3(here, "../src/i18n.js"),
+  "captions.js": resolve3(here, "../src/captions.js")
 });
 function vendoredFile(name2) {
-  const built = resolve2(here, "../dist", name2);
+  const built = resolve3(here, "../dist", name2);
   if (existsSync2(built)) return built;
   const { pkg, file } = VENDORED[name2];
-  return resolve2(dirname3(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file);
+  return resolve3(dirname4(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file);
 }
 function webFile(name2) {
   if (Object.hasOwn(VENDORED, name2)) return vendoredFile(name2);
   if (MODULES[name2] !== void 0) return MODULES[name2];
-  return /^[a-z0-9-]+\.(js|css)$/.test(name2) ? resolve2(WEB_DIR, name2) : void 0;
+  return /^[a-z0-9-]+\.(js|css)$/.test(name2) ? resolve3(WEB_DIR, name2) : void 0;
 }
 function admitOwner(connection, request) {
   const admission = connection.admit(request);
@@ -12304,7 +12301,7 @@ function sendJson(res, status, value) {
   res.writeHead(status, { ...SECURITY_HEADERS, "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body2) }).end(body2);
 }
 function within(root, rel) {
-  const target = resolve2(root, rel);
+  const target = resolve3(root, rel);
   const back = relative(root, target);
   if (back === "" || back === ".." || back.startsWith(`..${sep}`) || isAbsolute2(back)) return null;
   return target;
@@ -12354,7 +12351,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         if (item === void 0) return sendText(res, 404, "Not found.");
         const rest = parts.slice(3).join("/");
         if (item.kind === "hls") {
-          const target = within(dirname3(item.file), rest);
+          const target = within(dirname4(item.file), rest);
           return target === null ? sendText(res, 404, "Not found.") : sendFile(req, res, target);
         }
         return sendFile(req, res, item.file);
@@ -12426,7 +12423,7 @@ Content-Length: 0\r
 import { spawn as spawn5 } from "node:child_process";
 import { createHash as createHash6 } from "node:crypto";
 import { statfs as statfs2, stat as stat10 } from "node:fs/promises";
-import { join as join17, resolve as resolve5 } from "node:path";
+import { join as join17, resolve as resolve6 } from "node:path";
 
 // src/downloads.js
 import { readFile as readFile6, rename as rename3, writeFile as writeFile3 } from "node:fs/promises";
@@ -12794,7 +12791,7 @@ function sha256Of2(path) {
   return readFile7(path).then((body2) => createHash4("sha256").update(body2).digest("hex"));
 }
 function runConverter(command, input, output) {
-  return new Promise((resolve7, reject) => {
+  return new Promise((resolve8, reject) => {
     const child = spawn4(command, [input, output], { stdio: ["ignore", "ignore", "pipe"], detached: true });
     let stderr = "";
     const timer = setTimeout(() => {
@@ -12812,7 +12809,7 @@ function runConverter(command, input, output) {
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      if (code === 0) resolve7();
+      if (code === 0) resolve8();
       else reject(booksError("convert_failed", `conversion failed: ${stderr.trim().split("\n").pop() || `exit ${code}`}`));
     });
   });
@@ -13090,8 +13087,8 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
       });
     }
   };
-  const queued = (job) => new Promise((resolve7, reject) => {
-    waiting.push(() => job().then(resolve7, reject));
+  const queued = (job) => new Promise((resolve8, reject) => {
+    waiting.push(() => job().then(resolve8, reject));
     pump();
   });
   async function trim() {
@@ -13196,7 +13193,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
 // src/hub.js
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { mkdir as mkdir8, readFile as readFile8, rename as rename6, writeFile as writeFile5 } from "node:fs/promises";
-import { dirname as dirname4, isAbsolute as isAbsolute3, join as join14, resolve as resolve3 } from "node:path";
+import { dirname as dirname5, isAbsolute as isAbsolute3, join as join14, resolve as resolve4 } from "node:path";
 
 // src/sync.js
 var DRIFT = Object.freeze({
@@ -13710,7 +13707,7 @@ function createRoomService(options) {
     return { ...room, items: room.items.map((entry, n) => n === room.index ? { ...entry, status: "preparing", error: null } : entry) };
   }
   async function reopen(room) {
-    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname4(item.file)) === null;
+    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname5(item.file)) === null;
     const items = [];
     for (const item of room.items) {
       if (!await unfinished(item)) items.push(item);
@@ -13769,7 +13766,7 @@ function createRoomService(options) {
   }
   async function localItems(path, fromPanel) {
     if (typeof path !== "string" || !isAbsolute3(path)) throw serviceError("invalid", "path must be an absolute path");
-    const target = resolve3(path);
+    const target = resolve4(path);
     if (fromPanel && !libraryRoots.some((root) => target === root || target.startsWith(`${root}/`))) {
       throw serviceError("outside", "the panel can only open files from the library folders");
     }
@@ -13785,7 +13782,7 @@ function createRoomService(options) {
     return episodes.map(localItem);
   }
   async function syncShow(path) {
-    const target = resolve3(path);
+    const target = resolve4(path);
     const entries = await options.directory?.(target);
     if (!entries) return;
     for (const room of [...rooms.values()]) {
@@ -13824,7 +13821,7 @@ function createRoomService(options) {
       const start = input.start;
       const room = {
         ...created,
-        showPath: resolve3(input.path),
+        showPath: resolve4(input.path),
         together: input.together === true,
         ...Number.isInteger(start?.index) && start.index >= 0 && start.index < items.length ? { index: start.index, position: Math.max(0, Number(start.position) || 0) } : {}
       };
@@ -13873,18 +13870,18 @@ function createRoomService(options) {
     },
     /** Whether an open room plays anything from `path` (a show folder or file). */
     usesPath(path) {
-      const target = resolve3(path);
+      const target = resolve4(path);
       return [...rooms.values()].some((room) => room.showPath === target || room.items.some((item) => typeof item.sourcePath === "string" && (item.sourcePath === target || item.sourcePath.startsWith(`${target}/`))));
     },
     /** The episode numbers rooms on a show are on, one per room; empty when no room has it open. */
     focusesOf(path) {
-      const target = resolve3(path);
+      const target = resolve4(path);
       return [...rooms.values()].filter((room) => room.showPath === target).map((room) => room.items[room.index]?.slot).filter((n) => n !== void 0);
     },
     syncShow,
     /** Episodes someone waits on that could not be fetched: show them as failed (with the reason, when known), so a click on one tries again. */
     failWaiting(path, message, reason = null) {
-      const target = resolve3(path);
+      const target = resolve4(path);
       for (const room of [...rooms.values()]) {
         if (room.showPath !== target) continue;
         const items = room.items.map((item) => item.slot !== void 0 && item.sourcePath === null && item.status === "preparing" ? { ...item, status: "failed", progress: null, error: message, reason } : item);
@@ -13897,7 +13894,7 @@ function createRoomService(options) {
      * @param {{ fraction: number | null, done: number, total: number | null, speed: number | null, eta: number | null }} progress
      */
     downloadProgress(path, number, progress2) {
-      const target = resolve3(path);
+      const target = resolve4(path);
       for (const room of [...rooms.values()]) {
         if (room.showPath !== target) continue;
         const item = room.items.find((entry) => entry.slot === number && entry.sourcePath === null && entry.status === "preparing");
@@ -13909,7 +13906,7 @@ function createRoomService(options) {
      * Episode `number` of a show while a source still fetches it, as files that play while they grow
      * (`growing` settles when they are complete): rooms waiting on it play it once enough is there.
      */
-    streamEpisode: (path, number, partial) => streams.offer(resolve3(path), number, partial),
+    streamEpisode: (path, number, partial) => streams.offer(resolve4(path), number, partial),
     /** The episode number of a room's item in its show (undefined for a room on plain files). */
     slotOf: (roomId, index) => rooms.get(roomId)?.items[index]?.slot,
     /** The prepared file of a ready local item. */
@@ -14074,7 +14071,7 @@ function createJournal({ log, library, now = Date.now }) {
 
 // src/shows.js
 import { mkdir as mkdir9, readFile as readFile10, readdir as readdir7, rename as rename7, rm as rm8, stat as stat9, statfs, writeFile as writeFile6 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname5, extname as extname7, join as join15, resolve as resolve4 } from "node:path";
+import { basename as basename5, dirname as dirname6, extname as extname7, join as join15, resolve as resolve5 } from "node:path";
 
 // src/presence.js
 var RATINGS = Object.freeze(["loved", "fine", "not-for-me", "unfinished"]);
@@ -14232,8 +14229,8 @@ function createLibrary(options) {
   }
   function showPath(path) {
     if (typeof path !== "string") return null;
-    const target = resolve4(path);
-    return roots.includes(dirname5(target)) && !basename5(target).startsWith(".") ? target : null;
+    const target = resolve5(path);
+    return roots.includes(dirname6(target)) && !basename5(target).startsWith(".") ? target : null;
   }
   function requireShow(path) {
     const target = showPath(path);
@@ -14242,7 +14239,7 @@ function createLibrary(options) {
   }
   function showOf(episodePath) {
     if (typeof episodePath !== "string") return null;
-    return showPath(episodePath) ?? showPath(dirname5(episodePath));
+    return showPath(episodePath) ?? showPath(dirname6(episodePath));
   }
   async function episodeFiles(path) {
     const info = await stat9(path).catch(() => null);
@@ -14578,7 +14575,7 @@ function createLibrary(options) {
       if (download(target)?.active) throw libraryError("in_use", "this show is still downloading");
       const isFile = (await stat9(target)).isFile();
       const clean = cleanName(name2);
-      const next = join15(dirname5(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
+      const next = join15(dirname6(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
       if (next === target) return { path: target };
       if (await stat9(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
       await rename7(target, next);
@@ -14803,19 +14800,8 @@ function createFollows({ library, source, refreshed, addSeason, record, notify, 
 
 // src/points.js
 var EXTRAS = Object.freeze({
-  newSeries: Object.freeze({
-    key: "media:new_series",
-    name: "Start a new series",
-    cost: 30,
-    about: "Begin watching a series that is new to the library; going on with one stays free"
-  }),
-  bingeNight: Object.freeze({
-    key: "media:binge_night",
-    name: "Binge night",
-    cost: 40,
-    uses: 0,
-    about: "Start watching late at night, as often as you like, until morning"
-  })
+  newSeries: Object.freeze({ key: "media:new_series", cost: 30, words: "points.newSeries" }),
+  bingeNight: Object.freeze({ key: "media:binge_night", cost: 40, uses: 0, words: "points.bingeNight" })
 });
 var CLOCK = /^([01]?\d|2[0-3]):([0-5]\d)$/;
 var minutes = (text3) => {
@@ -14834,78 +14820,53 @@ function nightOf(night, date2) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${evening.getFullYear()}-${pad(evening.getMonth() + 1)}-${pad(evening.getDate())}`;
 }
-var pointsError = (need) => Object.assign(new Error(`${need.name} costs ${need.cost} points`), { code: "points", status: 402, points: need });
-function createPoints(config, { logger, now = Date.now, run: run3 = run }) {
-  const enabled = config.command.length > 0;
-  const registered = /* @__PURE__ */ new Set();
-  async function ask(args) {
-    const { code, stdout, stderr } = await run3([...config.command, ...args, "--json"], { timeoutMs: 2e4, env: config.env });
-    const line = stdout.trim().split("\n").filter(Boolean).pop() ?? "";
-    if (code !== 0) throw Object.assign(new Error(`points extension failed: ${stderr.trim().split("\n").pop() ?? code}`), { code: "unavailable" });
-    return JSON.parse(line);
-  }
-  function itemArgs(extra2) {
-    const args = ["--name", extra2.name, "--cost", String(extra2.cost), "--about", extra2.about];
-    if (extra2.uses !== void 0) args.push("--uses", String(extra2.uses));
-    if (extra2 === EXTRAS.bingeNight) args.push("--until", config.night.to);
-    return args;
-  }
-  async function register(person) {
-    if (registered.has(person)) return true;
-    for (const extra2 of Object.values(EXTRAS)) {
-      const answer = await ask(["shop", person, "register", extra2.key, ...itemArgs(extra2)]);
-      if (answer.recorded === false) return false;
-    }
-    registered.add(person);
-    return true;
+var wordsOf = (locales, key) => Object.fromEntries(Object.entries(locales).filter(([, ui]) => typeof ui[key] === "string").map(([tag, ui]) => [tag, ui[key]]));
+function createExtras({ points, night, locales, now = Date.now }) {
+  async function itemOf(extra2) {
+    const words = await locales();
+    return {
+      key: extra2.key,
+      cost: extra2.cost,
+      name: wordsOf(words, extra2.words),
+      about: wordsOf(words, `${extra2.words}About`),
+      ...extra2.uses === void 0 ? {} : { uses: extra2.uses },
+      ...extra2 === EXTRAS.bingeNight ? { until: night.to } : {}
+    };
   }
   return {
-    enabled,
+    /** Whether any extra can cost points now: the points plugin is installed and has a ledger. */
+    get enabled() {
+      return points()?.enabled === true;
+    },
     /** Which extras an action needs now: `isNew` for a new series, `starts` when it starts watching. */
     wants({ isNew = false, starts = false }) {
-      if (!enabled) return [];
-      return [...isNew ? [EXTRAS.newSeries] : [], ...starts && inNight(config.night, new Date(now())) ? [EXTRAS.bingeNight] : []];
+      if (!this.enabled) return [];
+      return [...isNew ? [EXTRAS.newSeries] : [], ...starts && inNight(night, new Date(now())) ? [EXTRAS.bingeNight] : []];
     },
     /** A purchase's source, the same on a retry: one per series, one binge ticket per night. */
     sourceOf(extra2, subject) {
-      return extra2 === EXTRAS.bingeNight ? `media:binge:${nightOf(config.night, new Date(now()))}` : `media:series:${subject}`;
+      return extra2 === EXTRAS.bingeNight ? `media:binge:${nightOf(night, new Date(now()))}` : `media:series:${subject}`;
     },
     /**
-     * Make sure `person` holds a ticket for every extra in `wants`, buying the ones named in `buy`. Throws a
-     * `points` error (402) with the first missing one: item, name, cost, balance, gap, affordable, pending.
-     * Returns the tickets to use once the action went through.
+     * The tickets `person` holds for every extra in `wants`, asked of the points plugin. Throws its `points` error
+     * (402, `points: { item, source }`) for the first one missing; the page offers it and asks again.
      */
-    async pay(person, wants, { buy = [], subject = "" } = {}) {
-      if (!enabled || wants.length === 0 || !person) return [];
-      try {
-        if (!await register(person)) return [];
-        const tickets = [];
-        for (const extra2 of wants) {
-          const source = this.sourceOf(extra2, subject);
-          let answer = await ask(["check", person, extra2.key]);
-          if (answer.recorded === false) return [];
-          if (!answer.valid && buy.includes(extra2.key) && answer.quote.affordable) {
-            await ask(["buy", person, extra2.key, "--source", source]);
-            answer = await ask(["check", person, extra2.key]);
-          }
-          if (!answer.valid) {
-            const q = answer.quote;
-            throw pointsError({ item: extra2.key, name: q.name, cost: q.cost, balance: q.balance, gap: q.gap, affordable: q.affordable, pending: answer.pending });
-          }
-          tickets.push({ extra: extra2, ticket: answer.ticket.id });
-        }
-        return tickets;
-      } catch (error) {
-        if (error.code === "points") throw error;
-        logger.warn("points: %s", error.message);
-        return [];
+    async pay(person, wants, { subject = "" } = {}) {
+      const service = points();
+      if (service === void 0 || wants.length === 0) return [];
+      const tickets = [];
+      for (const extra2 of wants) {
+        const ticket = await service.ticketFor(person, await itemOf(extra2), { source: this.sourceOf(extra2, subject) });
+        if (ticket !== null) tickets.push({ extra: extra2, ticket });
       }
+      return tickets;
     },
     /** Record each ticket's use for the action that went through: a series once, a binge ticket per room opened. */
     async use(person, tickets, { room, subject = "" }) {
+      const service = points();
+      if (service === void 0) return;
       for (const { extra: extra2, ticket } of tickets) {
-        const on = extra2 === EXTRAS.bingeNight ? `media:start:${room ?? subject}` : `media:series:${subject}`;
-        await ask(["use", person, ticket, "--source", on]).catch((error) => logger.warn("points: %s", error.message));
+        await service.use(person, ticket, extra2 === EXTRAS.bingeNight ? `media:start:${room ?? subject}` : `media:series:${subject}`);
       }
     }
   };
@@ -14946,7 +14907,7 @@ function createChanges({ intervalMs = 300 } = {}) {
 
 // src/copies.js
 import { mkdir as mkdir11, readFile as readFile12, rename as rename9, writeFile as writeFile8 } from "node:fs/promises";
-import { dirname as dirname6 } from "node:path";
+import { dirname as dirname7 } from "node:path";
 var DAY_MS4 = 864e5;
 var HOUR_MS2 = 36e5;
 function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOUR_MS2, parallel = 4, now = Date.now }) {
@@ -14963,7 +14924,7 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
   });
   function save() {
     saving = saving.then(async () => {
-      await mkdir11(dirname6(file), { recursive: true });
+      await mkdir11(dirname7(file), { recursive: true });
       await writeFile8(`${file}.part`, JSON.stringify(Object.fromEntries(copies)));
       await rename9(`${file}.part`, file);
     }).catch((error) => logger.warn("the copies of Discover could not be saved: %s", error.message));
@@ -14980,8 +14941,8 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
   }
   function ask(key, produce) {
     let settled;
-    flying.set(key, new Promise((resolve7) => {
-      settled = resolve7;
+    flying.set(key, new Promise((resolve8) => {
+      settled = resolve8;
     }));
     waiting.push(async () => {
       try {
@@ -15133,7 +15094,7 @@ function createMediaHub(options) {
   const covers = createCovers({ dir: join17(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
   const log = createWatchLog({ file: join17(stateDir, LOG_NAME), now, logger });
   const changes = createChanges({ intervalMs: options.changeIntervalMs });
-  const points = createPoints(options.points ?? { command: [], night: { from: "01:00", to: "06:00" } }, { logger, now });
+  const points = createExtras({ points: options.points ?? (() => void 0), night: options.bingeNight ?? { from: "01:00", to: "06:00" }, locales: () => readLocales(LOCALE_DIR, logger), now });
   const books = createBooks({ changed: () => changes.notify("shelf"), dir: join17(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
   let rooms;
   let cache;
@@ -15305,7 +15266,7 @@ ${work.id}`).digest("hex").slice(0, 8);
      */
     async createRoom(input) {
       const person = typeof input.person === "string" ? input.person : "";
-      const tickets = await points.pay(person, points.wants({ starts: true }), { buy: input.buy ?? [] });
+      const tickets = await points.pay(person, points.wants({ starts: true }));
       let start = input.start ?? null;
       if (start === null && typeof input.path === "string") {
         const show2 = library.showPath(input.path);
@@ -15447,7 +15408,7 @@ ${work.id}`).digest("hex").slice(0, 8);
      * whose account (`person`, the one asking) and the viewer's `language`, for the captions chosen with each episode.
      * @param {{ source: string, id: string, watch?: boolean, all?: boolean, quality?: string, by?: string, person?: string, language?: string }} input
      */
-    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = "", by = "", person = "", language = "", buy = [] }) {
+    async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = "", by = "", person = "", language = "" }) {
       const item = await source(sourceId).info(id, { person, language });
       if (!(item.episodes > 0)) throw hubError("empty", `${item.title || id} has no episodes`);
       const dir = await folderFor(sourceId, item);
@@ -15455,7 +15416,7 @@ ${work.id}`).digest("hex").slice(0, 8);
       const isNew = points.enabled && await isNewSeries(sourceId, item);
       const disk = await statfs2(libraryRoots[0]).catch(() => null);
       if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError("no_space", "the library disk is almost full; delete something first");
-      const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { buy, subject });
+      const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { subject });
       const how = { ...isQuality(quality) ? { quality } : {}, person, language };
       await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all });
       library.setWork(dir, snapshotOf(item, now()));
@@ -15508,7 +15469,7 @@ ${work.id}`).digest("hex").slice(0, 8);
     async cancelDownload(path) {
       const show = library.showPath(path);
       if (show !== null) await downloads.cancel(show);
-      return { cancelled: resolve5(path) };
+      return { cancelled: resolve6(path) };
     },
     /** A download someone waits on to watch: its state and, once open, its room. */
     download: (path) => {
@@ -15560,7 +15521,6 @@ async function body(request) {
 }
 var pick4 = (value, keys) => Object.fromEntries(keys.filter((key) => value?.[key] !== void 0).map((key) => [key, value[key]]));
 var text2 = (value) => typeof value === "string" ? value : "";
-var buying = (value) => Array.isArray(value) ? value.filter((key) => typeof key === "string").slice(0, 4) : [];
 function createPersonRoutes({ hub, identity }) {
   const handle = (fn) => async (request) => {
     const current = hub();
@@ -15585,7 +15545,7 @@ function createPersonRoutes({ hub, identity }) {
       requestBody: "buffered",
       fetch: handle(async (request, current, person) => {
         const input = await body(request);
-        return current.fetch({ ...pick4(input, ["source", "id", "watch", "together", "all", "quality", "by"]), language: text2(input.language), person: person.id, buy: buying(input.buy) });
+        return current.fetch({ ...pick4(input, ["source", "id", "watch", "together", "all", "quality", "by"]), language: text2(input.language), person: person.id });
       })
     },
     {
@@ -15594,7 +15554,7 @@ function createPersonRoutes({ hub, identity }) {
       requestBody: "buffered",
       fetch: handle(async (request, current, person) => {
         const input = await body(request);
-        return current.createRoom({ ...pick4(input, ["path", "title", "by", "start"]), fromPanel: true, person: person.id, buy: buying(input.buy) });
+        return current.createRoom({ ...pick4(input, ["path", "title", "by", "start"]), fromPanel: true, person: person.id });
       })
     },
     {
@@ -15734,10 +15694,10 @@ function apply(ctx, config) {
   let current;
   ctx.provide?.("mediaHub", Object.freeze({ service: () => current }));
   ctx.effect(() => {
-    const stateDir = resolve6(config.stateDir);
+    const stateDir = resolve7(config.stateDir);
     const service = createMediaHub({
       stateDir,
-      libraryRoots: [join18(stateDir, "library"), ...config.libraryRoots.map((root) => resolve6(root))],
+      libraryRoots: [join18(stateDir, "library"), ...config.libraryRoots.map((root) => resolve7(root))],
       delivery: createDelivery({ mode: config.delivery }),
       tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, maxHeight: config.maxHeight, threads: config.threads },
       webUrl: () => ctx.get("webApp")?.getAdvertisedUrl(),
@@ -15751,7 +15711,8 @@ function apply(ctx, config) {
       },
       notifyCommand: config.notifyCommand,
       recommender: config.recommender,
-      points: config.points,
+      points: () => ctx.get("points"),
+      bingeNight: config.bingeNight,
       cache: { ahead: config.cacheAhead, behind: config.cacheBehind, capBytes: config.cacheLimitGb * 1e9 },
       logger
     });

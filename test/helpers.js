@@ -2,10 +2,9 @@ import { execFileSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
 import WebSocket, { WebSocketServer } from 'ws'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 /** A temporary folder removed after the test file. */
 export function tempDir(t) {
@@ -100,10 +99,37 @@ export async function viewer(url, clientId, name) {
   }
 }
 
-/** A points extension over a state file (test/fixtures/points-extension.mjs): `players` maps a person to their balance. */
-export function pointsExtension(t, players, night) {
-  const file = join(tempDir(t), 'points.json')
-  writeFileSync(file, JSON.stringify({ players, shop: {}, tickets: [], calls: [] }))
-  const command = [process.execPath, fileURLToPath(new URL('./fixtures/points-extension.mjs', import.meta.url)), file]
-  return { config: { command, env: {}, night }, state: () => JSON.parse(readFileSync(file, 'utf8')), file }
+/**
+ * The points plugin's `points` service as the hub sees it (@soffits/dsh-points): `players` maps a person to their
+ * balance; `buy` stands for the person's yes in the plugin's dialog. Every call is in `calls`.
+ */
+export function fakePoints(players) {
+  const shop = {}
+  const tickets = []
+  const calls = []
+  const held = (person, key) => tickets.find(t => t.person === person && t.item === key && !t.used)
+  return {
+    enabled: true,
+    shop,
+    calls,
+    players,
+    async ticketFor(person, item, { source }) {
+      calls.push(['ticketFor', person, item.key, source])
+      if (!(person in players)) return null
+      shop[item.key] = item
+      const ticket = held(person, item.key)
+      if (ticket) return { ticket: ticket.id }
+      throw Object.assign(new Error(`${item.key} needs a ticket`), { code: 'points', status: 402, points: { item: item.key, source } })
+    },
+    async use(person, ticket, source) {
+      calls.push(['use', person, ticket.ticket, source])
+      const found = tickets.find(t => t.id === ticket.ticket)
+      if (shop[found.item].uses !== 0) found.used = source
+    },
+    buy(person, key, source) {
+      calls.push(['buy', person, key, source])
+      players[person] -= shop[key].cost
+      tickets.push({ id: `t${tickets.length + 1}`, person, item: key, source, used: false })
+    },
+  }
 }
