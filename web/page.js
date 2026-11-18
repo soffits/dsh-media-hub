@@ -3,7 +3,6 @@
  * room. client.js renders `Page` once this module has loaded. The tab, and
  * under Discover the source and category, live in the URL (web/nav.js).
  */
-import { ShelfSection } from './books-view.js'
 import { DiscoverView } from './discover-view.js'
 import { LibrarySection } from './library-view.js'
 import { clearNav, readNav, TABS, writeNav } from './nav.js'
@@ -69,8 +68,7 @@ function Home({ t, nav, go, onOpen, rooms, library, load }) {
       nav.tab === 'watching' && h('div', { id: 'vsync-panel-watching', role: 'tabpanel', 'aria-labelledby': 'vsync-tab-watching' },
         h(WatchingTab, { t, rooms, library, onOpen, onChanged: load, onGo: tab => go({ tab }), onOpenWork: (source, work) => go({ tab: 'discover', source, kind: work.kind ?? null, work: work.id }) })),
       nav.tab === 'library' && h('div', { id: 'vsync-panel-library', role: 'tabpanel', 'aria-labelledby': 'vsync-tab-library' },
-        h(LibrarySection, { t, library, onOpen, onChanged: load, onOpenWork: (source, work) => go({ tab: 'discover', source, kind: work.kind ?? null, work: work.id }) }),
-        h(ShelfSection, { t })),
+        h(LibrarySection, { t, library, onOpen, onChanged: load, onOpenWork: (source, work) => go({ tab: 'discover', source, kind: work.kind ?? null, work: work.id }) })),
       visitedDiscover && h('div', { id: 'vsync-panel-discover', role: 'tabpanel', 'aria-labelledby': 'vsync-tab-discover', hidden: nav.tab !== 'discover' },
         h(DiscoverView, { t, nav, onNav: go, onOpen, onSaved: load, onBack: () => (history.state?.[PUSHED] ? history.back() : go({ work: null }, { replace: true })) }))))
 }

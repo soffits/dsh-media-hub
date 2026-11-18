@@ -3,6 +3,7 @@
  * watch state; starting or continuing a room; renaming, keeping and
  * deleting a show or one episode. Deleting asks first, in place.
  */
+import { ShelfEntry, useShelf } from './books-view.js'
 import { Picture, WorkDetails } from './details.js'
 import { hasEpisodes, stoppedText } from './format.js'
 import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, React, api, asPersonPaying, bytes, clock, day, displayName, fill, h, plural, post, query, watchMark } from './ui.js'
@@ -208,7 +209,9 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
               if (!answer.error) setMode('idle')
             },
           }, h('input', { className: 'vsync-field vsync-inline', value: name, autoFocus: true, 'aria-label': t('library.rename'), onChange: event => setName(event.target.value), onKeyDown: (event) => { if (event.key === 'Escape') { setMode('idle'); setName(show.name) } } }))
-          : h('button', { type: 'button', className: 'vsync-rowTitle vsync-titleButton', onClick: () => setOpen(!open) }, show.kind === 'file' ? titleOf(show.name) : show.name),
+          : h('span', { className: 'vsync-cardHead' },
+            h('button', { type: 'button', className: 'vsync-rowTitle vsync-titleButton', onClick: () => setOpen(!open) }, show.kind === 'file' ? titleOf(show.name) : show.name),
+            h('span', { className: 'vsync-badge' }, t(show.media === 'audio' ? 'type.audio' : show.kind === 'file' ? 'type.video' : 'type.show'))),
         h('span', { className: 'vsync-rowMeta vsync-rowLead' }, lead.map((part, n) => h('span', { key: n }, part))),
         h('span', { className: 'vsync-rowMeta vsync-rowMuted' },
           rest.map((part, n) => h('span', { key: n }, part)),
@@ -221,15 +224,23 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
     open && h(Episodes, { t, show, onStart: start, onChanged }))
 }
 
+/** Everything the person keeps, in one list of cards, each marked with what it is: shows and videos from the library, then the books of their shelf. */
 export function LibrarySection({ t, library, onOpen, onChanged, onOpenWork }) {
   const shows = library?.shows ?? []
+  const { state: shelf, act } = useShelf()
+  const books = shelf?.entries ?? []
+  const loaded = library !== null && shelf !== null
   return h('section', { className: 'vsync-section', 'aria-labelledby': 'vsync-library' },
     h('div', { className: 'vsync-sectionHead' },
       h('h2', { id: 'vsync-library' }, t('start.library')),
-      library && h('span', { className: 'vsync-sectionMeta' }, [
+      h('span', { className: 'vsync-sectionMeta' }, [
         shows.length > 0 && bytes(t, library.total),
-        library.free !== null && fill(t('library.free'), { size: bytes(t, library.free) }),
+        books.length > 0 && fill(t(shelf.capBytes > 0 ? 'library.booksUsedOf' : 'library.booksUsed'), { used: bytes(t, shelf.usedBytes), cap: bytes(t, shelf.capBytes) }),
+        library?.free != null && fill(t('library.free'), { size: bytes(t, library.free) }),
       ].filter(Boolean).join(' · '))),
-    library && shows.length === 0 && h('p', { className: 'vsync-empty' }, t('start.libraryEmpty')),
-    h('ul', { className: 'vsync-rows' }, shows.map(show => h(ShowRow, { key: show.path, t, show, days: library.autoDeleteDays, onOpen, onChanged, onOpenWork }))))
+    shelf?.error && h('p', { className: 'vsync-error', role: 'alert' }, shelf.error),
+    loaded && shows.length === 0 && books.length === 0 && h('p', { className: 'vsync-empty' }, t('start.libraryEmpty')),
+    h('ul', { className: 'vsync-rows' },
+      shows.map(show => h(ShowRow, { key: show.path, t, show, days: library.autoDeleteDays, onOpen, onChanged, onOpenWork })),
+      books.map(entry => h(ShelfEntry, { key: entry.entry, t, entry, onAct: act }))))
 }
