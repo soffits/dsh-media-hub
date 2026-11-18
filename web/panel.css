@@ -200,6 +200,8 @@
 @media (width<=767px){.vsync-segment{display:flex}.vsync-seg{flex:1 0 auto}}
 /* Library details, room preview, avatars, room side tabs */
 .vsync-posterCover{width:36px;height:48px;object-fit:cover;border-radius:6px}
+.vsync-poster.vsync-libCover{width:48px;height:64px;object-fit:cover;border-radius:6px}
+.vsync-posterEmpty.vsync-libCover{background:var(--dsw-alias-interactive-bg-hover)}
 .vsync-showDetails{padding:4px 8px 12px 48px}
 .vsync-detailsToggle{align-self:flex-start}
 .vsync-preview{flex:none;width:96px;height:54px;border-radius:8px;object-fit:cover;background:var(--dsw-alias-interactive-bg-hover)}
@@ -247,8 +249,10 @@
   .vsync-row>.vsync-rowText{flex:1 1 0;min-width:0}
   .vsync-row>.vsync-actions,.vsync-row>.vsync-confirm{flex:1 1 100%;margin-left:0}
   .vsync-row>.vsync-actions .vsync-btn{flex:1;height:36px}
+  .vsync-row>.vsync-actions .vsync-ask{flex:0 0 40px;padding:0}
   .vsync-posterCover{width:56px;height:75px}
   .vsync-poster{width:96px;height:54px}
+  .vsync-poster.vsync-libCover{width:56px;height:75px}
   .vsync-preview{width:96px;height:54px}
   .vsync-showDetails{padding:4px 0 12px}
   .vsync-rowTitle{white-space:normal}

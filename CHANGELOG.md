@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.0
+
+- A show and a book look the same in the Library. Every item is one card: the same cover slot, a title with its type, one line of facts (a show's rating, status and progress; a book's author, format and size), tags, and the actions in the same place, with Delete under the … menu for books as it is for shows.
+
 ## 0.11.1
 
 - The page's words come from the language files each time it asks, not from a copy made when the plugin started. An update that only changed words (0.11.0's type badges) showed raw keys until DSH restarted.
