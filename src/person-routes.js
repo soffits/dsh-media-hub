@@ -9,7 +9,7 @@
  *   POST /api/media-hub/rooms   { path, title, by, start }: open a room on a library show
  *   GET  /api/media-hub/ratings                { pending }: finished or removed shows to ask this person about
  *   POST /api/media-hub/ratings  { show, title, rating }: their answer, into the watch log
- *   GET  /api/media-hub/picks[?source=&kind=&language=]   { picks, loading }: the recommender's picks for this person, from the saved copy; narrowed to a source and kind for Discover
+ *   GET  /api/media-hub/picks[?language=]   { picks, loading }: the recommender's picks for this person, from the saved copy
  *   POST /api/media-hub/steps    { path, id }: a show's suggested step was started
  *
  * `language` is the viewer's, for choosing subtitles.
@@ -92,7 +92,7 @@ export function createPersonRoutes({ hub, identity }) {
       path: `${PERSON_PATH}/picks`,
       methods: ['GET'],
       requestBody: 'buffered',
-      fetch: handle((request, current, person) => current.picks(person, { source: param(request, 'source'), kind: param(request, 'kind'), language: param(request, 'language') })),
+      fetch: handle((request, current, person) => current.picks(person, { language: param(request, 'language') })),
     },
     {
       path: `${PERSON_PATH}/steps`,

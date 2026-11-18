@@ -1,38 +1,36 @@
 /**
- * What Discover shows before a search, for the source and category picked:
- * "For you" (the recommender's picks, each with its reason) and one list per
- * board the source itself puts forward (its rank lists, new arrivals). Under
- * All sources the picks of every source are interleaved and each source's lists
- * follow, headed by the source. Both come from dated copies the plugin keeps
+ * What Discover shows before a search, for the source and category picked: one
+ * list per board the source itself puts forward (its rank lists, new arrivals).
+ * Under All sources each source's lists follow, headed by the source. Both come from dated copies the plugin keeps
  * (src/copies.js), so the page never waits on a site: while a copy is first
  * being made the area shows a loading state, and the plugin's change signal
- * brings the answer. A source that offers neither shows nothing.
+ * brings the answer. A source with no lists shows nothing.
  *
- * The works are the same cards as search results.
+ * The works are the same cards as search results; `PickedWork` is one under the
+ * reason it was picked (the Watching tab's picks).
  */
 import { BookCard } from './books-view.js'
 import { pick } from './i18n.js'
 import { Result } from './result-card.js'
-import { Changes, K, Spinner, api, asPerson, fillNodes, h, query, React } from './ui.js'
+import { Changes, K, Spinner, api, fillNodes, h, query, React } from './ui.js'
 
 /** Works of a list shown before "Show all". */
 export const LIST_PREVIEW = 6
 
-/** What the plugin has for one source and category: its trending lists and this person's picks. */
-function useFeed(sourceId, kind, language) {
+/** What the plugin has for one source and category: its trending lists. */
+function useFeed(sourceId, kind) {
   const { discover } = React.useContext(Changes)
   const [feed, setFeed] = React.useState(null)
-  const key = `${sourceId}|${kind}|${language}`
+  const key = `${sourceId}|${kind}`
   React.useEffect(() => {
     let live = true
     const asked = query({ source: sourceId, kind })
-    Promise.all([api(`trending?${asked}`), asPerson(`picks?${asked}&${query({ language })}`)]).then(([trending, picks]) => {
+    api(`trending?${asked}`).then((trending) => {
       if (!live) return
       setFeed({
         key,
         trending: Array.isArray(trending.trending) ? trending.trending : [],
-        picks: Array.isArray(picks.picks) ? picks.picks : [],
-        loading: trending.loading === true || picks.loading === true,
+        loading: trending.loading === true,
       })
     })
     return () => { live = false }
@@ -53,27 +51,37 @@ function FeedSection({ id, title, hint, children }) {
     children)
 }
 
+/** A work as the card of its kind: a book is downloaded in a format, anything else watched or listened to. */
+export function WorkCard({ t, source, work, isBook, onOpen, onSaved, onFocus }) {
+  return isBook
+    ? h(BookCard, { t, source, result: work })
+    : h(Result, { t, source, result: work, onOpen, onSaved, onFocus })
+}
+
+/** One picked work under the reason it was picked. */
+export function PickedWork({ t, source, work, why, onOpen, onSaved, onFocus }) {
+  if (source === undefined) return null
+  const book = source.kinds.find(kind => kind.id === work.kind)?.media === 'book'
+  return h('li', { className: 'vsync-feedPick' },
+    h('p', { className: 'vsync-pickWhy' }, h(K.Icon, { name: 'sparkles', size: 14, tone: 'violet' }), h('span', null, why)),
+    h('ul', { className: 'vsync-rows' }, h(WorkCard, { t, source, work, isBook: book, onOpen, onSaved, onFocus })))
+}
+
 export function DiscoverFeed({ t, sourceId, kind, sourceOf, isBook, onOpen, onSaved, onFocus }) {
-  const feed = useFeed(sourceId, kind ?? '', t.language)
+  const feed = useFeed(sourceId, kind ?? '')
   const [expanded, setExpanded] = React.useState(() => new Set())
   if (feed === null) return h(Skeleton, { t })
-  const { trending, picks, loading } = feed
-  if (trending.length === 0 && picks.length === 0) return loading ? h(Skeleton, { t }) : null
+  const { trending, loading } = feed
+  if (trending.length === 0) return loading ? h(Skeleton, { t }) : null
 
   const card = (work) => {
     const from = sourceOf(work.source)
     if (from === undefined) return null
-    return isBook(work.kind, from)
-      ? h(BookCard, { key: `${from.id}:${work.id}`, t, source: from, result: work })
-      : h(Result, { key: `${from.id}:${work.id}`, t, source: from, result: work, onOpen, onSaved, onFocus })
+    return h(WorkCard, { key: `${from.id}:${work.id}`, t, source: from, work, isBook: isBook(work.kind, from), onOpen, onSaved, onFocus })
   }
   const merged = sourceId === 'all'
 
   return h('div', { className: 'vsync-feed' },
-    picks.length > 0 && h(FeedSection, { id: 'vsync-feed-picks', title: t('feed.picks'), hint: t('feed.picksHint') },
-      h('ul', { className: 'vsync-rows vsync-results' }, picks.map(entry => h('li', { key: `${entry.work.source}:${entry.work.id}`, className: 'vsync-feedPick' },
-        h('p', { className: 'vsync-pickWhy' }, h(K.Icon, { name: 'sparkles', size: 14, tone: 'violet' }), h('span', null, entry.why)),
-        h('ul', { className: 'vsync-rows' }, card(entry.work)))))),
     trending.flatMap(({ source: from, at, lists }) => lists.map((list) => {
       const id = `${from}:${list.id}`
       const name = pick(list.label, t.language).trim() || t('feed.trending')

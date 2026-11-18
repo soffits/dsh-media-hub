@@ -10647,10 +10647,15 @@ async function commandExists(command, path = process.env.PATH ?? "") {
   }
   return false;
 }
-function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env } = {}) {
+function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } = {}) {
   return new Promise((resolve7, reject) => {
     const [command, ...args] = argv;
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], detached: true, cwd, env: { ...process.env, ...env } });
+    const child = spawn(command, args, { stdio: [input === void 0 ? "ignore" : "pipe", "pipe", "pipe"], detached: true, cwd, env: { ...process.env, ...env } });
+    if (input !== void 0) {
+      child.stdin.on("error", () => {
+      });
+      child.stdin.end(input);
+    }
     let stdout = "";
     let stderr = "";
     let pending = "";
@@ -11995,7 +12000,7 @@ var CookieRule = Schema.object({
 var DEFAULT_SOURCES = Object.freeze([
   {
     id: "fanqie",
-    kinds: [{ id: "drama", media: "video", trending: true }, { id: "audio", media: "audio", trending: true }, { id: "novel", media: "book", trending: true }],
+    kinds: [{ id: "drama", media: "video", trending: true }, { id: "audio", media: "audio" }, { id: "novel", media: "book", trending: true }],
     filters: [],
     command: ["fanqie"],
     env: {}
@@ -13976,7 +13981,7 @@ var MAX_STEPS = 3;
 var STEP_ID = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 var MAX_LABEL_CHARS = 120;
 var MAX_PROMPT_CHARS = 2e3;
-var PICKS_LIMIT = 6;
+var PICKS_LIMIT = 8;
 var PICKS_TIMEOUT_MS = 6e4;
 var MAX_WHY_CHARS = 280;
 var badInput = (message) => Object.assign(new Error(message), { code: "invalid_arguments" });
@@ -14050,19 +14055,9 @@ function parsePicks(document2, hasSource, limit = PICKS_LIMIT) {
   }
   return out;
 }
-async function recommend({ command, env = {}, cwd, hasSource }, { person, source, kind, language, limit = PICKS_LIMIT }) {
-  const argv = [
-    ...command,
-    "recommend",
-    "--json",
-    "--limit",
-    String(limit),
-    ...person.id ? ["--person", person.id] : [],
-    ...source ? ["--source", source] : [],
-    ...kind ? ["--kind", kind] : [],
-    ...language ? ["--language", language] : []
-  ];
-  const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env });
+async function recommend({ command, env = {}, cwd, hasSource }, { person, language, limit = PICKS_LIMIT, candidates = [] }) {
+  const argv = [...command, "recommend", "--json", "--limit", String(limit), ...person.id ? ["--person", person.id] : [], ...language ? ["--language", language] : []];
+  const result = await run(argv, { timeoutMs: PICKS_TIMEOUT_MS, cwd, env, input: JSON.stringify({ candidates }) });
   if (result.code !== 0) throw new Error(`exit ${result.code}: ${result.stderr.trim().split("\n").pop() ?? ""}`);
   return parsePicks(JSON.parse(result.stdout), hasSource, limit);
 }
@@ -14778,9 +14773,9 @@ import { mkdir as mkdir10, readFile as readFile11, rename as rename8, writeFile 
 import { dirname as dirname6 } from "node:path";
 var DAY_MS3 = 864e5;
 var HOUR_MS = 36e5;
-function createCopies({ file, changed, logger, maxAgeMs = DAY_MS3, retryMs = HOUR_MS, parallel = 2, now = Date.now }) {
+function createCopies({ file, changed, logger, maxAgeMs = DAY_MS3, retryMs = HOUR_MS, parallel = 4, now = Date.now }) {
   const copies = /* @__PURE__ */ new Map();
-  const flying = /* @__PURE__ */ new Set();
+  const flying = /* @__PURE__ */ new Map();
   const failedAt = /* @__PURE__ */ new Map();
   const waiting = [];
   let running = 0;
@@ -14808,7 +14803,10 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS3, retryMs = HOU
     }
   }
   function ask(key, produce) {
-    flying.add(key);
+    let settled;
+    flying.set(key, new Promise((resolve7) => {
+      settled = resolve7;
+    }));
     waiting.push(async () => {
       try {
         copies.set(key, { at: now(), value: await produce() });
@@ -14821,11 +14819,23 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS3, retryMs = HOU
         changed();
       } finally {
         flying.delete(key);
+        settled();
       }
     });
     pump();
   }
   return {
+    /**
+     * Like `get`, but a missing copy is waited for (the first ask), for what another copy is made from; an old one still answers at once.
+     * @param {string} key
+     * @param {() => Promise<unknown>} produce
+     */
+    async ensure(key, produce) {
+      const first = await this.get(key, produce);
+      if (first.value !== null || !flying.has(key)) return first;
+      await flying.get(key);
+      return this.get(key, produce);
+    },
     /**
      * @param {string} key
      * @param {() => Promise<unknown>} produce - the outside answer, asked only when the copy is missing or old
@@ -14842,7 +14852,6 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS3, retryMs = HOU
 }
 
 // src/discover.js
-var DISCOVER_PICKS = 12;
 var notFound = (message) => Object.assign(new Error(message), { code: "not_found" });
 function createDiscover({ copies, sources, covers, recommender }) {
   async function sourcesFor(sourceId, kind, ability) {
@@ -14875,22 +14884,24 @@ function createDiscover({ copies, sources, covers, recommender }) {
       };
     },
     /**
-     * A person's picks for a source and category (merged under All sources), or without either (the Watching tab).
+     * A person's picks (the Watching tab). The recommender is given what every source's trending copy holds, so one
+     * run a day serves all categories and asks the sources nothing more.
      * @returns {Promise<{ picks: object[], loading: boolean }>}
      */
-    async picks(person, { source: sourceId = "", kind = "", language = "" } = {}) {
+    async picks(person, { language = "" } = {}) {
       if (recommender.command.length === 0) return { picks: [], loading: false };
-      const narrowed = sourceId !== "";
-      const targets = narrowed ? await sourcesFor(sourceId, kind, () => true) : [null];
-      const copy = await Promise.all(targets.map((one) => copies.get(
-        `picks|${person.key}|${one?.id ?? "*"}|${narrowed ? kind : "*"}|${language}`,
-        () => recommend(recommender, { person, source: one?.id, kind: narrowed ? kind : void 0, language, limit: narrowed ? DISCOVER_PICKS : PICKS_LIMIT })
-      )));
-      const lists = copy.map((entry, index) => (entry.value ?? []).filter((pick5) => targets[index] === null || pick5.work.source === targets[index].id && (kind === "" || pick5.work.kind === kind)));
-      return {
-        picks: interleave(lists).map((pick5) => ({ ...pick5, work: withCovers(sources.get(pick5.work.source), pick5.work) })).slice(0, narrowed ? DISCOVER_PICKS : PICKS_LIMIT),
-        loading: copy.some((entry) => entry.loading)
-      };
+      const copy = await copies.get(`picks|${person.key}|${language}`, async () => {
+        const candidates = [];
+        for (const one of sources.values()) {
+          if (typeof one.trending !== "function" || !await one.available()) continue;
+          for (const entry of one.kinds.filter((kind) => kind.trending === true)) {
+            const trending = await copies.ensure(`trending|${one.id}|${entry.id}`, () => one.trending(entry.id));
+            if (trending.value !== null) candidates.push({ source: one.id, kind: entry.id, lists: trending.value });
+          }
+        }
+        return recommend(recommender, { person, language, candidates });
+      });
+      return { picks: (copy.value ?? []).map((pick5) => ({ ...pick5, work: withCovers(sources.get(pick5.work.source), pick5.work) })), loading: copy.loading };
     }
   };
 }
@@ -15381,7 +15392,7 @@ function createPersonRoutes({ hub, identity }) {
       path: `${PERSON_PATH}/picks`,
       methods: ["GET"],
       requestBody: "buffered",
-      fetch: handle((request, current, person) => current.picks(person, { source: param(request, "source"), kind: param(request, "kind"), language: param(request, "language") }))
+      fetch: handle((request, current, person) => current.picks(person, { language: param(request, "language") }))
     },
     {
       path: `${PERSON_PATH}/steps`,

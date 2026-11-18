@@ -4,9 +4,8 @@
  * shows finished or removed lately (one tap writes a rating to the watch
  * log), and picks from the recommender extension with the reason for each.
  */
-import { Picture } from './details.js'
-import { FollowButton } from './follow.js'
-import { Btn, Changes, Icon, K, P, React, asPerson, asPersonPaying, displayName, fillNodes, h, query } from './ui.js'
+import { PickedWork } from './feed-view.js'
+import { Btn, Changes, K, P, React, asPerson, fillNodes, h, query } from './ui.js'
 
 /** The answers, in order, with the icon each one shows (DSH's own where it has one). */
 const ANSWERS = [
@@ -61,37 +60,11 @@ export function RatingsSection({ t, on, version }) {
     h('ul', { className: 'vsync-cards' }, pending.map(ask => h(RatingRow, { key: ask.show, t, ask, onAnswered: show => setPending(pending.filter(other => other.show !== show)) }))))
 }
 
-function PickCard({ t, pick, onOpen, onOpenWork }) {
-  const { work, why } = pick
-  const [busy, setBusy] = React.useState(false)
-  const [error, setError] = React.useState(null)
-  const meta = [work.kind && t(`kind.${work.kind}`) !== `kind.${work.kind}` ? t(`kind.${work.kind}`) : null, work.year, Number.isFinite(work.score) ? [work.scoreLabel, work.score].filter(Boolean).join(' ') : null].filter(Boolean)
-  const together = async () => {
-    setBusy(true)
-    setError(null)
-    const answer = await asPersonPaying('fetch', { source: work.source, id: work.id, watch: true, together: true, language: t.language, by: await displayName(t('guest')) })
-    setBusy(false)
-    if (answer.error) return setError(answer.error)
-    if (answer.declined) return undefined
-    return onOpen(answer.room.id)
-  }
-  return h(K.Surface, { as: 'li', className: 'vsync-pickCard' },
-    h('button', { type: 'button', className: 'vsync-pickOpen', tabIndex: -1, 'aria-hidden': true, onClick: () => onOpenWork(work.source, work) },
-      h(Picture, { pictures: [work.cover], className: 'vsync-pickCover', emptyClassName: 'vsync-pickCover vsync-ccPosterEmpty', icon: h(Icon.Film, { size: 22 }) })),
-    h('div', { className: 'vsync-pickBody' },
-      h('button', { type: 'button', className: 'vsync-pickTitle', onClick: () => onOpenWork(work.source, work) }, work.title),
-      meta.length > 0 && h('p', { className: 'vsync-rowMeta' }, meta.join(' · ')),
-      h('p', { className: 'vsync-pickWhy' }, h(K.Icon, { name: 'sparkles', size: 14, tone: 'violet' }), h('span', null, why)),
-      h('div', { className: 'vsync-pickActions' },
-        h(Btn, { disabled: busy, onClick: together, icon: h(P.IconUsersOutlineRegular, { size: 16 }) }, t('room.watchTogether')),
-        h(FollowButton, { t, source: work.source, work, compact: true })),
-      error && h('p', { className: 'vsync-error', role: 'alert' }, error)))
-}
-
-export function PicksSection({ t, on, onOpen, onOpenWork }) {
+/** The picks, each the card of its kind (watch it, or download the book) under the reason it was picked. */
+export function PicksSection({ t, on, sources, onOpen, onSaved, onOpenWork }) {
   const { discover } = React.useContext(Changes)
   const [picks] = usePersonList(on, `picks?${query({ language: t.language })}`, 'picks', discover)
-  if (!picks || picks.length === 0) return null
+  if (!picks || picks.length === 0 || !sources) return null
   return h(Section, { id: 'vsync-picks', title: t('picks.heading'), hint: t('picks.hint') },
-    h('ul', { className: 'vsync-cards vsync-pickGrid' }, picks.map(pick => h(PickCard, { key: `${pick.work.source}:${pick.work.id}`, t, pick, onOpen, onOpenWork }))))
+    h('ul', { className: 'vsync-rows vsync-results' }, picks.map(({ work, why }) => h(PickedWork, { key: `${work.source}:${work.id}`, t, source: sources.find(one => one.id === work.source), work, why, onOpen, onSaved, onFocus: other => onOpenWork(other.source ?? work.source, other) }))))
 }

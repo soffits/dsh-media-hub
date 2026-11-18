@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0
+
+- The recommender's picks moved from Discover to the Watching tab, under what you are watching, as *For you* (still switched by `presence.picks`). Each is the card of its kind (watch it, or download a book) under the reason it was picked. Discover keeps each source's trending lists and search.
+- Fanqie's audiobooks no longer declare trending: the app's listening tab holds no audiobook works to list.
+- The recommender protocol changed: `recommend` no longer takes `--source` and `--kind`; the hub passes the trending lists it already holds as candidates on stdin (`{ "candidates": [...] }`), so one run a day serves every category and the sources are asked nothing twice. Picks are kept as one dated copy per person and language and made in the background.
+
 ## 0.12.0
 
 - A show and a book look the same in the Library. Every item is one card: the same cover slot, a title with its type, one line of facts (a show's rating, status and progress; a book's author, format and size), tags, and the actions in the same place, with Delete under the … menu for books as it is for shows.

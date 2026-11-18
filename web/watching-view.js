@@ -81,7 +81,7 @@ export function WatchingTab({ t, rooms, library, onOpen, onChanged, onGo, onOpen
       h('h2', { id: 'vsync-news' }, t('follow.news')),
       h('ul', { className: 'vsync-cards' }, news.map(show => h(NewsRow, { key: show.path, t, show, onOpen, onChanged })))),
     h(RatingsSection, { t, on: presence.ratings === true, version: watchedVersion }),
-    h(PicksSection, { t, on: presence.picks === true, onOpen, onOpenWork }),
+    h(PicksSection, { t, on: presence.picks === true, sources, onOpen, onSaved: onChanged, onOpenWork }),
     h(RoomsSection, { t, rooms, onOpen, onChanged }),
     others.length > 0 && h('section', { className: 'vsync-section', 'aria-labelledby': 'vsync-continue' },
       h('h2', { id: 'vsync-continue' }, t('watching.continue')),
