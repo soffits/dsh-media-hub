@@ -698,6 +698,8 @@ export function joinRoom({ base, roomId, name, language = '', trackLabel = label
 
   return {
     clientId,
+    /** The <video> in front, which danmaku follow (the player swaps elements between episodes); null before one plays. */
+    get media() { return player?.element ?? null },
     /** Switch the room to an episode. */
     select(index) {
       op({ op: 'select', index })

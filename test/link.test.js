@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { createCookies } from '../src/cookies.js'
 import { createProxies } from '../src/proxy.js'
-import { AUDIO, AUTO, createLinkSource, episodeStem, formatArgs, qualityChoices } from '../src/sources/link.js'
+import { AUDIO, AUTO } from '../src/quality.js'
+import { createLinkSource, episodeStem, formatArgs, qualityChoices } from '../src/sources/link.js'
 import { quietLogger, tempDir } from './helpers.js'
 
 const FAKE = fileURLToPath(new URL('./fixtures/fake-yt-dlp.mjs', import.meta.url))

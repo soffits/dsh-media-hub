@@ -239,6 +239,10 @@ export const Icon = {
   Download: ({ size = 16 }) => svg(size, h('path', { d: 'M8 2.5v8M4.75 7.5 8 10.75l3.25-3.25M3 13.5h10', ...stroke })),
   Book: ({ size = 16 }) => svg(size, h('path', { d: 'M3 3.5A1.5 1.5 0 0 1 4.5 2H13v10H4.5A1.5 1.5 0 0 0 3 13.5Zm0 10A1.5 1.5 0 0 0 4.5 15H13v-3', ...stroke })),
   Check: ({ size = 16 }) => svg(size, h('path', { d: 'M3.5 8.5 6.5 11.5 12.5 4.5', ...stroke })),
+  Danmaku: ({ size = 16 }) => svg(size, h('rect', { x: 1.75, y: 3, width: 12.5, height: 10, rx: 2, ...stroke }), h('path', { d: 'M4.5 6.5h4M7 9.5h4.5', ...stroke })),
+  Settings: ({ size = 16 }) => svg(size, h('path', { d: 'M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6', ...stroke }), h('circle', { cx: 10, cy: 4.5, r: 1.5, ...stroke }), h('circle', { cx: 6, cy: 11.5, r: 1.5, ...stroke })),
+  Expand: ({ size = 16 }) => svg(size, h('path', { d: 'M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10', ...stroke })),
+  Shrink: ({ size = 16 }) => svg(size, h('path', { d: 'M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5', ...stroke })),
   Chevron: ({ size = 16, open = false }) => svg(size, h('path', { d: open ? 'M4 6l4 4 4-4' : 'M6 4l4 4-4 4', ...stroke })),
 }
 
@@ -288,17 +292,12 @@ export function Confirm({ t, question, confirmLabel, onConfirm, onCancel, danger
     }, confirmLabel))
 }
 
-/**
- * A button with a small menu of actions; closes on outside click or Escape.
- * Without children it is the "more" icon; with children, a quiet text button.
- */
-export function Menu({ label, items, children, title }) {
-  const [open, setOpen] = React.useState(false)
-  const root = React.useRef(null)
+/** Close something open on a press outside `root` or on Escape. */
+function useDismiss(open, close, root) {
   React.useEffect(() => {
     if (!open) return undefined
-    const away = (event) => { if (!root.current?.contains(event.target)) setOpen(false) }
-    const key = (event) => { if (event.key === 'Escape') setOpen(false) }
+    const away = (event) => { if (!root.current?.contains(event.target)) close() }
+    const key = (event) => { if (event.key === 'Escape') close() }
     document.addEventListener('pointerdown', away)
     document.addEventListener('keydown', key)
     return () => {
@@ -306,6 +305,16 @@ export function Menu({ label, items, children, title }) {
       document.removeEventListener('keydown', key)
     }
   }, [open])
+}
+
+/**
+ * A button with a small menu of actions; closes on outside click or Escape.
+ * Without children it is the "more" icon; with children, a quiet text button.
+ */
+export function Menu({ label, items, children, title }) {
+  const [open, setOpen] = React.useState(false)
+  const root = React.useRef(null)
+  useDismiss(open, () => setOpen(false), root)
   return h('span', { className: 'vsync-menuWrap', ref: root },
     h('button', { type: 'button', className: children ? 'vsync-metaButton' : 'vsync-icon', 'aria-label': label, title: title ?? label, 'aria-haspopup': 'menu', 'aria-expanded': String(open), onClick: () => setOpen(!open) }, children ?? h(Icon.More)),
     open && h('div', { className: 'vsync-menu', role: 'menu' }, items.filter(Boolean).map(item => h('button', {
@@ -319,3 +328,16 @@ export function Menu({ label, items, children, title }) {
       },
     }, item.label))))
 }
+
+/** An icon button that opens a small panel of settings above it; closes on outside click or Escape. */
+export function Popover({ label, icon, children }) {
+  const [open, setOpen] = React.useState(false)
+  const root = React.useRef(null)
+  useDismiss(open, () => setOpen(false), root)
+  return h('span', { className: 'vsync-menuWrap', ref: root },
+    h('button', { type: 'button', className: 'vsync-icon', 'aria-label': label, title: label, 'aria-haspopup': 'dialog', 'aria-expanded': String(open), onClick: () => setOpen(!open) }, icon),
+    open && h('div', { className: 'vsync-popover', role: 'dialog', 'aria-label': label }, children))
+}
+
+/** The words for a quality a source offers (src/quality.js): auto, audio, or a height. */
+export const qualityLabel = (t, quality) => (/^\d+$/.test(quality) ? fill(t('quality.height'), { n: quality }) : t(`quality.${quality}`))

@@ -17,7 +17,8 @@ import { createRoomService } from './hub.js'
 import { createJournal } from './journal.js'
 import { cleanName, createLibrary } from './shows.js'
 import { ALL_SOURCES, EPISODE_BYTES, describeSources } from './sources/index.js'
-import { isQuality } from './sources/link.js'
+import { AUTO, isQuality } from './quality.js'
+import { createRemarks } from './remarks.js'
 import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { parseAnnotation, pendingRatings, ratingLine } from './presence.js'
@@ -75,6 +76,7 @@ export function createMediaHub(options) {
     logger,
     now,
   })
+  const remarks = createRemarks({ source: id => sources.get(id), logger, now })
   const refreshWork = createWorkRefresh({ source: id => sources.get(id), keep: (path, work) => library.keepWork(path, work), maxAgeMs: options.workMaxAgeMs, logger, now })
   const library = createLibrary({
     changed: () => changes.notify('library'),
@@ -116,6 +118,13 @@ export function createMediaHub(options) {
     library.sweep().catch(() => {})
     cache.enforce().catch(() => {})
   }, HOUR_MS)
+
+  /** The show folder a room plays from (null for plain files). */
+  function roomShow(id) {
+    const room = rooms.listRooms().find(entry => entry.id === id)
+    if (room === undefined) throw hubError('not_found', 'no such room')
+    return room.show
+  }
 
   /** Episodes landed in a downloading show, or its download ended: rooms on it follow the files. */
   async function onFiles(job) {
@@ -303,11 +312,44 @@ export function createMediaHub(options) {
       for (const show of list.shows) if (show.source?.source) refreshWork(show.path, { source: show.source, work: show.work })
       return { ...list, shows: list.shows.map(withCovers) }
     },
-    /** The details of the work a room's show came from, or null. */
+    /**
+     * The details of the work a room's show came from (or null), the quality its episodes are fetched in, and which of
+     * the work's danmaku and comments its source offers.
+     */
     roomWork(id) {
-      const room = rooms.listRooms().find(entry => entry.id === id)
-      if (room === undefined) throw hubError('not_found', 'no such room')
-      return { work: room.show === null ? null : withCovers(shownEntry(room.show)).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null }
+      const show = roomShow(id)
+      const from = library.workSource(show)
+      return {
+        work: show === null ? null : withCovers(shownEntry(show)).work ?? null,
+        source: from?.source ?? null,
+        id: from?.id ?? null,
+        quality: from?.quality || AUTO,
+        ...remarks.offered(from),
+      }
+    },
+    /** The danmaku of a room's item, from the copy kept with its show; the next episode's is made ready meanwhile. */
+    async roomDanmaku(id, index) {
+      const show = roomShow(id)
+      const from = library.workSource(show)
+      const number = rooms.slotOf(id, index)
+      if (from === null || number === undefined) return { items: [], at: null }
+      const answer = await remarks.danmaku(show, from, number)
+      if (number < (from.episodes ?? 0)) remarks.danmaku(show, from, number + 1).catch(error => logger.warn('media hub: danmaku of %s episode %d: %s', show, number + 1, error.message))
+      return answer
+    },
+    /** The comments on a room's work: the kept first page, or the page after `cursor`. */
+    roomComments(id, cursor = '') {
+      const show = roomShow(id)
+      const from = library.workSource(show)
+      return from === null ? { total: 0, items: [], next: null, at: null } : remarks.comments(show, from, cursor)
+    },
+    /** Fetch a room's show in one of the qualities its work offers, from the episodes after the one it is on. */
+    async roomQuality(id, quality) {
+      const show = roomShow(id)
+      const offered = show === null ? [] : library.workOf(show)?.qualities ?? []
+      if (!isQuality(quality) || !offered.includes(quality)) throw hubError('invalid', 'the show is not offered in this quality')
+      await cache.requality(show, quality)
+      return { quality }
     },
     episodes: path => library.episodes(path),
     removeShow: (path, by) => library.remove(path, { by }),

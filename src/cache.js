@@ -96,5 +96,24 @@ export function createCache({ library, downloads, rooms, window: size, logger })
     }),
 
     enforce: () => serial(enforceCap),
+
+    /**
+     * Fetch a show in another quality from now on. What was fetched ahead of where people are goes and comes again in the
+     * new quality; the episode someone is on keeps playing as it is, so nobody's picture stops.
+     */
+    requality: (path, quality) => serial(async () => {
+      library.setQuality(path, quality)
+      const info = await library.cacheInfo(path)
+      downloads.switchHow(path, info.source)
+      const places = rooms.focusesOf(path)
+      const from = Math.max(...(places.length > 0 ? places : [info.focus ?? 0]))
+      const ahead = [...info.cached].filter(n => n > from)
+      if (ahead.length > 0) {
+        await library.dropEpisodes(path, ahead, { reason: 'quality' })
+        await rooms.syncShow(path)
+      }
+      await refreshShow(path, { retry: true })
+      await enforceCap()
+    }),
   }
 }

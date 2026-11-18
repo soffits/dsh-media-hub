@@ -16,7 +16,7 @@ A source is a command line tool. The media hub knows nothing about the site behi
 ] }
 ```
 
-Each kind says what its works are (`media`): `video` or `audio` works have episodes and are watched or listened to together in a room; `book` works are one file, downloaded in a format onto the person's shelf. `media` defaults to `video`. A kind with `"trending": true` (default false) is one the source's `trending` verb answers for.
+Each kind says what its works are (`media`): `video` or `audio` works have episodes and are watched or listened to together in a room; `book` works are one file, downloaded in a format onto the person's shelf. `media` defaults to `video`. A kind with `"trending": true` (default false) is one the source's `trending` verb answers for; `"danmaku": true` and `"comments": true` (default false) say the same of the `danmaku` and `comments` verbs.
 
 `command` is the program and its fixed arguments (a proxy flag, a cookies file); the hub appends the verb and its arguments. `env` adds environment variables. The command runs with `<stateDir>/<id>` as its working folder, so anything it writes there lands outside DSH's own folder. The network policy belongs to the command: a launcher that sends everything through a proxy keeps doing so, and the hub never contacts the site itself. A source whose program is not installed is hidden.
 
@@ -116,6 +116,8 @@ A video or audio work with no episodes cannot be fetched; a book needs no `episo
 
 `info` takes the optional descriptive fields above and may add `related`, the other works a person looking at this one would want: other seasons, a sequel, another adaptation of the same story. Each entry has the fields of a search result plus a `relation` (`season`, `same-title`, or `related`; the panel shows the word and groups by it), at most 30. Whether a site links its works is the source's business; one that does not may find seasons by name. A failing lookup should leave `related` empty rather than fail `info`, which the panel needs to start a download.
 
+A video work may list the picture sizes it can be fetched in as `qualities`, heights as strings (`["1080", "720", "480"]`, the short side of the picture, as in "720p"), listing only what a browser or ffmpeg can play. With two or more, a room offers them, and `download` gets the chosen one as `--quality <height>`: the best the work has at or below that size.
+
 ```json
 { "id": "…", "title": "…第一季", "kind": "drama", "episodes": [ … ],
   "related": [ { "id": "…", "title": "…第二季", "kind": "drama", "relation": "season", "episode_count": 200, "cover": "…" } ] }
@@ -133,10 +135,39 @@ Optional. Writes the picture at a `cover` URL to `file` as an image a browser sh
 
 A cover URL often points at a CDN the owner does not want browsers contacting. So The hub never sends the URL to the browser and never fetches it itself: it calls this verb, which keeps the command's network policy (a launcher that routes through a proxy keeps doing so, and fails closed when the proxy is down). A source without the verb, or a failing one, just has no pictures. Results carry a route under `/media-hub/covers/<key>` instead, served to admitted owners from `<stateDir>/covers`, each file at most 2 MB and the folder at most `coverCacheMb` (least recently shown go first). The file must be a picture by its first bytes, else it is dropped.
 
+## danmaku
+
+```
+<command> danmaku --episodes <n> --json -- <id>
+```
+
+Optional, asked only for kinds configured with `"danmaku": true`. The comments people posted at a moment of episode `n`, drawn over the picture while it plays. Prints one JSON object per line, one per episode, with the episode's `number` as `episode`:
+
+```json
+{ "episode": 3, "items": [ { "time": 30.185, "text": "终于等到你", "likes": 0 } ] }
+```
+
+`time` is seconds into the episode and `text` the comment (whitespace is folded, at most 100 characters are shown); other fields are ignored. The hub keeps the answer with the show and asks again about once a day when the episode plays.
+
+## comments
+
+```
+<command> comments --limit <n> [--cursor <cursor>] --json -- <id>
+```
+
+Optional, asked only for kinds configured with `"comments": true`. What people wrote about the work, read-only, in the site's order:
+
+```json
+{ "total": 220, "items": [ { "id": "…", "user": { "name": "…" }, "text": "…", "created": "2026-11-16T16:43:38Z",
+    "likes": 4, "replies": 0, "rating": 10.0 } ], "next_cursor": "…" }
+```
+
+`id` and `text` are required; `created` is an ISO time and `rating` the score the writer gave, both optional. `next_cursor`, when there are more, is passed back as `--cursor` for the next page. The hub keeps the first page with the show (asked again when the room shows it and it is over an hour old) and reads later pages through.
+
 ## download
 
 ```
-<command> download --id=<id> --episodes <range> --output <dir> --json     (video and audio)
+<command> download --id=<id> --episodes <range> [--quality <height>] --output <dir> --json     (video and audio)
 <command> download --id=<id> --format <ext> --output <dir> --json         (books)
 ```
 
@@ -162,4 +193,4 @@ Lines that are not JSON objects and events it does not know are ignored. What th
 
 A `done` file is checked against the `bytes` and `sha256` it reports; one that does not match is deleted and counted as failed, so the next run fetches it again. Exit non-zero when any episode failed (after printing `result`), so a failure is never silent; The hub then shows the failed episodes and stops until someone retries.
 
-Two implementations: `fanqie` (fanqie-cli) takes `--json` on `search`, `info` and `download`, `--id` as another name for its `--book-id`, and has a `cover` verb; its popularity is `plays` for dramas, `readers` for novels, `listeners` for audiobooks, its `related` lists the works the app links plus same-title seasons, and a novel downloads as txt or epub. `bookfetch source` (bookfetch-cli) speaks the protocol for ebooks and papers from the catalogues bookfetch knows.
+Two implementations: `fanqie` (fanqie-cli) takes `--json` on `search`, `info` and `download`, `--id` as another name for its `--book-id`, and has a `cover` verb; its popularity is `plays` for dramas, `readers` for novels, `listeners` for audiobooks, its `related` lists the works the app links plus same-title seasons, and a novel downloads as txt or epub. Its dramas list `qualities` and have `danmaku` and `comments`; audiobooks have `comments`. `bookfetch source` (bookfetch-cli) speaks the protocol for ebooks and papers from the catalogues bookfetch knows.

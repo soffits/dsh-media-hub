@@ -9,13 +9,11 @@ import { Cover, WorkDetails, glance, infoOf } from './details.js'
 import { FollowButton } from './follow.js'
 import { hasEpisodes, resumeLabel } from './format.js'
 import { useKnownWork } from './known.js'
-import { Confirm, EPISODE_BYTES, Icon, React, Spinner, asPersonPaying, bytes, chatAbout, clock, displayName, fill, h } from './ui.js'
+import { Confirm, EPISODE_BYTES, Icon, React, Spinner, asPersonPaying, bytes, chatAbout, clock, displayName, fill, h, qualityLabel } from './ui.js'
 
 /** Episodes fetched ahead of the one being watched; the Host's `cacheAhead` default, for the size hint. */
 const WINDOW_EPISODES = 6
 
-/** The words for a quality a source offers: auto, audio, or a height. */
-const qualityLabel = (t, quality) => (/^\d+$/.test(quality) ? fill(t('quality.height'), { n: quality }) : t(`quality.${quality}`))
 
 /** How the episodes are fetched, for a source that offers a choice (Link); its first choice (auto) is the default. */
 function QualityPicker({ t, qualities, value, onChange }) {

@@ -14,7 +14,11 @@
  * FAKE_SOURCE_COVER_LOG (when set); FAKE_SOURCE_COVER_FAIL makes it fail, and
  * FAKE_SOURCE_COVER_BYTES makes it write that many bytes of junk instead.
  * Extra words on the command line before the verb (the config's fixed
- * arguments) are ignored.
+ * arguments) are ignored. `info` lists two qualities (1080 and 720) and a
+ * download's log line ends in `@<quality>` when it was given one. `danmaku`
+ * answers two comments per episode (at 1.5 s and 3 s, saying which episode),
+ * and `comments` two pages of two, the second after cursor `c2`; each call of
+ * either is appended to FAKE_SOURCE_LOG as `danmaku <n>` or `comments <cursor or first>`.
  *
  * Books: a search of kind `book`, `ebook` or `paper` answers two public-domain titles (one in
  * epub and txt, one only in txt) and appends its filter flags to
@@ -28,7 +32,7 @@ import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rena
 import { join } from 'node:path'
 
 const argv = process.argv.slice(2)
-const verbAt = argv.findIndex(word => ['search', 'info', 'download', 'cover'].includes(word))
+const verbAt = argv.findIndex(word => ['search', 'info', 'download', 'cover', 'danmaku', 'comments'].includes(word))
 const command = argv[verbAt]
 const args = argv.slice(verbAt + 1)
 const flag = (name) => {
@@ -170,6 +174,7 @@ if (command === 'search' && BOOK_KINDS.includes(flag('--kind'))) {
     ...DRAMA_FACTS,
     latest: `第${count}集`,
     related,
+    qualities: ['1080', '720'],
     episodes: Array.from({ length: count }, (_, i) => ({ number: i + 1, id: `e${i + 1}`, title: `第${i + 1}集`, locked: false })),
   })
 } else if (command === 'download') {
@@ -179,7 +184,7 @@ if (command === 'search' && BOOK_KINDS.includes(flag('--kind'))) {
   const [, first, last] = /^(\d+)(?:-(\d*))?$/.exec(flag('--episodes') ?? '1-') ?? []
   const from = Number(first ?? 1)
   const to = flag('--episodes')?.includes('-') ? Number(last || total) : from
-  if (process.env.FAKE_SOURCE_LOG) appendFileSync(process.env.FAKE_SOURCE_LOG, `${flag('--episodes')}\n`)
+  if (process.env.FAKE_SOURCE_LOG) appendFileSync(process.env.FAKE_SOURCE_LOG, `${flag('--episodes')}${args.includes('--quality') ? `@${flag('--quality')}` : ''}\n`)
   mkdirSync(dir, { recursive: true })
   emit({ event: 'work', id, title: '测试短剧', kind: 'drama', selected: to - from + 1, total })
   const files = []
@@ -210,6 +215,15 @@ if (command === 'search' && BOOK_KINDS.includes(flag('--kind'))) {
   }
   emit({ event: 'result', kind: 'drama', folder: dir, files, written: files.length, skipped: 0, bytes: 0, failed })
   process.exit(failed.length > 0 ? 1 : 0)
+} else if (command === 'danmaku') {
+  const n = Number(flag('--episodes'))
+  if (process.env.FAKE_SOURCE_LOG) appendFileSync(process.env.FAKE_SOURCE_LOG, `danmaku ${n}\n`)
+  emit({ id: positional, episode: n, video_id: `e${n}`, title: `第${n}集`, count: 2, items: [{ id: `d${n}b`, time: 3, text: `第${n}集 好看`, likes: 2, created: '2026-11-07T05:31:16Z' }, { id: `d${n}a`, time: 1.5, text: '来了', likes: 0, created: '2026-11-07T05:30:00Z' }] })
+} else if (command === 'comments') {
+  const cursor = args.includes('--cursor') ? flag('--cursor') : ''
+  if (process.env.FAKE_SOURCE_LOG) appendFileSync(process.env.FAKE_SOURCE_LOG, `comments ${cursor || 'first'}\n`)
+  const page = cursor === 'c2' ? ['3', '4'] : ['1', '2']
+  emit({ id: positional, kind: 'drama', total: 4, items: page.map(n => ({ id: `c${n}`, user: { id: `u${n}`, name: `观众${n}` }, text: `评论${n}`, created: '2026-11-16T16:43:38Z', likes: Number(n), replies: 0, rating: 10.0 })), next_cursor: cursor === 'c2' ? null : 'c2' })
 } else {
   console.error(`unknown command ${command}`)
   process.exit(2)

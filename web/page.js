@@ -117,16 +117,18 @@ export function Page({ t, initialRoom }) {
   // The plugin announces every change of what the page shows (src/changes.js); the page re-reads then, and once when the stream (re)connects. No timer.
   const [shelf, setShelf] = React.useState(0)
   const [discover, setDiscover] = React.useState(0)
+  const [shows, setShows] = React.useState(0)
   const stream = K.useEventStream('api/media-hub/events', (message) => {
     if (message.what?.includes('shelf')) setShelf(count => count + 1)
     if (message.what?.includes('discover')) setDiscover(count => count + 1)
+    if (message.what?.includes('library')) setShows(count => count + 1)
     if (message.what?.some(kind => kind === 'library' || kind === 'rooms')) load()
   })
   React.useEffect(() => { if (stream === 'live') { load(); setShelf(count => count + 1) } }, [stream, load])
   React.useEffect(() => { load() }, [load])
 
   const known = React.useMemo(() => ({ library, rooms, reload: load }), [library, rooms, load])
-  const changes = React.useMemo(() => ({ shelf, discover }), [shelf, discover])
+  const changes = React.useMemo(() => ({ shelf, discover, shows }), [shelf, discover, shows])
   return h(Changes.Provider, { value: changes }, h(Known.Provider, { value: known }, h(React.Fragment, null,
     roomId === null
       ? h(Home, { t, nav, go, onOpen: setRoomId, rooms, library, load })

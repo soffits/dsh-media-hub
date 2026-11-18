@@ -19,6 +19,7 @@ import { captionLabel } from '../captions.js'
 import { episodeNumber } from '../episodes.js'
 import { isMedia } from '../library.js'
 import { parseInfo } from './command.js'
+import { AUDIO, AUTO, isQuality } from '../quality.js'
 import { accountView } from '../cookies.js'
 import { proxyAnswers } from '../proxy.js'
 import { commandExists, lastLine, parseLine, run } from './process.js'
@@ -26,11 +27,8 @@ import { runFfmpeg } from '../prepare.js'
 import { PROGRESS_ARGS, captionArgs, chooseCaptions, createProgress, failureReason, sizeEstimate } from './ytdlp.js'
 
 export const LINK_SOURCE = 'link'
-export const AUTO = 'auto'
-export const AUDIO = 'audio'
 /** Heights offered when the formats are not known yet (a playlist); a video offers the ones it has. */
 const HEIGHTS = Object.freeze([2160, 1440, 1080, 720, 480, 360])
-export const isQuality = value => value === AUTO || value === AUDIO || (/^\d{3,4}$/.test(String(value)) && Number(value) >= 144)
 
 const INFO_TIMEOUT_MS = 120_000
 const COVER_TIMEOUT_MS = 30_000
