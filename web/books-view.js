@@ -12,7 +12,8 @@
  */
 import { Cover } from './details.js'
 import { offeredFormats } from './formats.js'
-import { Changes, Confirm, Icon, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
+import { LibraryCard, LibraryCover } from './library-card.js'
+import { Changes, Confirm, Icon, Menu, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
 
 
 export const FORMATS = ['', 'epub', 'pdf', 'txt', 'azw3', 'mobi']
@@ -152,28 +153,28 @@ export function useShelf() {
   return { state, act }
 }
 
-/** One book of the shelf, as a card in the library: to save again, fetch again or delete. */
+/** One book of the shelf, as a library card like any other item: to save again, fetch again or delete. */
 export function ShelfEntry({ t, entry, onAct }) {
   const [confirming, setConfirming] = React.useState(false)
   const act = async (path) => {
     setConfirming(false)
     await onAct(path, entry)
   }
-  return h('li', { className: 'vsync-card vsync-book vsync-shelfEntry' },
-    h(Cover, { result: { ...entry, media: 'book' }, small: true }),
-    h('div', { className: 'vsync-cardBody' },
-      h('div', { className: 'vsync-cardHead' }, h('span', { className: 'vsync-rowTitle' }, entry.title || entry.id), h('span', { className: 'vsync-badge' }, t('type.book'))),
-      h('span', { className: 'vsync-rowMeta' }, [entry.author, entry.format.toUpperCase(), entry.bytes ? bytes(t, entry.bytes) : null, entry.converted ? t('book.converted') : null].filter(Boolean).map((part, n) => h('span', { key: n }, part))),
-      entry.state === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, entry.error),
-      entry.state === 'removed' && h('span', { className: 'vsync-note' }, t('shelf.removed')),
-      h('div', { className: 'vsync-cardFoot' },
-        h('span', { className: 'vsync-actions' },
-          h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
-          confirming
-            ? h(Confirm, { t, danger: true, question: t('shelf.deleteQuestion'), confirmLabel: t('shelf.delete'), onCancel: () => setConfirming(false), onConfirm: () => act('/remove') })
-            : h(React.Fragment, null,
-              h('button', { type: 'button', className: 'vsync-btn', onClick: () => setConfirming(true) }, t('shelf.delete')),
-              entry.state === 'fetching' && h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching')),
-              (entry.state === 'failed' || entry.state === 'removed') && h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => act('/retry') }, t('shelf.again')),
-              entry.state === 'ready' && h(SaveLink, { t, entry })))))) 
+  const actions = confirming
+    ? h(Confirm, { t, danger: true, question: t('shelf.deleteQuestion'), confirmLabel: t('shelf.delete'), onCancel: () => setConfirming(false), onConfirm: () => act('/remove') })
+    : h('span', { className: 'vsync-actions' },
+      h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
+      entry.state === 'fetching' && h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching')),
+      (entry.state === 'failed' || entry.state === 'removed') && h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => act('/retry') }, t('shelf.again')),
+      entry.state === 'ready' && h(SaveLink, { t, entry }),
+      h(Menu, { label: t('library.more'), items: [{ label: t('shelf.delete'), danger: true, onSelect: () => setConfirming(true) }] }))
+  return h(LibraryCard, {
+    cover: h(LibraryCover, { pictures: [entry.cover], icon: h(Icon.Book, { size: 18 }) }),
+    title: h('span', { className: 'vsync-rowTitle' }, entry.title || entry.id),
+    badge: t('type.book'),
+    lead: [entry.author, entry.format.toUpperCase(), entry.bytes ? bytes(t, entry.bytes) : null].filter(Boolean),
+    rest: [entry.converted ? t('book.converted') : null, entry.state === 'removed' ? t('shelf.removed') : null].filter(Boolean),
+    aside: entry.state === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, entry.error),
+    actions,
+  })
 }

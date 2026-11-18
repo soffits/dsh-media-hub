@@ -5,6 +5,7 @@
  */
 import { ShelfEntry, useShelf } from './books-view.js'
 import { Picture, WorkDetails } from './details.js'
+import { LibraryCard, LibraryCover } from './library-card.js'
 import { hasEpisodes, stoppedText } from './format.js'
 import { Confirm, DAY_MS, EPISODE_BYTES, Icon, Menu, React, api, asPersonPaying, bytes, clock, day, displayName, fill, h, plural, post, query, watchMark } from './ui.js'
 
@@ -193,35 +194,32 @@ function ShowRow({ t, show, days, onOpen, onChanged, onOpenWork }) {
       }))
   }
 
-  return h('li', { className: 'vsync-show' },
-    h('div', { className: 'vsync-row' },
-      hasEpisodes(episodeCount(show))
-        ? h('button', { type: 'button', className: 'vsync-expand', 'aria-expanded': String(open), 'aria-label': t('library.episodesToggle'), onClick: () => setOpen(!open) }, h(Icon.Chevron, { open }))
-        : h('span', { className: 'vsync-expand', 'aria-hidden': true }),
-      h(Poster, { show }),
-      h('span', { className: 'vsync-rowText' },
-        mode === 'rename'
-          ? h('form', {
-            id: `vsync-rename-${show.path}`,
-            onSubmit: async (event) => {
-              event.preventDefault()
-              const answer = await act(async () => post('library/rename', await asViewer(t, { path: show.path, name })))
-              if (!answer.error) setMode('idle')
-            },
-          }, h('input', { className: 'vsync-field vsync-inline', value: name, autoFocus: true, 'aria-label': t('library.rename'), onChange: event => setName(event.target.value), onKeyDown: (event) => { if (event.key === 'Escape') { setMode('idle'); setName(show.name) } } }))
-          : h('span', { className: 'vsync-cardHead' },
-            h('button', { type: 'button', className: 'vsync-rowTitle vsync-titleButton', onClick: () => setOpen(!open) }, show.kind === 'file' ? titleOf(show.name) : show.name),
-            h('span', { className: 'vsync-badge' }, t(show.media === 'audio' ? 'type.audio' : show.kind === 'file' ? 'type.video' : 'type.show'))),
-        h('span', { className: 'vsync-rowMeta vsync-rowLead' }, lead.map((part, n) => h('span', { key: n }, part))),
-        h('span', { className: 'vsync-rowMeta vsync-rowMuted' },
-          rest.map((part, n) => h('span', { key: n }, part)),
-          show.deletesAt !== null && h('span', { key: 'countdown' }, h(Countdown, { t, show, days, onChanged }))),
-        show.work?.tags?.length > 0 && h('span', { className: 'vsync-tags' }, show.work.tags.slice(0, 5).map(tag => h('span', { key: tag, className: 'vsync-tag' }, tag))),
-        show.work && h('button', { type: 'button', className: 'vsync-metaButton vsync-detailsToggle', 'aria-expanded': String(details), onClick: () => setDetails(!details) }, h(Icon.Chevron, { size: 12, open: details }), ' ', t(details ? 'search.hideDetails' : 'search.details')),
-        error && h('span', { className: 'vsync-error', role: 'alert' }, error)),
-      actions),
-    details && show.work && h('div', { className: 'vsync-showDetails' }, h(WorkDetails, { t, info: show.work, source: show.source.source, onFocus: work => onOpenWork(show.source.source, work) })),
-    open && h(Episodes, { t, show, onStart: start, onChanged }))
+  const title = mode === 'rename'
+    ? h('form', {
+      id: `vsync-rename-${show.path}`,
+      onSubmit: async (event) => {
+        event.preventDefault()
+        const answer = await act(async () => post('library/rename', await asViewer(t, { path: show.path, name })))
+        if (!answer.error) setMode('idle')
+      },
+    }, h('input', { className: 'vsync-field vsync-inline', value: name, autoFocus: true, 'aria-label': t('library.rename'), onChange: event => setName(event.target.value), onKeyDown: (event) => { if (event.key === 'Escape') { setMode('idle'); setName(show.name) } } }))
+    : h('button', { type: 'button', className: 'vsync-rowTitle vsync-titleButton', onClick: () => setOpen(!open) }, show.kind === 'file' ? titleOf(show.name) : show.name)
+  return h(LibraryCard, {
+    cover: h(LibraryCover, { pictures: [show.work?.cover, show.frame], icon: show.media === 'audio' ? h(Icon.Audio, { size: 18 }) : h(Icon.Film, { size: 18 }) }),
+    title,
+    badge: t(show.media === 'audio' ? 'type.audio' : show.kind === 'file' ? 'type.video' : 'type.show'),
+    lead,
+    rest: [...rest, show.deletesAt !== null && h(Countdown, { key: 'countdown', t, show, days, onChanged })].filter(Boolean),
+    tags: show.work?.tags?.slice(0, 5) ?? [],
+    aside: h(React.Fragment, null,
+      show.work && h('button', { type: 'button', className: 'vsync-metaButton vsync-detailsToggle', 'aria-expanded': String(details), onClick: () => setDetails(!details) }, h(Icon.Chevron, { size: 12, open: details }), ' ', t(details ? 'search.hideDetails' : 'search.details')),
+      error && h('span', { className: 'vsync-error', role: 'alert' }, error)),
+    actions,
+    expand: hasEpisodes(episodeCount(show)) ? { open, label: t('library.episodesToggle'), onToggle: () => setOpen(!open) } : null,
+    below: h(React.Fragment, null,
+      details && show.work && h('div', { className: 'vsync-showDetails' }, h(WorkDetails, { t, info: show.work, source: show.source.source, onFocus: work => onOpenWork(show.source.source, work) })),
+      open && h(Episodes, { t, show, onStart: start, onChanged })),
+  })
 }
 
 /** Everything the person keeps, in one list of cards, each marked with what it is: shows and videos from the library, then the books of their shelf. */
