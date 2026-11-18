@@ -74,6 +74,8 @@ function createVideoPlayer(stage, events, { base, language, trackLabel }) {
     el.className = 'vsync-media'
     el.playsInline = true
     el.preload = 'auto'
+    // Full screen is the player's box, with the danmaku over the picture (room-view.js); a bare <video> there hides them.
+    el.controlsList?.add('nofullscreen')
     const front = () => el === video
     const reports = () => front() && !priming
     el.addEventListener('loadstart', () => progressAt.set(el, now()))
