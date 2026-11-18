@@ -24,6 +24,7 @@ export function snapshotOf(info, at) {
     meta: info.meta ?? [],
     related: related.map(work => ({ ...work, tags: work.tags ?? [] })),
     episodeTitles: info.episodeTitles ?? [],
+    qualities: info.qualities ?? [],
     at,
   }
 }

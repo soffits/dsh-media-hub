@@ -8970,7 +8970,7 @@ var require_build = __commonJS({
 });
 
 // index.js
-import { join as join17, resolve as resolve6 } from "node:path";
+import { join as join18, resolve as resolve6 } from "node:path";
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -10630,6 +10630,18 @@ function bestTag(tags, wanted) {
   return best;
 }
 
+// src/quality.js
+var AUTO = "auto";
+var AUDIO = "audio";
+var HEIGHT = /^\d{3,4}$/;
+var MIN_HEIGHT = 144;
+var isHeight = (value) => HEIGHT.test(String(value)) && Number(value) >= MIN_HEIGHT;
+var isQuality = (value) => value === AUTO || value === AUDIO || isHeight(value);
+function heightChoices(raw) {
+  const heights = [...new Set((Array.isArray(raw) ? raw : []).map(String).filter(isHeight))].sort((a, b) => Number(b) - Number(a));
+  return heights.length > 1 ? [AUTO, ...heights] : [];
+}
+
 // src/sources/process.js
 import { spawn } from "node:child_process";
 import { access, constants } from "node:fs/promises";
@@ -10811,7 +10823,33 @@ function parseInfo(document2) {
     return work === null ? null : { ...work, relation: text(raw.relation) };
   }).filter((work) => work !== null && work.id !== id).slice(0, MAX_RELATED);
   const episodeTitles = Array.isArray(document2.episodes) ? document2.episodes.map((episode) => text(episode?.title)) : [];
-  return { ...resultOf(document2, null), id, episodes: listed2 > 0 ? listed2 : null, episodeTitles, related };
+  return { ...resultOf(document2, null), id, episodes: listed2 > 0 ? listed2 : null, episodeTitles, related, qualities: heightChoices(document2.qualities) };
+}
+var MAX_DANMAKU = 5e3;
+var MAX_DANMAKU_TEXT = 100;
+var MAX_COMMENT_TEXT = 4e3;
+var MAX_CURSOR = 2e3;
+var COMMENTS_PAGE = 20;
+var count = (value) => Number.isInteger(value) && value >= 0 ? value : 0;
+function parseDanmaku(lines, number) {
+  const found = lines.find((line) => line?.episode === number) ?? (lines.length === 1 ? lines[0] : null);
+  if (!Array.isArray(found?.items)) throw sourceError2("source_failed", "the danmaku answer has no items");
+  return found.items.map((raw) => ({ time: Number.isFinite(raw?.time) && raw.time >= 0 ? raw.time : null, text: text(raw?.text).replace(/\s+/g, " ").slice(0, MAX_DANMAKU_TEXT), likes: count(raw?.likes) })).filter((item) => item.time !== null && item.text !== "").sort((a, b) => a.time - b.time).slice(0, MAX_DANMAKU);
+}
+var ISO_TIME = (value) => typeof value === "string" && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
+function parseComments(document2) {
+  if (!Array.isArray(document2?.items)) throw sourceError2("source_failed", "the comments answer has no items");
+  const items = document2.items.map((raw) => ({
+    id: text(raw?.id),
+    name: text(raw?.user?.name ?? raw?.name),
+    text: text(raw?.text).slice(0, MAX_COMMENT_TEXT),
+    created: ISO_TIME(raw?.created),
+    likes: count(raw?.likes),
+    replies: count(raw?.replies),
+    rating: Number.isFinite(raw?.rating) ? raw.rating : null
+  })).filter((item) => item.id !== "" && item.text !== "");
+  const next = text(document2.next_cursor ?? document2.next);
+  return { total: countOrNull(document2.total), items, next: next !== "" && next.length <= MAX_CURSOR && items.length > 0 ? next : null };
 }
 function sha256Of(path) {
   return new Promise((resolve7, reject) => {
@@ -10853,16 +10891,24 @@ function createCommandSource(definition, { logger, cwd }) {
     await mkdir(cwd, { recursive: true });
     return cwd;
   }
-  async function query(args) {
+  async function answer(args) {
     const { code, stdout, stderr, oversized } = await run([...command, ...args], { timeoutMs: QUERY_TIMEOUT_MS, cwd: await workDir(), env });
     if (oversized) throw sourceError2("source_failed", `${name2()}: the answer is too large`);
     if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+    return stdout;
+  }
+  async function query(args) {
+    const stdout = await answer(args);
     try {
       return JSON.parse(stdout);
     } catch {
       throw sourceError2("source_failed", `${name2()}: the answer is not JSON`);
     }
   }
+  const offers = (kind, verb) => kinds.some((entry) => entry.id === kind && entry[verb] === true);
+  const checkId = (id) => {
+    if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
+  };
   return {
     id: sourceId,
     label: label ?? "",
@@ -10893,7 +10939,22 @@ function createCommandSource(definition, { logger, cwd }) {
       const { code, stderr } = await run([...command, "cover", "--output", file, "--", String(url)], { timeoutMs: COVER_TIMEOUT_MS, cwd: await workDir(), env });
       if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
     },
-    async download({ id, dir, from: from2 = 1, to = null, signal, onEpisode, onStart, onPartial }) {
+    offers,
+    /** The danmaku of episode `number` of a work of a kind that declares `danmaku`: `[{ time, text, likes }]`. */
+    async danmaku(id, number, kind) {
+      checkId(id);
+      if (!offers(kind, "danmaku") || !Number.isInteger(number) || number < 1) throw sourceError2("invalid", `${name2()} has no danmaku for this`);
+      const lines = (await answer(["danmaku", "--episodes", String(number), "--json", "--", String(id)])).split("\n").map(parseLine).filter((line) => line !== null);
+      return parseDanmaku(lines, number);
+    },
+    /** A page of the comments on a work of a kind that declares `comments`; `cursor` continues where an earlier page's `next` left off. */
+    async comments(id, kind, { cursor = "", limit = COMMENTS_PAGE } = {}) {
+      checkId(id);
+      if (!offers(kind, "comments")) throw sourceError2("invalid", `${name2()} has no comments for this`);
+      const paging = cursor === "" ? [] : ["--cursor", String(cursor).slice(0, MAX_CURSOR)];
+      return parseComments(await query(["comments", "--limit", String(limit), ...paging, "--json", "--", String(id)]));
+    },
+    async download({ id, dir, from: from2 = 1, to = null, quality = "", signal, onEpisode, onStart, onPartial }) {
       if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
       const failed = [];
       let result = null;
@@ -10925,7 +10986,7 @@ function createCommandSource(definition, { logger, cwd }) {
           failed.push(event.name);
         } else if (event?.event === "result") result = event;
       };
-      const argv = [...command, "download", `--id=${String(id)}`, "--episodes", episodes, "--output", dir, "--json"];
+      const argv = [...command, "download", `--id=${String(id)}`, "--episodes", episodes, ...isHeight(quality) ? ["--quality", String(quality)] : [], "--output", dir, "--json"];
       const { code, stderr } = await run(argv, { signal, cwd: await workDir(), env, onStdoutLine: onLine });
       for (const number of [...growing.keys()]) settle2(number);
       await checking;
@@ -11008,6 +11069,7 @@ function snapshotOf(info, at) {
     meta: info.meta ?? [],
     related: related.map((work) => ({ ...work, tags: work.tags ?? [] })),
     episodeTitles: info.episodeTitles ?? [],
+    qualities: info.qualities ?? [],
     at
   };
 }
@@ -11675,10 +11737,7 @@ var escapeTag = (tag) => `^${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
 
 // src/sources/link.js
 var LINK_SOURCE = "link";
-var AUTO = "auto";
-var AUDIO = "audio";
 var HEIGHTS = Object.freeze([2160, 1440, 1080, 720, 480, 360]);
-var isQuality = (value) => value === AUTO || value === AUDIO || /^\d{3,4}$/.test(String(value)) && Number(value) >= 144;
 var INFO_TIMEOUT_MS = 12e4;
 var COVER_TIMEOUT_MS2 = 3e4;
 var MAX_BLURB = 1e3;
@@ -11972,7 +12031,9 @@ var SourceConfig = Schema.object({
     id: Schema.string().pattern(/^[a-z0-9][a-z0-9_-]{0,31}$/).description("What the command's search --kind takes."),
     label: Label.default("").description("Name of the category chip: a string, or { <tag>: text } per language. Empty uses the page's own words for this kind id (kind.<id> in locale/), else the id."),
     media: Schema.union(MEDIA.map((media) => Schema.const(media))).default("video").description("What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format)."),
-    trending: Schema.boolean().default(false).description("Whether the command's trending verb answers for this kind (docs/source-protocol.md): its rank lists and new arrivals, shown on Discover before a search.")
+    trending: Schema.boolean().default(false).description("Whether the command's trending verb answers for this kind (docs/source-protocol.md): its rank lists and new arrivals, shown on Discover before a search."),
+    danmaku: Schema.boolean().default(false).description("Whether the command's danmaku verb answers for this kind: the comments people posted at a moment of an episode, drawn over the picture in a room."),
+    comments: Schema.boolean().default(false).description("Whether the command's comments verb answers for this kind: what people wrote about a work, readable in its room.")
   })).description("What the source can search for; at least one."),
   filters: Schema.array(Schema.union(FILTERS.map((filter) => Schema.const(filter)))).default([]).description("Search filters the command understands (docs/source-protocol.md). The hub filters the answers by language, format, year and size itself as well."),
   command: Schema.array(Schema.string()).min(1).description("The command and its fixed arguments, one entry per word; the plugin adds the protocol verbs after them."),
@@ -12000,7 +12061,7 @@ var CookieRule = Schema.object({
 var DEFAULT_SOURCES = Object.freeze([
   {
     id: "fanqie",
-    kinds: [{ id: "drama", media: "video", trending: true }, { id: "audio", media: "audio" }, { id: "novel", media: "book", trending: true }],
+    kinds: [{ id: "drama", media: "video", trending: true, danmaku: true, comments: true }, { id: "audio", media: "audio", comments: true }, { id: "novel", media: "book", trending: true }],
     filters: [],
     command: ["fanqie"],
     env: {}
@@ -12134,6 +12195,12 @@ async function readLocales(dir, logger) {
   return locales;
 }
 
+// src/vendored.js
+var VENDORED = Object.freeze({
+  "hls.mjs": { pkg: "hls.js", file: "dist/hls.mjs" },
+  "danmaku.mjs": { pkg: "danmaku", file: "dist/esm/danmaku.dom.js" }
+});
+
 // src/http.js
 var ROUTE = `/${PREFIX}`;
 var WS_PATH = `${ROUTE}/ws`;
@@ -12166,12 +12233,14 @@ var MODULES = Object.freeze({
   "i18n.js": resolve2(here, "../src/i18n.js"),
   "captions.js": resolve2(here, "../src/captions.js")
 });
-function hlsFile() {
-  const built = resolve2(here, "../dist/hls.mjs");
-  return existsSync2(built) ? built : resolve2(dirname3(createRequire(import.meta.url).resolve("hls.js/package.json")), "dist/hls.mjs");
+function vendoredFile(name2) {
+  const built = resolve2(here, "../dist", name2);
+  if (existsSync2(built)) return built;
+  const { pkg, file } = VENDORED[name2];
+  return resolve2(dirname3(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file);
 }
 function webFile(name2) {
-  if (name2 === "hls.mjs") return hlsFile();
+  if (Object.hasOwn(VENDORED, name2)) return vendoredFile(name2);
   if (MODULES[name2] !== void 0) return MODULES[name2];
   return /^[a-z0-9-]+\.(js|css)$/.test(name2) ? resolve2(WEB_DIR, name2) : void 0;
 }
@@ -12299,6 +12368,9 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         const query = (name2) => url.searchParams.get(name2) ?? "";
         if (route === "GET rooms") return sendJson(res, 200, { rooms: await hub.listRooms() });
         if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "work") return sendJson(res, 200, hub.roomWork(parts[2]));
+        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 5 && parts[3] === "danmaku") return sendJson(res, 200, await hub.roomDanmaku(parts[2], Number(parts[4])));
+        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "comments") return sendJson(res, 200, await hub.roomComments(parts[2], query("cursor")));
+        if (req.method === "POST" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "quality") return sendJson(res, 200, await hub.roomQuality(parts[2], String((await readJson(req)).quality ?? "")));
         if (req.method === "DELETE" && parts[1] === "rooms" && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]));
         if (req.method === "POST" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "together") return sendJson(res, 200, hub.watchTogether(parts[2]));
         if (route === "GET library") return sendJson(res, 200, await hub.library());
@@ -12354,7 +12426,7 @@ Content-Length: 0\r
 import { spawn as spawn5 } from "node:child_process";
 import { createHash as createHash6 } from "node:crypto";
 import { statfs as statfs2, stat as stat10 } from "node:fs/promises";
-import { join as join16, resolve as resolve5 } from "node:path";
+import { join as join17, resolve as resolve5 } from "node:path";
 
 // src/downloads.js
 import { readFile as readFile6, rename as rename3, writeFile as writeFile3 } from "node:fs/promises";
@@ -12645,7 +12717,25 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
       }
       await enforceCap();
     }),
-    enforce: () => serial(enforceCap)
+    enforce: () => serial(enforceCap),
+    /**
+     * Fetch a show in another quality from now on. What was fetched ahead of where people are goes and comes again in the
+     * new quality; the episode someone is on keeps playing as it is, so nobody's picture stops.
+     */
+    requality: (path, quality) => serial(async () => {
+      library.setQuality(path, quality);
+      await downloads.cancel(path);
+      const info = await library.cacheInfo(path);
+      const places = rooms.focusesOf(path);
+      const from2 = Math.max(...places.length > 0 ? places : [info.focus ?? 0]);
+      const ahead = [...info.cached].filter((n) => n > from2);
+      if (ahead.length > 0) {
+        await library.dropEpisodes(path, ahead, { reason: "quality" });
+        await rooms.syncShow(path);
+      }
+      await refreshShow(path, { retry: true });
+      await enforceCap();
+    })
   };
 }
 
@@ -13808,6 +13898,8 @@ function createRoomService(options) {
      * (`growing` settles when they are complete): rooms waiting on it play it once enough is there.
      */
     streamEpisode: (path, number, partial) => streams.offer(resolve3(path), number, partial),
+    /** The episode number of a room's item in its show (undefined for a room on plain files). */
+    slotOf: (roomId, index) => rooms.get(roomId)?.items[index]?.slot,
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {
       const item = rooms.get(roomId)?.items[index];
@@ -14421,6 +14513,13 @@ function createLibrary(options) {
       update(path, { source: { ...entry.source, episodes } });
       changed(path);
     },
+    /** Fetch a sourced show's episodes in another quality (src/quality.js) from now on. */
+    setQuality(path, quality) {
+      const target = requireShow(path);
+      const entry = record(target);
+      if (!isSourced(entry)) throw libraryError("invalid", "this show has no source to fetch from");
+      update(target, { source: { ...entry.source, quality } });
+    },
     /** The saved (offline fallback) copy of a show's work, or null. */
     workOf: (path) => record(path).work ?? null,
     /** Which source and work id a show came from (`{ source, id, ... }`), or null. */
@@ -14546,11 +14645,76 @@ function createLibrary(options) {
   };
 }
 
+// src/remarks.js
+import { mkdir as mkdir10, readFile as readFile11, rename as rename8, writeFile as writeFile7 } from "node:fs/promises";
+import { join as join16 } from "node:path";
+var HOUR_MS = 36e5;
+var DAY_MS2 = 24 * HOUR_MS;
+var REMARKS_DIR = ".source";
+function createRemarks({ source, logger, now = Date.now, danmakuMaxAgeMs = DAY_MS2, commentsMaxAgeMs = HOUR_MS }) {
+  const flying = /* @__PURE__ */ new Map();
+  async function read(file) {
+    try {
+      const copy = JSON.parse(await readFile11(file, "utf8"));
+      return Number.isFinite(copy?.at) ? copy : null;
+    } catch {
+      return null;
+    }
+  }
+  async function keep(file, value) {
+    await mkdir10(join16(file, ".."), { recursive: true });
+    await writeFile7(`${file}.part`, JSON.stringify(value));
+    await rename8(`${file}.part`, file);
+  }
+  function fetchInto(file, ask) {
+    if (!flying.has(file)) {
+      const run3 = (async () => {
+        const copy = { ...await ask(), at: now() };
+        await keep(file, copy);
+        return copy;
+      })().finally(() => flying.delete(file));
+      flying.set(file, run3);
+    }
+    return flying.get(file);
+  }
+  async function copyOf(file, maxAgeMs, ask) {
+    const copy = await read(file);
+    if (copy === null) return fetchInto(file, ask);
+    if (now() - copy.at > maxAgeMs) fetchInto(file, ask).catch((error) => logger.warn("media hub: could not refresh %s: %s", file, error.message));
+    return copy;
+  }
+  function offering(work, verb) {
+    const found = work?.source ? source(work.source) : void 0;
+    return found !== void 0 && typeof found.offers === "function" && found.offers(work.kind, verb) ? found : null;
+  }
+  return {
+    /** Which of the verbs a show's source offers for its work: `{ danmaku, comments }`. */
+    offered: (work) => ({ danmaku: offering(work, "danmaku") !== null, comments: offering(work, "comments") !== null }),
+    /**
+     * The danmaku of episode `number` of a show: `{ items: [{ time, text, likes }], at }`.
+     * @param {string} show - the show's folder
+     * @param {{ source: string, id: string, kind: string }} work - where the show came from (its notes' `source`)
+     */
+    async danmaku(show, work, number) {
+      const found = offering(work, "danmaku");
+      if (found === null) return { items: [], at: null };
+      return copyOf(join16(show, REMARKS_DIR, "danmaku", `${number}.json`), danmakuMaxAgeMs, async () => ({ items: await found.danmaku(work.id, number, work.kind) }));
+    },
+    /** The comments on a show's work: the kept first page, or with `cursor` the page after it from the source. */
+    async comments(show, work, cursor = "") {
+      const found = offering(work, "comments");
+      if (found === null) return { total: 0, items: [], next: null, at: null };
+      if (cursor !== "") return { ...await found.comments(work.id, work.kind, { cursor }), at: now() };
+      return copyOf(join16(show, REMARKS_DIR, "comments.json"), commentsMaxAgeMs, () => found.comments(work.id, work.kind));
+    }
+  };
+}
+
 // src/follow.js
-var DAY_MS2 = 864e5;
+var DAY_MS3 = 864e5;
 var OPEN_RECHECK_MS = 36e5;
 var JITTER = 0.1;
-var nextCheckAt = (checkedAt, random) => checkedAt + Math.round(DAY_MS2 * (1 - JITTER + 2 * JITTER * random));
+var nextCheckAt = (checkedAt, random) => checkedAt + Math.round(DAY_MS3 * (1 - JITTER + 2 * JITTER * random));
 function dueFollows(follows, now) {
   return follows.filter(({ follow: follow2 }) => (follow2.nextAt ?? 0) <= now).sort((a, b) => (a.follow.nextAt ?? 0) - (b.follow.nextAt ?? 0));
 }
@@ -14769,27 +14933,27 @@ function createChanges({ intervalMs = 300 } = {}) {
 }
 
 // src/copies.js
-import { mkdir as mkdir10, readFile as readFile11, rename as rename8, writeFile as writeFile7 } from "node:fs/promises";
+import { mkdir as mkdir11, readFile as readFile12, rename as rename9, writeFile as writeFile8 } from "node:fs/promises";
 import { dirname as dirname6 } from "node:path";
-var DAY_MS3 = 864e5;
-var HOUR_MS = 36e5;
-function createCopies({ file, changed, logger, maxAgeMs = DAY_MS3, retryMs = HOUR_MS, parallel = 4, now = Date.now }) {
+var DAY_MS4 = 864e5;
+var HOUR_MS2 = 36e5;
+function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOUR_MS2, parallel = 4, now = Date.now }) {
   const copies = /* @__PURE__ */ new Map();
   const flying = /* @__PURE__ */ new Map();
   const failedAt = /* @__PURE__ */ new Map();
   const waiting = [];
   let running = 0;
   let saving = Promise.resolve();
-  const loaded = readFile11(file, "utf8").then((text3) => {
+  const loaded = readFile12(file, "utf8").then((text3) => {
     for (const [key, copy] of Object.entries(JSON.parse(text3))) copies.set(key, copy);
   }).catch((error) => {
     if (error.code !== "ENOENT") logger.warn("the saved copies of Discover could not be read: %s", error.message);
   });
   function save() {
     saving = saving.then(async () => {
-      await mkdir10(dirname6(file), { recursive: true });
-      await writeFile7(`${file}.part`, JSON.stringify(Object.fromEntries(copies)));
-      await rename8(`${file}.part`, file);
+      await mkdir11(dirname6(file), { recursive: true });
+      await writeFile8(`${file}.part`, JSON.stringify(Object.fromEntries(copies)));
+      await rename9(`${file}.part`, file);
     }).catch((error) => logger.warn("the copies of Discover could not be saved: %s", error.message));
     return saving;
   }
@@ -14907,9 +15071,9 @@ function createDiscover({ copies, sources, covers, recommender }) {
 }
 
 // src/work-refresh.js
-var DAY_MS4 = 864e5;
-var HOUR_MS2 = 36e5;
-function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS4, retryMs = HOUR_MS2, parallel = 2, now = Date.now, logger }) {
+var DAY_MS5 = 864e5;
+var HOUR_MS3 = 36e5;
+function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS5, retryMs = HOUR_MS3, parallel = 2, now = Date.now, logger }) {
   const flying = /* @__PURE__ */ new Set();
   const failedAt = /* @__PURE__ */ new Map();
   const waiting = [];
@@ -14947,18 +15111,18 @@ ${entry.source.id}`;
 }
 
 // src/media.js
-var HOUR_MS3 = 36e5;
+var HOUR_MS4 = 36e5;
 var MIN_FREE_BYTES = 1e9;
 var NO_CONVERTER = Object.freeze({ command: "", available: async () => false });
 var hubError = (code, message) => Object.assign(new Error(message), { code });
 function createMediaHub(options) {
   const { stateDir, libraryRoots, logger, now = Date.now } = options;
   const sources = new Map(options.sources.map((source2) => [source2.id, source2]));
-  const covers = createCovers({ dir: join16(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
-  const log = createWatchLog({ file: join16(stateDir, LOG_NAME), now, logger });
+  const covers = createCovers({ dir: join17(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
+  const log = createWatchLog({ file: join17(stateDir, LOG_NAME), now, logger });
   const changes = createChanges({ intervalMs: options.changeIntervalMs });
   const points = createPoints(options.points ?? { command: [], night: { from: "01:00", to: "06:00" } }, { logger, now });
-  const books = createBooks({ changed: () => changes.notify("shelf"), dir: join16(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
+  const books = createBooks({ changed: () => changes.notify("shelf"), dir: join17(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
   let rooms;
   let cache;
   const downloads = createDownloads({
@@ -14978,6 +15142,7 @@ function createMediaHub(options) {
     logger,
     now
   });
+  const remarks = createRemarks({ source: (id) => sources.get(id), logger, now });
   const refreshWork = createWorkRefresh({ source: (id) => sources.get(id), keep: (path, work) => library.keepWork(path, work), maxAgeMs: options.workMaxAgeMs, logger, now });
   const library = createLibrary({
     changed: () => changes.notify("library"),
@@ -15012,7 +15177,7 @@ function createMediaHub(options) {
     cache.refresh(show).catch(() => {
     });
   });
-  const copies = createCopies({ file: join16(stateDir, "discover.json"), changed: () => changes.notify("discover"), maxAgeMs: options.discoverMaxAgeMs, logger, now });
+  const copies = createCopies({ file: join17(stateDir, "discover.json"), changed: () => changes.notify("discover"), maxAgeMs: options.discoverMaxAgeMs, logger, now });
   const discover = createDiscover({
     copies,
     sources,
@@ -15024,7 +15189,12 @@ function createMediaHub(options) {
     });
     cache.enforce().catch(() => {
     });
-  }, HOUR_MS3);
+  }, HOUR_MS4);
+  function roomShow(id) {
+    const room = rooms.listRooms().find((entry) => entry.id === id);
+    if (room === void 0) throw hubError("not_found", "no such room");
+    return room.show;
+  }
   async function onFiles(job) {
     changes.notify("library");
     await rooms.syncShow(job.dir);
@@ -15095,7 +15265,7 @@ ${work.id}`) || foldersFor(sourceId, work).some((path) => logged.has(path)));
     const name2 = cleanName(work.title ?? "");
     const mark = createHash6("sha256").update(`${sourceId}
 ${work.id}`).digest("hex").slice(0, 8);
-    return [name2, `${name2} (${mark})`].map((candidate) => join16(libraryRoots[0], candidate));
+    return [name2, `${name2} (${mark})`].map((candidate) => join17(libraryRoots[0], candidate));
   }
   async function folderFor(sourceId, item) {
     for (const path of foldersFor(sourceId, item)) {
@@ -15184,11 +15354,44 @@ ${work.id}`).digest("hex").slice(0, 8);
       for (const show of list.shows) if (show.source?.source) refreshWork(show.path, { source: show.source, work: show.work });
       return { ...list, shows: list.shows.map(withCovers) };
     },
-    /** The details of the work a room's show came from, or null. */
+    /**
+     * The details of the work a room's show came from (or null), the quality its episodes are fetched in, and which of
+     * the work's danmaku and comments its source offers.
+     */
     roomWork(id) {
-      const room = rooms.listRooms().find((entry) => entry.id === id);
-      if (room === void 0) throw hubError("not_found", "no such room");
-      return { work: room.show === null ? null : withCovers(shownEntry(room.show)).work ?? null, source: library.workSource(room.show)?.source ?? null, id: library.workSource(room.show)?.id ?? null };
+      const show = roomShow(id);
+      const from2 = library.workSource(show);
+      return {
+        work: show === null ? null : withCovers(shownEntry(show)).work ?? null,
+        source: from2?.source ?? null,
+        id: from2?.id ?? null,
+        quality: from2?.quality || AUTO,
+        ...remarks.offered(from2)
+      };
+    },
+    /** The danmaku of a room's item, from the copy kept with its show; the next episode's is made ready meanwhile. */
+    async roomDanmaku(id, index) {
+      const show = roomShow(id);
+      const from2 = library.workSource(show);
+      const number = rooms.slotOf(id, index);
+      if (from2 === null || number === void 0) return { items: [], at: null };
+      const answer = await remarks.danmaku(show, from2, number);
+      if (number < (from2.episodes ?? 0)) remarks.danmaku(show, from2, number + 1).catch((error) => logger.warn("media hub: danmaku of %s episode %d: %s", show, number + 1, error.message));
+      return answer;
+    },
+    /** The comments on a room's work: the kept first page, or the page after `cursor`. */
+    roomComments(id, cursor = "") {
+      const show = roomShow(id);
+      const from2 = library.workSource(show);
+      return from2 === null ? { total: 0, items: [], next: null, at: null } : remarks.comments(show, from2, cursor);
+    },
+    /** Fetch a room's show in one of the qualities its work offers, from the episodes after the one it is on. */
+    async roomQuality(id, quality) {
+      const show = roomShow(id);
+      const offered = show === null ? [] : library.workOf(show)?.qualities ?? [];
+      if (!isQuality(quality) || !offered.includes(quality)) throw hubError("invalid", "the show is not offered in this quality");
+      await cache.requality(show, quality);
+      return { quality };
     },
     episodes: (path) => library.episodes(path),
     removeShow: (path, by) => library.remove(path, { by }),
@@ -15248,8 +15451,8 @@ ${work.id}`).digest("hex").slice(0, 8);
       if (watch) room = (await rooms.createRoom({ source: "local", path: dir, title: item.title, by, person, together, start: await library.resumeFrom(dir) })).room;
       else await cache.refresh(dir, { retry: true });
       await points.use(person, tickets, { room: room?.id, subject });
-      const count = all ? item.episodes : Math.min(item.episodes, options.cache.ahead + 1);
-      return { path: dir, title: item.title, episodes: item.episodes, estimate: count * (EPISODE_BYTES[item.kind] ?? EPISODE_BYTES.drama), room, download: downloads.state(dir) };
+      const count2 = all ? item.episodes : Math.min(item.episodes, options.cache.ahead + 1);
+      return { path: dir, title: item.title, episodes: item.episodes, estimate: count2 * (EPISODE_BYTES[item.kind] ?? EPISODE_BYTES.drama), room, download: downloads.state(dir) };
     },
     /**
      * Follow a work, or stop following it. A work not in the library is added as an empty show; the host then looks for its
@@ -15513,7 +15716,7 @@ function createShelfRoutes({ books, identity }) {
 var name = "dsh-media-hub";
 var inject = ["webServer", "connection"];
 var ROOM_ID = /^[A-Za-z0-9_-]{6,32}$/;
-var DAY_MS5 = 864e5;
+var DAY_MS6 = 864e5;
 function apply(ctx, config) {
   const logger = ctx.logger("media-hub");
   let current;
@@ -15522,7 +15725,7 @@ function apply(ctx, config) {
     const stateDir = resolve6(config.stateDir);
     const service = createMediaHub({
       stateDir,
-      libraryRoots: [join17(stateDir, "library"), ...config.libraryRoots.map((root) => resolve6(root))],
+      libraryRoots: [join18(stateDir, "library"), ...config.libraryRoots.map((root) => resolve6(root))],
       delivery: createDelivery({ mode: config.delivery }),
       tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, maxHeight: config.maxHeight, threads: config.threads },
       webUrl: () => ctx.get("webApp")?.getAdvertisedUrl(),
@@ -15549,7 +15752,7 @@ function apply(ctx, config) {
     const prune = setInterval(() => {
       service.pruneCache(config.cacheDays).catch(() => {
       });
-    }, DAY_MS5);
+    }, DAY_MS6);
     const identity = () => ctx.get("requestIdentity");
     const fetchRoutes = [
       ...createShelfRoutes({ books: () => current?.books, identity }),

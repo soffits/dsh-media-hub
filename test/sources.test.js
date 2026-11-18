@@ -55,7 +55,7 @@ test('the optional descriptive fields are read when well formed and ignored when
 
 test('an info document becomes one result whose episode count is the length of its list', () => {
   const info = parseInfo({ id: '9', title: '初尝玫瑰！', kind: 'drama', author: '云景文化', status: 'finished', score: 8.2, blurb: '温薏成长于书香家庭。', episodes: [{ number: 1, title: '第1集' }, { number: 2, title: '第2集' }] })
-  assert.deepEqual(info, { id: '9', title: '初尝玫瑰！', kind: 'drama', author: '云景文化', status: 'finished', episodes: 2, episodeTitles: ['第1集', '第2集'], score: 8.2, blurb: '温薏成长于书香家庭。', cover: null, url: null, duration: null, popularity: null, tags: [], latest: '', meta: [], year: null, language: '', publisher: '', origin: '', formats: [], bytes: null, related: [] })
+  assert.deepEqual(info, { id: '9', title: '初尝玫瑰！', kind: 'drama', author: '云景文化', status: 'finished', episodes: 2, episodeTitles: ['第1集', '第2集'], score: 8.2, blurb: '温薏成长于书香家庭。', cover: null, url: null, duration: null, popularity: null, tags: [], latest: '', meta: [], year: null, language: '', publisher: '', origin: '', formats: [], bytes: null, related: [], qualities: [] })
   assert.equal(parseInfo({ id: '9', title: 'x', episode_count: 40 }).episodes, null, 'a count without a list is not an episode list')
   assert.throws(() => parseInfo({ title: 'no id' }), { code: 'source_failed' })
 })

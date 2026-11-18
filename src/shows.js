@@ -452,6 +452,14 @@ export function createLibrary(options) {
       changed(path)
     },
 
+    /** Fetch a sourced show's episodes in another quality (src/quality.js) from now on. */
+    setQuality(path, quality) {
+      const target = requireShow(path)
+      const entry = record(target)
+      if (!isSourced(entry)) throw libraryError('invalid', 'this show has no source to fetch from')
+      update(target, { source: { ...entry.source, quality } })
+    },
+
     /** The saved (offline fallback) copy of a show's work, or null. */
     workOf: path => record(path).work ?? null,
     /** Which source and work id a show came from (`{ source, id, ... }`), or null. */

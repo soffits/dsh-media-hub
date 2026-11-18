@@ -4,9 +4,12 @@
  */
 import { About, nextSeason } from './about-view.js'
 import { AvatarStack } from './avatars.js'
+import { Comments } from './comments-view.js'
+import { DanmakuLayer, useDanmakuSettings } from './danmaku-layer.js'
 import { Cover } from './details.js'
 import { useKnownWork } from './known.js'
-import { Confirm, Icon, ProgressBar, React, api, asPersonPaying, base, captionText, clock, copyText, displayName, fill, h, post, progressFraction, progressText, roomLink, watchMark } from './ui.js'
+import { PlayerBar } from './player-bar.js'
+import { Changes, Confirm, Icon, ProgressBar, React, api, asPersonPaying, base, captionText, clock, copyText, displayName, fill, h, post, progressFraction, progressText, roomLink, watchMark } from './ui.js'
 
 const TOAST_MS = 4000
 /** A wait shorter than this (a seek into what is already loaded) shows nothing. */
@@ -43,8 +46,38 @@ function WaitPanel({ t, view, item, onSkip, onContinue }) {
     view.wait.canSkip && others.length > 0 && view.wait.held && h('button', { type: 'button', className: 'vsync-btn', onClick: onSkip }, fill(t('room.startWithout'), { names })))
 }
 
+/** No danmaku yet: the same empty list each time, so the layer is not rebuilt. */
+const NO_DANMAKU = Object.freeze([])
+
+/**
+ * The player filling the screen with the danmaku and the bar on top: the browser's full screen for the player's box
+ * where it has one, else (iPhone, which only lets a bare <video> go full screen) the box covering the page.
+ */
+function useFullScreen(box) {
+  const [covering, setCovering] = React.useState(false)
+  const [native, setNative] = React.useState(false)
+  React.useEffect(() => {
+    const changed = () => setNative(document.fullscreenElement === box.current && box.current !== null)
+    document.addEventListener('fullscreenchange', changed)
+    return () => document.removeEventListener('fullscreenchange', changed)
+  }, [])
+  const toggle = () => {
+    if (native) return void document.exitFullscreen()
+    if (covering) return setCovering(false)
+    if (typeof box.current?.requestFullscreen === 'function' && document.fullscreenEnabled) return void box.current.requestFullscreen().catch(() => setCovering(true))
+    return setCovering(true)
+  }
+  return { full: native || covering, covering, toggle }
+}
+
 export function RoomView({ t, roomId, onLeave, onOpen }) {
   const stage = React.useRef(null)
+  const playerBox = React.useRef(null)
+  const { shows } = React.useContext(Changes)
+  const [danmakuSettings, setDanmakuSettings] = useDanmakuSettings()
+  const [danmaku, setDanmaku] = React.useState({ index: null, items: NO_DANMAKU })
+  const [qualityBusy, setQualityBusy] = React.useState(false)
+  const screen = useFullScreen(playerBox)
   const session = React.useRef(null)
   const [view, setView] = React.useState({ connection: 'connecting', room: null, members: [], needsGesture: false })
   const [toasts, setToasts] = React.useState([])
@@ -84,14 +117,34 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
     }
   }, [roomId])
 
+  // The show's notes change (another viewer picked a quality, the work was read again): read them again.
   React.useEffect(() => {
     let live = true
     api(`rooms/${encodeURIComponent(roomId)}/work`).then((answer) => { if (live && answer.work) setAbout(answer) })
     return () => { live = false }
-  }, [roomId])
+  }, [roomId, shows])
 
   const room = view.room
   const item = room?.items[room.index]
+  const index = room?.index ?? null
+  const wantsDanmaku = about?.danmaku === true && danmakuSettings.on
+  React.useEffect(() => {
+    if (!wantsDanmaku || index === null) return undefined
+    let live = true
+    setDanmaku({ index, items: NO_DANMAKU })
+    api(`rooms/${encodeURIComponent(roomId)}/danmaku/${index}`).then((answer) => {
+      if (live && Array.isArray(answer.items)) setDanmaku({ index, items: answer.items })
+    })
+    return () => { live = false }
+  }, [roomId, index, wantsDanmaku])
+  const choices = about?.work?.qualities ?? []
+  const pickQuality = async (quality) => {
+    setQualityBusy(true)
+    const answer = await post(`rooms/${encodeURIComponent(roomId)}/quality`, { quality })
+    setQualityBusy(false)
+    if (answer.error) toast(answer.error)
+    else setAbout(current => ({ ...current, quality: answer.quality }))
+  }
   const copy = async () => {
     if (await copyText(roomLink(roomId), t('room.copy'))) {
       setCopied(true)
@@ -111,6 +164,8 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
     onLeave()
   }
 
+  const tabs = [room && room.items.length > 1 && 'episodes', about && 'about', about?.comments && 'comments'].filter(Boolean)
+  const shownSide = tabs.includes(side) ? side : tabs[0]
   const season = about ? nextSeason(about.work) : null
   const seasonKnown = useKnownWork(about?.source, season?.id)
   const watchSeason = async () => {
@@ -150,40 +205,52 @@ export function RoomView({ t, roomId, onLeave, onOpen }) {
           room?.together && h('button', { type: 'button', className: 'vsync-icon', 'aria-label': copied ? t('room.copied') : t('room.copy'), title: copied ? t('room.copied') : t('room.copy'), onClick: copy }, h(Icon.Link)),
           h('button', { type: 'button', className: 'vsync-icon', 'aria-label': t('room.close'), title: t('room.close'), onClick: () => setClosing(true) }, h(Icon.Close)))),
     h('div', { className: 'vsync-body' },
-      h('div', { className: 'vsync-stageWrap' },
-        h('div', { className: 'vsync-stage', ref: stage }),
-        overlay && h('div', { className: 'vsync-overlay' }, overlay),
-        h('div', { className: 'vsync-toasts', role: 'status', 'aria-live': 'polite' }, toasts.map(item => h('span', { key: item.id, className: 'vsync-toast' }, item.text)))),
-      room && (room.items.length > 1 || about) && h('aside', { className: 'vsync-episodes', 'aria-label': t('room.episodes') },
-        about && room.items.length > 1 && h('div', { className: 'vsync-sideTabs', role: 'tablist' },
-          ['episodes', 'about'].map(tab => h('button', { key: tab, type: 'button', role: 'tab', className: 'vsync-chip', 'aria-selected': String(side === tab), onClick: () => setSide(tab) }, t(`room.tab.${tab}`)))),
-        (side === 'about' || room.items.length === 1) && about
-          ? h(About, { t, work: about.work, source: about.source, workId: about.id })
-          : h(React.Fragment, null,
-            !about && h('h2', null, t('room.episodes')),
-            h('ol', { className: 'vsync-episodeList' }, room.items.map((episode, index) => {
-              const mark = watchMark(t, episode.watch, index === room.index)
-              const title = episode.title ?? fill(t('room.episodeN'), { n: index + 1 })
-              return h('li', { key: index },
-                h('button', {
-                  type: 'button',
-                  className: 'vsync-episode',
-                  'aria-current': String(index === room.index),
-                  'data-watch': mark.state,
-                  'data-cached': String(episode.cached),
-                  title: episode.cached ? undefined : t('room.notCached'),
-                  disabled: episode.status === 'failed' && episode.cached,
-                  onClick: () => session.current?.select(index),
-                },
-                h('span', { className: 'vsync-episodeNo' }, index + 1),
-                h('span', { className: 'vsync-episodeMain' },
-                  h('span', { className: 'vsync-episodeTitle' }, title),
-                  mark.bar),
-                episode.status === 'preparing'
-                  ? h('span', { className: 'vsync-episodeState' }, progressFraction(episode.progress) === null ? '…' : `${Math.floor(progressFraction(episode.progress) * 100)}%`)
-                  : mark.note))
-            })),
-            season && h('div', { className: 'vsync-nextSeason', 'data-last': String(room.index === room.items.length - 1) },
-              h('span', { className: 'vsync-nextSeasonText' }, fill(t('room.nextSeason'), { title: season.title })),
-              h('button', { type: 'button', className: 'vsync-btn vsync-primary', disabled: seasonBusy, onClick: watchSeason }, seasonBusy ? t('search.opening') : seasonKnown.room !== null ? t('search.joinRoom') : seasonKnown.show !== null ? t(seasonKnown.show.resume ? 'search.continue' : 'search.open') : t('search.watch')))))))
+      h('div', { className: 'vsync-player', ref: playerBox, 'data-covering': String(screen.covering) },
+        h('div', { className: 'vsync-stageWrap' },
+          h('div', { className: 'vsync-stage', ref: stage }),
+          wantsDanmaku && danmaku.index === index && h(DanmakuLayer, { media: session.current?.media ?? null, items: danmaku.items, settings: danmakuSettings }),
+          overlay && h('div', { className: 'vsync-overlay' }, overlay),
+          h('div', { className: 'vsync-toasts', role: 'status', 'aria-live': 'polite' }, toasts.map(item => h('span', { key: item.id, className: 'vsync-toast' }, item.text)))),
+        room && h(PlayerBar, {
+          t,
+          settings: danmakuSettings,
+          onSettings: setDanmakuSettings,
+          danmaku: about?.danmaku === true,
+          count: danmaku.index === index && danmaku.items !== NO_DANMAKU ? danmaku.items.length : null,
+          quality: choices.length > 1 ? { value: choices.includes(about.quality) ? about.quality : choices[0], choices, onChange: pickQuality, busy: qualityBusy } : null,
+          full: screen.full,
+          onFull: screen.toggle,
+        })),
+      tabs.length > 0 && h('aside', { className: 'vsync-episodes', 'aria-label': t('room.episodes') },
+        tabs.length > 1 && h('div', { className: 'vsync-sideTabs', role: 'tablist' },
+          tabs.map(tab => h('button', { key: tab, type: 'button', role: 'tab', className: 'vsync-chip', 'aria-selected': String(shownSide === tab), onClick: () => setSide(tab) }, t(`room.tab.${tab}`)))),
+        shownSide === 'about' && h(About, { t, work: about.work, source: about.source, workId: about.id }),
+        shownSide === 'comments' && h(Comments, { t, roomId }),
+        shownSide === 'episodes' && h(React.Fragment, null,
+          !about && h('h2', null, t('room.episodes')),
+          h('ol', { className: 'vsync-episodeList' }, room.items.map((episode, index) => {
+            const mark = watchMark(t, episode.watch, index === room.index)
+            const title = episode.title ?? fill(t('room.episodeN'), { n: index + 1 })
+            return h('li', { key: index },
+              h('button', {
+                type: 'button',
+                className: 'vsync-episode',
+                'aria-current': String(index === room.index),
+                'data-watch': mark.state,
+                'data-cached': String(episode.cached),
+                title: episode.cached ? undefined : t('room.notCached'),
+                disabled: episode.status === 'failed' && episode.cached,
+                onClick: () => session.current?.select(index),
+              },
+              h('span', { className: 'vsync-episodeNo' }, index + 1),
+              h('span', { className: 'vsync-episodeMain' },
+                h('span', { className: 'vsync-episodeTitle' }, title),
+                mark.bar),
+              episode.status === 'preparing'
+                ? h('span', { className: 'vsync-episodeState' }, progressFraction(episode.progress) === null ? '…' : `${Math.floor(progressFraction(episode.progress) * 100)}%`)
+                : mark.note))
+          })),
+          season && h('div', { className: 'vsync-nextSeason', 'data-last': String(room.index === room.items.length - 1) },
+            h('span', { className: 'vsync-nextSeasonText' }, fill(t('room.nextSeason'), { title: season.title })),
+            h('button', { type: 'button', className: 'vsync-btn vsync-primary', disabled: seasonBusy, onClick: watchSeason }, seasonBusy ? t('search.opening') : seasonKnown.room !== null ? t('search.joinRoom') : seasonKnown.show !== null ? t(seasonKnown.show.resume ? 'search.continue' : 'search.open') : t('search.watch')))))))
 }

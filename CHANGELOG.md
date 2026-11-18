@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Danmaku in rooms: the episode's danmaku fly over the picture in time with it, for sources that have them (Fanqie's short dramas). A *Danmaku* switch sits under the player, and its settings button sets their opacity, how much of the picture they cover and their size, kept per browser. The new full-screen button keeps them on the picture (on iPhone the player covers the page).
+- A room's *Comments* tab shows what people wrote about the work on the site, with more pages on request.
+- Quality in rooms: when the source has a show in several sizes, the player's settings pick the one the hub fetches, for everyone in the room, from the next episode. Fanqie dramas list theirs (only the ones that play: many have just 1080p).
+- Source protocol: `info` may list `qualities` and `download` then takes `--quality`; two optional verbs, `danmaku` and `comments`, declared per kind with `"danmaku": true` and `"comments": true`.
+
 ## 0.13.0
 
 - The recommender's picks moved from Discover to the Watching tab, under what you are watching, as *For you* (still switched by `presence.picks`). Each is the card of its kind (watch it, or download a book) under the reason it was picked. Discover keeps each source's trending lists and search.

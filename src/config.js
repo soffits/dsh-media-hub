@@ -37,6 +37,10 @@ const SourceConfig = z.object({
       .description('What a work of this kind is: video or audio (episodes, watched or listened to together in a room) or book (one file, downloaded in a format).'),
     trending: z.boolean().default(false)
       .description('Whether the command\'s trending verb answers for this kind (docs/source-protocol.md): its rank lists and new arrivals, shown on Discover before a search.'),
+    danmaku: z.boolean().default(false)
+      .description('Whether the command\'s danmaku verb answers for this kind: the comments people posted at a moment of an episode, drawn over the picture in a room.'),
+    comments: z.boolean().default(false)
+      .description('Whether the command\'s comments verb answers for this kind: what people wrote about a work, readable in its room.'),
   })).description('What the source can search for; at least one.'),
   filters: z.array(z.union(FILTERS.map(filter => z.const(filter)))).default([])
     .description('Search filters the command understands (docs/source-protocol.md). The hub filters the answers by language, format, year and size itself as well.'),
@@ -83,7 +87,7 @@ const CookieRule = z.object({
 const DEFAULT_SOURCES = Object.freeze([
   {
     id: 'fanqie',
-    kinds: [{ id: 'drama', media: 'video', trending: true }, { id: 'audio', media: 'audio' }, { id: 'novel', media: 'book', trending: true }],
+    kinds: [{ id: 'drama', media: 'video', trending: true, danmaku: true, comments: true }, { id: 'audio', media: 'audio', comments: true }, { id: 'novel', media: 'book', trending: true }],
     filters: [],
     command: ['fanqie'],
     env: {},

@@ -8,6 +8,8 @@
  *   <command> download --id=<id> --episodes <A-B | A- | A> --output <dir> --json   (video and audio kinds)
  *   <command> download --id=<id> --format <ext> --output <dir> --json               (book kinds: one file)
  *   <command> cover --output <file> -- <url>      (optional: fetch a cover image)
+ *   <command> danmaku --episodes <n> --json -- <id>                    (kinds with `danmaku`)
+ *   <command> comments --limit <n> [--cursor <c>] --json -- <id>       (kinds with `comments`)
  *
  * search and info print one JSON document on stdout; download prints one
  * JSON object per line (events) and a last `result`. stderr is free text for
@@ -21,6 +23,7 @@ import { createReadStream } from 'node:fs'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { BASE, pick } from '../i18n.js'
+import { heightChoices, isHeight } from '../quality.js'
 import { commandExists, lastLine, parseLine, run } from './process.js'
 
 const SEARCH_LIMIT = 12
@@ -149,7 +152,10 @@ export function nextOffset(document, offset = 0) {
   return Number.isInteger(document?.next) && document.next > offset ? document.next : null
 }
 
-/** The `info` document into one result; `episodes` is how many the work lists, `episodeTitles` their titles in order, `related` its other seasons and linked works. */
+/**
+ * The `info` document into one result; `episodes` is how many the work lists, `episodeTitles` their titles in order,
+ * `related` its other seasons and linked works, `qualities` the choices its listed heights give (none for one height).
+ */
 export function parseInfo(document) {
   const id = text(document?.id)
   if (!ID.test(id)) throw sourceError('source_failed', 'the source returned no work')
@@ -159,7 +165,47 @@ export function parseInfo(document) {
     .filter(work => work !== null && work.id !== id)
     .slice(0, MAX_RELATED)
   const episodeTitles = Array.isArray(document.episodes) ? document.episodes.map(episode => text(episode?.title)) : []
-  return { ...resultOf(document, null), id, episodes: listed > 0 ? listed : null, episodeTitles, related }
+  return { ...resultOf(document, null), id, episodes: listed > 0 ? listed : null, episodeTitles, related, qualities: heightChoices(document.qualities) }
+}
+
+const MAX_DANMAKU = 5000
+const MAX_DANMAKU_TEXT = 100
+const MAX_COMMENT_TEXT = 4000
+const MAX_CURSOR = 2000
+export const COMMENTS_PAGE = 20
+
+/** A count a source gives, or 0. */
+const count = value => (Number.isInteger(value) && value >= 0 ? value : 0)
+
+/** The `danmaku` answer (one JSON object per line, one line per episode) into episode `number`'s items `{ time, text, likes }`, in time order. */
+export function parseDanmaku(lines, number) {
+  const found = lines.find(line => line?.episode === number) ?? (lines.length === 1 ? lines[0] : null)
+  if (!Array.isArray(found?.items)) throw sourceError('source_failed', 'the danmaku answer has no items')
+  return found.items
+    .map(raw => ({ time: Number.isFinite(raw?.time) && raw.time >= 0 ? raw.time : null, text: text(raw?.text).replace(/\s+/g, ' ').slice(0, MAX_DANMAKU_TEXT), likes: count(raw?.likes) }))
+    .filter(item => item.time !== null && item.text !== '')
+    .sort((a, b) => a.time - b.time)
+    .slice(0, MAX_DANMAKU)
+}
+
+const ISO_TIME = value => (typeof value === 'string' && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null)
+
+/** The `comments` document into `{ total, items, next }`: each comment `{ id, name, text, created, likes, replies, rating }`, `next` the cursor of the following page or null. */
+export function parseComments(document) {
+  if (!Array.isArray(document?.items)) throw sourceError('source_failed', 'the comments answer has no items')
+  const items = document.items
+    .map(raw => ({
+      id: text(raw?.id),
+      name: text(raw?.user?.name ?? raw?.name),
+      text: text(raw?.text).slice(0, MAX_COMMENT_TEXT),
+      created: ISO_TIME(raw?.created),
+      likes: count(raw?.likes),
+      replies: count(raw?.replies),
+      rating: Number.isFinite(raw?.rating) ? raw.rating : null,
+    }))
+    .filter(item => item.id !== '' && item.text !== '')
+  const next = text(document.next_cursor ?? document.next)
+  return { total: countOrNull(document.total), items, next: next !== '' && next.length <= MAX_CURSOR && items.length > 0 ? next : null }
 }
 
 function sha256Of(path) {
@@ -221,15 +267,26 @@ export function createCommandSource(definition, { logger, cwd }) {
     return cwd
   }
 
-  async function query(args) {
+  async function answer(args) {
     const { code, stdout, stderr, oversized } = await run([...command, ...args], { timeoutMs: QUERY_TIMEOUT_MS, cwd: await workDir(), env })
     if (oversized) throw sourceError('source_failed', `${name()}: the answer is too large`)
     if (code !== 0) throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
+    return stdout
+  }
+
+  async function query(args) {
+    const stdout = await answer(args)
     try {
       return JSON.parse(stdout)
     } catch {
       throw sourceError('source_failed', `${name()}: the answer is not JSON`)
     }
+  }
+
+  /** Whether a kind of this source declares an optional verb (`danmaku`, `comments`). */
+  const offers = (kind, verb) => kinds.some(entry => entry.id === kind && entry[verb] === true)
+  const checkId = (id) => {
+    if (!ID.test(String(id))) throw sourceError('invalid', `not a ${name()} id`)
   }
 
   return {
@@ -268,7 +325,25 @@ export function createCommandSource(definition, { logger, cwd }) {
       if (code !== 0) throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
     },
 
-    async download({ id, dir, from = 1, to = null, signal, onEpisode, onStart, onPartial }) {
+    offers,
+
+    /** The danmaku of episode `number` of a work of a kind that declares `danmaku`: `[{ time, text, likes }]`. */
+    async danmaku(id, number, kind) {
+      checkId(id)
+      if (!offers(kind, 'danmaku') || !Number.isInteger(number) || number < 1) throw sourceError('invalid', `${name()} has no danmaku for this`)
+      const lines = (await answer(['danmaku', '--episodes', String(number), '--json', '--', String(id)])).split('\n').map(parseLine).filter(line => line !== null)
+      return parseDanmaku(lines, number)
+    },
+
+    /** A page of the comments on a work of a kind that declares `comments`; `cursor` continues where an earlier page's `next` left off. */
+    async comments(id, kind, { cursor = '', limit = COMMENTS_PAGE } = {}) {
+      checkId(id)
+      if (!offers(kind, 'comments')) throw sourceError('invalid', `${name()} has no comments for this`)
+      const paging = cursor === '' ? [] : ['--cursor', String(cursor).slice(0, MAX_CURSOR)]
+      return parseComments(await query(['comments', '--limit', String(limit), ...paging, '--json', '--', String(id)]))
+    },
+
+    async download({ id, dir, from = 1, to = null, quality = '', signal, onEpisode, onStart, onPartial }) {
       if (!ID.test(String(id))) throw sourceError('invalid', `not a ${name()} id`)
       const failed = []
       let result = null
@@ -303,7 +378,7 @@ export function createCommandSource(definition, { logger, cwd }) {
         }
         else if (event?.event === 'result') result = event
       }
-      const argv = [...command, 'download', `--id=${String(id)}`, '--episodes', episodes, '--output', dir, '--json']
+      const argv = [...command, 'download', `--id=${String(id)}`, '--episodes', episodes, ...(isHeight(quality) ? ['--quality', String(quality)] : []), '--output', dir, '--json']
       const { code, stderr } = await run(argv, { signal, cwd: await workDir(), env, onStdoutLine: onLine })
       for (const number of [...growing.keys()]) settle(number)
       await checking

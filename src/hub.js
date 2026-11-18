@@ -629,6 +629,9 @@ export function createRoomService(options) {
      */
     streamEpisode: (path, number, partial) => streams.offer(resolve(path), number, partial),
 
+    /** The episode number of a room's item in its show (undefined for a room on plain files). */
+    slotOf: (roomId, index) => rooms.get(roomId)?.items[index]?.slot,
+
     /** The prepared file of a ready local item. */
     mediaFile(roomId, index) {
       const item = rooms.get(roomId)?.items[index]

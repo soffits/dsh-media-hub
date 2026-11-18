@@ -8,6 +8,9 @@
  *   GET    /media-hub/api/rooms                open rooms
  *   DELETE /media-hub/api/rooms/<id>           close a room
  *   POST   /media-hub/api/rooms/<id>/together  open a room someone watches alone to others
+ *   GET    /media-hub/api/rooms/<id>/danmaku/<i>   { items: [{ time, text, likes }], at }: a room item's danmaku
+ *   GET    /media-hub/api/rooms/<id>/comments[?cursor=]   { total, items, next, at }: the comments on a room's work
+ *   POST   /media-hub/api/rooms/<id>/quality   { quality }: fetch the show in another quality from the next episode
  *   GET    /media-hub/api/rooms/<id>/work      the details of the work a room's show came from:
  *   GET    /media-hub/api/library              shows, sizes, free space
  *   GET    /media-hub/api/library/episodes?path=
@@ -38,6 +41,7 @@ import { fileURLToPath } from 'node:url'
 import { PREFIX } from './delivery.js'
 import { parseFilters } from './filters.js'
 import { readLocales } from './locales.js'
+import { VENDORED } from './vendored.js'
 
 export const ROUTE = `/${PREFIX}`
 export const WS_PATH = `${ROUTE}/ws`
@@ -77,15 +81,17 @@ export const MODULES = Object.freeze({
   'captions.js': resolve(here, '../src/captions.js'),
 })
 
-/** hls.js's browser build: next to the built entries, else from the package (a source checkout). */
-function hlsFile() {
-  const built = resolve(here, '../dist/hls.mjs')
-  return existsSync(built) ? built : resolve(dirname(createRequire(import.meta.url).resolve('hls.js/package.json')), 'dist/hls.mjs')
+/** A package's browser build the page loads (VENDORED): next to the built entries, else from the package (a source checkout). */
+function vendoredFile(name) {
+  const built = resolve(here, '../dist', name)
+  if (existsSync(built)) return built
+  const { pkg, file } = VENDORED[name]
+  return resolve(dirname(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file)
 }
 
 /** The file behind /media-hub/web/<name>, or undefined. */
 export function webFile(name) {
-  if (name === 'hls.mjs') return hlsFile()
+  if (Object.hasOwn(VENDORED, name)) return vendoredFile(name)
   if (MODULES[name] !== undefined) return MODULES[name]
   return /^[a-z0-9-]+\.(js|css)$/.test(name) ? resolve(WEB_DIR, name) : undefined
 }
@@ -248,6 +254,9 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         const query = name => url.searchParams.get(name) ?? ''
         if (route === 'GET rooms') return sendJson(res, 200, { rooms: await hub.listRooms() })
         if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, hub.roomWork(parts[2]))
+        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 5 && parts[3] === 'danmaku') return sendJson(res, 200, await hub.roomDanmaku(parts[2], Number(parts[4])))
+        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'comments') return sendJson(res, 200, await hub.roomComments(parts[2], query('cursor')))
+        if (req.method === 'POST' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'quality') return sendJson(res, 200, await hub.roomQuality(parts[2], String((await readJson(req)).quality ?? '')))
         if (req.method === 'DELETE' && parts[1] === 'rooms' && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]))
         if (req.method === 'POST' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'together') return sendJson(res, 200, hub.watchTogether(parts[2]))
         if (route === 'GET library') return sendJson(res, 200, await hub.library())
