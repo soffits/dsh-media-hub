@@ -19,3 +19,14 @@ test('a browser with no Media Source but native HLS uses it, and one with neithe
   assert.equal(playsHlsNatively(never, { webkit: false, mse: false }), false)
   assert.equal(playsHlsNatively(never, { webkit: true, mse: true }), false)
 })
+
+test('the page asks for hls.js where the Host serves it, next to the player module', async () => {
+  const { readFile, access } = await import('node:fs/promises')
+  const { webFile } = await import('../src/http.js')
+  const source = await readFile(new URL('../web/player.js', import.meta.url), 'utf8')
+  const spec = /import\(new URL\('([^']+)', import\.meta\.url\)/.exec(source)?.[1]
+  assert.ok(spec, 'player.js loads hls.js relative to its own address')
+  const served = new URL(spec, 'http://dsh.invalid/media-hub/web/player.js')
+  assert.equal(served.pathname, '/media-hub/web/hls.mjs')
+  await access(webFile(served.pathname.split('/').pop()))
+})
