@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14.0
 
 - Danmaku in rooms: the episode's danmaku fly over the picture in time with it, for sources that have them (Fanqie's short dramas). A *Danmaku* switch sits under the player, and its settings button sets their opacity, how much of the picture they cover and their size, kept per browser. The new full-screen button keeps them on the picture (on iPhone the player covers the page).
 - A room's *Comments* tab shows what people wrote about the work on the site, with more pages on request.
