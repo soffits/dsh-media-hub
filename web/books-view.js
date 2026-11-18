@@ -134,48 +134,46 @@ export function BookCard({ t, source, result }) {
             h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: download }, h(Icon.Download, { size: 14 }), offered.length > 1 ? t('book.download') : fill(t('book.downloadAs'), { format: chosen.toUpperCase() })))))))
 }
 
-/** My books: what the signed-in person downloaded, to save again, fetch again or delete. */
-export function ShelfSection({ t }) {
+/** What the signed-in person downloaded: the shelf as the Host answers it, and the one action on an entry (remove, fetch again). */
+export function useShelf() {
   const changes = React.useContext(Changes)
   const [state, setState] = React.useState(null)
-  const [confirm, setConfirm] = React.useState(null)
   const load = React.useCallback(async () => {
     const answer = await shelf()
     setState(answer)
     return answer
   }, [])
   React.useEffect(() => { load() }, [load, changes.shelf])
-
   const act = async (path, entry) => {
-    setConfirm(null)
     await shelf(path, { entry: entry.entry })
     forgetShelf()
     await load()
   }
+  return { state, act }
+}
 
-  if (state === null) return null
-  if (state.error) return h('section', { className: 'vsync-section' }, h('h2', null, t('shelf.title')), h('p', { className: 'vsync-error', role: 'alert' }, state.error))
-  return h('section', { className: 'vsync-section vsync-shelf' },
-    h('div', { className: 'vsync-sectionHead' },
-      h('h2', null, t('shelf.title')),
-      h('span', { className: 'vsync-note' }, state.capBytes > 0 ? fill(t('shelf.usedOf'), { used: bytes(t, state.usedBytes), cap: bytes(t, state.capBytes) }) : bytes(t, state.usedBytes))),
-    state.entries.length === 0
-      ? h('p', { className: 'vsync-empty' }, t('shelf.empty'))
-      : h('ul', { className: 'vsync-rows' }, state.entries.map(entry => h('li', { key: entry.entry, className: 'vsync-card vsync-book vsync-shelfEntry' },
-        h(Cover, { result: { ...entry, media: 'book' }, small: true }),
-        h('div', { className: 'vsync-cardBody' },
-          h('div', { className: 'vsync-cardHead' }, h('span', { className: 'vsync-rowTitle' }, entry.title || entry.id)),
-          h('span', { className: 'vsync-rowMeta' }, [entry.author, entry.format.toUpperCase(), entry.bytes ? bytes(t, entry.bytes) : null, entry.converted ? t('book.converted') : null].filter(Boolean).map((part, n) => h('span', { key: n }, part))),
-          entry.state === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, entry.error),
-          entry.state === 'removed' && h('span', { className: 'vsync-note' }, t('shelf.removed')),
-          h('div', { className: 'vsync-cardFoot' },
-            h('span', { className: 'vsync-actions' },
-              h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
-              confirm === entry.entry
-                ? h(Confirm, { t, danger: true, question: t('shelf.deleteQuestion'), confirmLabel: t('shelf.delete'), onCancel: () => setConfirm(null), onConfirm: () => act('/remove', entry) })
-                : h(React.Fragment, null,
-                  h('button', { type: 'button', className: 'vsync-btn', onClick: () => setConfirm(entry.entry) }, t('shelf.delete')),
-                  entry.state === 'fetching' && h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching')),
-                  (entry.state === 'failed' || entry.state === 'removed') && h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => act('/retry', entry) }, t('shelf.again')),
-                  entry.state === 'ready' && h(SaveLink, { t, entry })))))))))
+/** One book of the shelf, as a card in the library: to save again, fetch again or delete. */
+export function ShelfEntry({ t, entry, onAct }) {
+  const [confirming, setConfirming] = React.useState(false)
+  const act = async (path) => {
+    setConfirming(false)
+    await onAct(path, entry)
+  }
+  return h('li', { className: 'vsync-card vsync-book vsync-shelfEntry' },
+    h(Cover, { result: { ...entry, media: 'book' }, small: true }),
+    h('div', { className: 'vsync-cardBody' },
+      h('div', { className: 'vsync-cardHead' }, h('span', { className: 'vsync-rowTitle' }, entry.title || entry.id), h('span', { className: 'vsync-badge' }, t('type.book'))),
+      h('span', { className: 'vsync-rowMeta' }, [entry.author, entry.format.toUpperCase(), entry.bytes ? bytes(t, entry.bytes) : null, entry.converted ? t('book.converted') : null].filter(Boolean).map((part, n) => h('span', { key: n }, part))),
+      entry.state === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, entry.error),
+      entry.state === 'removed' && h('span', { className: 'vsync-note' }, t('shelf.removed')),
+      h('div', { className: 'vsync-cardFoot' },
+        h('span', { className: 'vsync-actions' },
+          h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
+          confirming
+            ? h(Confirm, { t, danger: true, question: t('shelf.deleteQuestion'), confirmLabel: t('shelf.delete'), onCancel: () => setConfirming(false), onConfirm: () => act('/remove') })
+            : h(React.Fragment, null,
+              h('button', { type: 'button', className: 'vsync-btn', onClick: () => setConfirming(true) }, t('shelf.delete')),
+              entry.state === 'fetching' && h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching')),
+              (entry.state === 'failed' || entry.state === 'removed') && h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => act('/retry') }, t('shelf.again')),
+              entry.state === 'ready' && h(SaveLink, { t, entry })))))) 
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0
+
+- Library is one list. The shows and the books you downloaded (My books) used to sit in two sections; they are now cards in the same list, each marked Show, Video, Audio or Book, and every card has a background. The top line counts both: the library's size, how much of the books' room you used, and what is free.
+
 ## 0.10.2
 
 - hls.js now loads. The page asked for it at the wrong address, so a browser that needed it (any Chromium one, since 0.10.1) never got past loading. Episodes that are still being made play there again.
