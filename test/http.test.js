@@ -120,3 +120,15 @@ test('covers are served only to admitted owners, as the picture type they are', 
   assert.equal(ok.headers.get('content-type'), 'image/png')
   assert.equal((await ok.arrayBuffer()).byteLength, 11)
 })
+
+test('the page gets the words the locale files hold now, not what they held when the plugin started', async (t) => {
+  const localeDir = tempDir(t)
+  writeFileSync(join(localeDir, 'en.json'), JSON.stringify({ meta: {}, ui: { hello: 'one' } }))
+  const server = createServer(createHandler({ connection: fakeConnection, service: () => ({}), localeDir, logger: { warn() {} } }))
+  await new Promise(done => server.listen(0, '127.0.0.1', done))
+  t.after(() => server.close())
+  const words = async () => (await fetch(`http://127.0.0.1:${server.address().port}/media-hub/api/locales`, { headers: { cookie: 'ok' } })).json()
+  assert.equal((await words()).en.hello, 'one')
+  writeFileSync(join(localeDir, 'en.json'), JSON.stringify({ meta: {}, ui: { hello: 'two' } }))
+  assert.equal((await words()).en.hello, 'two')
+})

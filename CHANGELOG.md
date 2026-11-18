@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1
+
+- The page's words come from the language files each time it asks, not from a copy made when the plugin started. An update that only changed words (0.11.0's type badges) showed raw keys until DSH restarted.
+
 ## 0.11.0
 
 - Library is one list. The shows and the books you downloaded (My books) used to sit in two sections; they are now cards in the same list, each marked Show, Video, Audio or Book, and every card has a background. The top line counts both: the library's size, how much of the books' room you used, and what is free.

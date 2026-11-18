@@ -12255,7 +12255,6 @@ async function readJson(req) {
 var STATUS = Object.freeze({ points: 402, invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 });
 var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, ...error?.points ? { points: error.points } : {}, message: error?.message ?? String(error) } });
 function createHandler({ connection, service, settings = () => ({ label: "", presence: {} }), localeDir = LOCALE_DIR, logger }) {
-  let locales;
   return async (req, res) => {
     const admitted = admitOwner(connection, req);
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? "Sign in to DSH first." : "Forbidden.");
@@ -12324,7 +12323,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         if (route === "POST library/seen") return sendJson(res, 200, hub.dismissNews((await readJson(req)).path));
         if (route === "POST library/cancel") return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path));
         if (route === "GET settings") return sendJson(res, 200, settings());
-        if (route === "GET locales") return sendJson(res, 200, await (locales ??= readLocales(localeDir, logger)));
+        if (route === "GET locales") return sendJson(res, 200, await readLocales(localeDir, logger));
         if (route === "GET sources") return sendJson(res, 200, { sources: await hub.sources() });
         if (route === "GET trending") return sendJson(res, 200, await hub.trending(query("source"), query("kind")));
         if (route === "GET search") return sendJson(res, 200, await hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query)));
