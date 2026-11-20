@@ -9,7 +9,8 @@
  * each viewer's own last stop is kept too, to show where it differs.
  * A show counts as watched when its last episode was watched to the end, or
  * every episode was. That starts a countdown: the show is deleted
- * `autoDeleteDays` later unless someone keeps it, or a room has it open.
+ * `autoDeleteDays` later unless someone keeps it, or a room has it open; only
+ * shows in the hub's own library folder, never in the user's other folders.
  * Keeping cancels the countdown; anyone can start it again, or restart it,
  * by hand. Watching the show again doesn't touch it; finishing it again
  * restarts it like a new finish.
@@ -175,9 +176,12 @@ export function createLibrary(options) {
 
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename(path), ...fields })
 
+  /** Only the hub's own library folder (the first root) is cleaned up on its own; the other folders are the user's. */
+  const autoDeletes = path => options.autoDeleteDays > 0 && dirname(path) === roots[0]
+
   function deletesAt(path) {
     const { countdownFrom, keep } = record(path)
-    if (!countdownFrom || keep || !(options.autoDeleteDays > 0)) return null
+    if (!countdownFrom || keep || !autoDeletes(path)) return null
     return countdownFrom + options.autoDeleteDays * DAY_MS
   }
 
@@ -276,6 +280,7 @@ export function createLibrary(options) {
       newSeason: entry.newSeason ?? null,
       newEpisodes: entry.newEpisodes ?? null,
       group: entry.group ?? null,
+      autoDeletes: autoDeletes(path),
       deletesAt: deletesAt(path),
       resume,
       finished,
@@ -539,6 +544,7 @@ export function createLibrary(options) {
     async countdown(path, { by = null } = {}) {
       const target = requireShow(path)
       if (!(options.autoDeleteDays > 0)) throw libraryError('invalid', 'automatic deleting is off')
+      if (!autoDeletes(target)) throw libraryError('invalid', 'shows outside the hub\'s own library are never deleted on their own')
       const restart = deletesAt(target) !== null
       update(target, { keep: false, countdownFrom: now() })
       note(restart ? 'library.countdownRestarted' : 'library.countdownStarted', target, { by, deletesAt: new Date(deletesAt(target)).toISOString() })
@@ -579,7 +585,7 @@ export function createLibrary(options) {
       // Finishing the show starts its countdown; finishing it again later (a rewatch) restarts it. A kept show stays kept.
       const newFinish = (lastDone || allDone) && (!entry.watchedAt || now() - entry.watchedAt > REFINISH_MS)
       update(show, { finished: [...finished], ...(newFinish ? { watchedAt: now(), countdownFrom: now() } : {}) })
-      if (newFinish && !entry.keep && options.autoDeleteDays > 0) note('library.countdownStarted', show, { by: null, reason: 'watched to the end', deletesAt: new Date(deletesAt(show)).toISOString() })
+      if (newFinish && !entry.keep && autoDeletes(show)) note('library.countdownStarted', show, { by: null, reason: 'watched to the end', deletesAt: new Date(deletesAt(show)).toISOString() })
       changed(show)
     },
 

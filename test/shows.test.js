@@ -136,3 +136,23 @@ test('continuing: the episode they stopped in, or the next one when they reached
   await library.noteProgress(join(show, '02 第2集.mp4'), 590, 600)
   assert.deepEqual(await library.resumeFrom(show), { index: 2, position: 0, title: '03 第3集' })
 })
+
+test('a show in a folder of the user\'s own is never deleted on its own, however long ago it was watched', async (t) => {
+  const { dir, root, state } = setup(t)
+  const extra = join(dir, 'own')
+  const show = join(extra, 'Home video')
+  mkdirSync(show, { recursive: true })
+  writeFileSync(join(show, '01.mp4'), 'z')
+  const { library } = setup(t, { roots: [root, extra], stateDir: dir, now: () => state.clock })
+  await library.load()
+  await library.noteProgress(join(show, '01.mp4'), 59, 60)
+  const entry = (await library.list()).shows.find(s => s.path === show)
+  assert.equal(entry.watchedAt, state.clock)
+  assert.equal(entry.deletesAt, null)
+  assert.equal(entry.autoDeletes, false)
+  assert.equal((await library.list()).shows.find(s => s.name === 'Show').autoDeletes, true)
+  await assert.rejects(library.countdown(show), { code: 'invalid' })
+  state.clock += 30 * DAY
+  await library.sweep()
+  assert.equal(existsSync(show), true)
+})
