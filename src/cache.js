@@ -38,6 +38,7 @@ export function createCache({ library, downloads, rooms, window: size, logger })
     const out = new Map()
     for (const path of await library.sourcedShows()) {
       const info = await library.cacheInfo(path)
+      if (info === null) continue
       const set = new Set()
       for (const focus of rooms.focusesOf(path)) {
         const { first, last } = windowOf(focus, info.total, size)
@@ -90,6 +91,7 @@ export function createCache({ library, downloads, rooms, window: size, logger })
     refreshActive: () => serial(async () => {
       for (const path of await library.sourcedShows()) {
         const info = await library.cacheInfo(path)
+        if (info === null) continue
         if (info.pinned || rooms.focusesOf(path).length > 0) await refreshShow(path)
       }
       await enforceCap()

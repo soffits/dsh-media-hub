@@ -117,7 +117,7 @@ export function createMediaHub(options) {
     recommender: { command: options.recommender?.command ?? [], env: options.recommender?.env ?? {}, cwd: stateDir, hasSource: id => sources.has(id) },
   })
   const sweepTimer = setInterval(() => {
-    library.sweep().catch(() => {})
+    library.sweep().catch(error => logger.warn('library sweep: %s', error.message))
     cache.enforce().catch(() => {})
   }, HOUR_MS)
 
@@ -233,8 +233,8 @@ export function createMediaHub(options) {
       await books.load()
       await rooms.load()
       await downloads.load()
-      await library.sweep()
-      await cache.refreshActive()
+      await library.sweep().catch(error => logger.warn('library sweep: %s', error.message))
+      await cache.refreshActive().catch(() => {})
       follows.start()
     },
 

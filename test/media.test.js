@@ -748,3 +748,20 @@ test('late at night, starting to watch is a binge night: one ticket for the whol
   assert.deepEqual(calls, [['buy', 'media:binge:2026-11-18'], ['use', `media:start:${first.room.id}`], ['use', `media:start:${second.room.id}`]])
   assert.equal(points.players.ann, 60)
 })
+
+test('a saved show outside the library folders is left alone: the hub still starts and the cache cap still runs', async (t) => {
+  const dir = tempDir(t)
+  mkdirSync(join(dir, 'state'), { recursive: true })
+  const outside = join(dir, 'removed-root', 'Old show')
+  writeFileSync(join(dir, 'state', 'shows.json'), JSON.stringify({ shows: { [outside]: { source: { source: 'stub', id: '7', kind: 'drama', episodes: 3 }, pinned: true } } }))
+  const warnings = []
+  const logger = { info() {}, warn: (...args) => warnings.push(args.join(' ')) }
+  const hub = makeHub(dir, stubSource(3).source, { cache: { ...cacheOptions, capBytes: 1e9 }, logger })
+  t.after(() => hub.dispose())
+  await hub.load()
+  assert.deepEqual((await hub.library()).shows, [])
+  const fetched = await hub.fetch({ source: 'stub', id: '42' })
+  await until('the window is cached', () => numbersIn(fetched.path).length === 3)
+  await hub.fetch({ source: 'stub', id: '43' })
+  assert.deepEqual(warnings, [])
+})

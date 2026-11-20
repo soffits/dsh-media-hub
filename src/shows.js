@@ -119,6 +119,9 @@ export function createLibrary(options) {
     return roots.includes(dirname(target)) && !basename(target).startsWith('.') ? target : null
   }
 
+  /** Sourced shows still inside a library folder: a record left from a folder no longer configured is kept but not managed. */
+  const sourcedPaths = () => Object.keys(meta).filter(path => isSourced(meta[path]) && showPath(path) === path)
+
   function requireShow(path) {
     const target = showPath(path)
     if (target === null) throw libraryError('not_found', 'not a show in the library')
@@ -351,7 +354,7 @@ export function createLibrary(options) {
 
     /** Paths of the shows that came from a source. */
     async sourcedShows() {
-      return Object.keys(meta).filter(path => isSourced(meta[path]))
+      return sourcedPaths()
     },
 
     /** Forget that these episodes were deleted by hand. */
@@ -385,9 +388,9 @@ export function createLibrary(options) {
     /** Every cached episode of the shows the cap counts (sourced, not pinned), with its bytes (the prepared copy included) and when it was last watched or fetched. */
     async cacheEntries() {
       const out = []
-      for (const path of Object.keys(meta)) {
+      for (const path of sourcedPaths()) {
         const entry = meta[path]
-        if (!isSourced(entry) || entry.pinned === true) continue
+        if (entry.pinned === true) continue
         for (const file of (await episodeFiles(path)) ?? []) {
           const n = episodeNumber(file.name)
           if (n === null) continue
