@@ -218,3 +218,18 @@ test('a room is one person\'s until they open it to others, where it stands', { 
   assert.equal((await service.createRoom({ path, by: 'Agent', together: true })).room.together, true)
   assert.throws(() => service.watchTogether('nope'), { code: 'not_found' })
 })
+
+test('a frame that is JSON but not an object is answered with an error, and the room goes on', { skip: !hasFfmpeg }, async (t) => {
+  const dir = tempDir(t)
+  const service = makeService(dir)
+  await service.load()
+  t.after(() => service.dispose())
+  const { room } = await service.createRoom({ path: show(dir), by: 'Agent' })
+  const url = await socketServer(t, service)
+  const a = await viewer(url(room.id), 'a', 'Alice')
+  await a.next(m => m.t === 'state')
+  for (const frame of ['null', '5', '"op"']) a.ws.send(frame)
+  for (let n = 0; n < 3; n++) assert.equal((await a.next(m => m.t === 'error')).message, 'not an object')
+  a.send({ t: 'ping', id: 1, client: 0 })
+  assert.equal((await a.next(m => m.t === 'pong')).id, 1)
+})

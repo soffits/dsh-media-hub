@@ -11,8 +11,9 @@
  * whoever asks meanwhile. Later pages of comments are read through from the
  * source and not kept: the copy is what the room opens on.
  */
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { writeJson } from './json-file.js'
 
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
@@ -39,9 +40,7 @@ export function createRemarks({ source, logger, now = Date.now, danmakuMaxAgeMs 
   }
 
   async function keep(file, value) {
-    await mkdir(join(file, '..'), { recursive: true })
-    await writeFile(`${file}.part`, JSON.stringify(value))
-    await rename(`${file}.part`, file)
+    await writeJson(file, value)
   }
 
   /** Ask the source and keep the answer, once per file at a time. */

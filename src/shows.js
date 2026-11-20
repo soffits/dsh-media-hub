@@ -9,7 +9,8 @@
  * each viewer's own last stop is kept too, to show where it differs.
  * A show counts as watched when its last episode was watched to the end, or
  * every episode was. That starts a countdown: the show is deleted
- * `autoDeleteDays` later unless someone keeps it, or a room has it open.
+ * `autoDeleteDays` later unless someone keeps it, or a room has it open; only
+ * shows in the hub's own library folder, never in the user's other folders.
  * Keeping cancels the countdown; anyone can start it again, or restart it,
  * by hand. Watching the show again doesn't touch it; finishing it again
  * restarts it like a new finish.
@@ -22,6 +23,8 @@
 import { mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { episodeNumber, isSourced, keyOf, noteFor, numbersOf, slotsOf, titleOf } from './episodes.js'
+import { codedError } from './errors.js'
+import { createJsonSaver, readJson } from './json-file.js'
 import { isAudio, isMedia, matchSubtitles, naturalSort } from './library.js'
 import { dropPrepared, preparedBytes } from './prepare.js'
 import { safeRecap } from './presence.js'
@@ -35,29 +38,13 @@ const REFINISH_MS = 3_600_000
 const MAX_NAME = 120
 const SUMS = 'SHA256SUMS.txt'
 
-const libraryError = (code, message) => Object.assign(new Error(message), { code })
-
 /** A file or folder name someone typed: no path separators, no control characters, not hidden. */
 export function cleanName(value) {
   const name = String(value ?? '').replace(/[\u0000-\u001f\u007f/\\]/g, '').trim().slice(0, MAX_NAME)
-  if (name === '' || name.startsWith('.')) throw libraryError('invalid', 'give a name')
+  if (name === '' || name.startsWith('.')) throw codedError('invalid', 'give a name')
   return name
 }
 
-/**
- * @param {object} options
- * @param {string[]} options.roots - library folders; the first one receives downloads
- * @param {string} options.stateDir
- * @param {number} options.autoDeleteDays - 0 keeps watched shows
- * @param {ReturnType<import('./covers.js').createCovers>} options.covers - makes the poster frame of a show's first episode
- * @param {(path: string) => boolean} options.inUse - whether an open room plays from this show
- * @param {(path: string) => object | null} options.download - the download state of a show folder
- * @param {(path: string) => void} options.forget - stop anything working on a show being removed
- * @param {(type: string, fields: object) => void} [options.record] - library actions for the watch log
- * @param {() => void} [options.changed] - told whenever the notes change or an episode file is deleted, so open pages re-read
- * @param {{ info: Function, warn: Function }} options.logger
- * @param {() => number} [options.now]
- */
 /**
  * Seasons of one work sit together: a show with a `group` key goes next to the
  * first member of its group in the list (oldest season first), and says which
@@ -79,31 +66,36 @@ export function groupSeasons(shows) {
   shows.splice(0, shows.length, ...ordered)
 }
 
+/**
+ * @param {object} options
+ * @param {string[]} options.roots - library folders; the first one receives downloads
+ * @param {string} options.stateDir
+ * @param {number} options.autoDeleteDays - 0 keeps watched shows
+ * @param {ReturnType<import('./covers.js').createCovers>} options.covers - makes the poster frame of a show's first episode
+ * @param {(path: string) => boolean} options.inUse - whether an open room plays from this show
+ * @param {(path: string) => object | null} options.download - the download state of a show folder
+ * @param {(path: string) => void} options.forget - stop anything working on a show being removed
+ * @param {(type: string, fields: object) => void} [options.record] - library actions for the watch log
+ * @param {() => void} [options.changed] - told whenever the notes change or an episode file is deleted, so open pages re-read
+ * @param {{ info: Function, warn: Function }} options.logger
+ * @param {() => number} [options.now]
+ */
 export function createLibrary(options) {
   const { roots, stateDir, covers, inUse, download, forget, logger, now = Date.now } = options
   const metaFile = join(stateDir, 'shows.json')
   const cacheDir = join(stateDir, 'cache')
   let meta = {}
-  let saving = Promise.resolve()
+  const saver = createJsonSaver(metaFile, logger)
   const listeners = new Set()
   const changed = show => { for (const listener of listeners) listener(show) }
 
   async function load() {
-    try {
-      meta = JSON.parse(await readFile(metaFile, 'utf8')).shows ?? {}
-    } catch (error) {
-      if (error.code !== 'ENOENT') logger.warn('could not read %s: %s', metaFile, error.message)
-    }
+    meta = (await readJson(metaFile, { logger })).value?.shows ?? {}
   }
 
   function save() {
     options.changed?.()
-    const body = JSON.stringify({ shows: meta }, null, 1)
-    saving = saving.then(async () => {
-      await writeFile(`${metaFile}.part`, body)
-      await rename(`${metaFile}.part`, metaFile)
-    }).catch(error => logger.warn('could not save %s: %s', metaFile, error.message))
-    return saving
+    return saver.save({ shows: meta })
   }
 
   const record = path => meta[path] ?? {}
@@ -119,9 +111,12 @@ export function createLibrary(options) {
     return roots.includes(dirname(target)) && !basename(target).startsWith('.') ? target : null
   }
 
+  /** Sourced shows still inside a library folder: a record left from a folder no longer configured is kept but not managed. */
+  const sourcedPaths = () => Object.keys(meta).filter(path => isSourced(meta[path]) && showPath(path) === path)
+
   function requireShow(path) {
     const target = showPath(path)
-    if (target === null) throw libraryError('not_found', 'not a show in the library')
+    if (target === null) throw codedError('not_found', 'not a show in the library')
     return target
   }
 
@@ -172,9 +167,12 @@ export function createLibrary(options) {
 
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename(path), ...fields })
 
+  /** Only the hub's own library folder (the first root) is cleaned up on its own; the other folders are the user's. */
+  const autoDeletes = path => options.autoDeleteDays > 0 && dirname(path) === roots[0]
+
   function deletesAt(path) {
     const { countdownFrom, keep } = record(path)
-    if (!countdownFrom || keep || !(options.autoDeleteDays > 0)) return null
+    if (!countdownFrom || keep || !autoDeletes(path)) return null
     return countdownFrom + options.autoDeleteDays * DAY_MS
   }
 
@@ -273,6 +271,7 @@ export function createLibrary(options) {
       newSeason: entry.newSeason ?? null,
       newEpisodes: entry.newEpisodes ?? null,
       group: entry.group ?? null,
+      autoDeletes: autoDeletes(path),
       deletesAt: deletesAt(path),
       resume,
       finished,
@@ -290,7 +289,7 @@ export function createLibrary(options) {
   return {
     load,
     /** Resolves once the notes written so far are on disk. */
-    flush: () => saving,
+    flush: () => saver.settled(),
     showPath,
     showOf,
     resumeFrom: async path => resumeFrom(path, slotsOf(record(path), (await episodeFiles(path)) ?? [])),
@@ -351,7 +350,7 @@ export function createLibrary(options) {
 
     /** Paths of the shows that came from a source. */
     async sourcedShows() {
-      return Object.keys(meta).filter(path => isSourced(meta[path]))
+      return sourcedPaths()
     },
 
     /** Forget that these episodes were deleted by hand. */
@@ -385,9 +384,9 @@ export function createLibrary(options) {
     /** Every cached episode of the shows the cap counts (sourced, not pinned), with its bytes (the prepared copy included) and when it was last watched or fetched. */
     async cacheEntries() {
       const out = []
-      for (const path of Object.keys(meta)) {
+      for (const path of sourcedPaths()) {
         const entry = meta[path]
-        if (!isSourced(entry) || entry.pinned === true) continue
+        if (entry.pinned === true) continue
         for (const file of (await episodeFiles(path)) ?? []) {
           const n = episodeNumber(file.name)
           if (n === null) continue
@@ -415,7 +414,7 @@ export function createLibrary(options) {
     /** Keep a show's every episode on disk (or go back to the rolling cache). */
     async pin(path, pinned, { by = null } = {}) {
       const target = requireShow(path)
-      if (!isSourced(record(target))) throw libraryError('invalid', 'only a show from a source can be kept offline')
+      if (!isSourced(record(target))) throw codedError('invalid', 'only a show from a source can be kept offline')
       update(target, { pinned })
       note(pinned ? 'library.pinned' : 'library.unpinned', target, { by })
       return { path: target, pinned }
@@ -456,7 +455,7 @@ export function createLibrary(options) {
     setQuality(path, quality) {
       const target = requireShow(path)
       const entry = record(target)
-      if (!isSourced(entry)) throw libraryError('invalid', 'this show has no source to fetch from')
+      if (!isSourced(entry)) throw codedError('invalid', 'this show has no source to fetch from')
       update(target, { source: { ...entry.source, quality } })
     },
 
@@ -480,7 +479,7 @@ export function createLibrary(options) {
 
     async remove(path, { by = null, reason = 'by hand' } = {}) {
       const target = requireShow(path)
-      if (inUse(target)) throw libraryError('in_use', 'a room is playing this show; close the room first')
+      if (inUse(target)) throw codedError('in_use', 'a room is playing this show; close the room first')
       await forget(target)
       await rm(target, { recursive: true, force: true })
       delete meta[target]
@@ -492,9 +491,9 @@ export function createLibrary(options) {
     async removeEpisode(path, name, { by = null } = {}) {
       const target = requireShow(path)
       if ((await stat(target)).isFile()) return this.remove(target, { by })
-      if (inUse(target)) throw libraryError('in_use', 'a room is playing this show; close the room first')
+      if (inUse(target)) throw codedError('in_use', 'a room is playing this show; close the room first')
       const file = cleanName(name)
-      if (!isMedia(file)) throw libraryError('invalid', 'not an episode')
+      if (!isMedia(file)) throw codedError('invalid', 'not an episode')
       await deleteEpisode(target, file)
       note('library.episodeDeleted', target, { episode: titleOf(file), by })
       const entry = record(target)
@@ -507,13 +506,13 @@ export function createLibrary(options) {
 
     async rename(path, name, { by = null } = {}) {
       const target = requireShow(path)
-      if (inUse(target)) throw libraryError('in_use', 'a room is playing this show; close the room first')
-      if (download(target)?.active) throw libraryError('in_use', 'this show is still downloading')
+      if (inUse(target)) throw codedError('in_use', 'a room is playing this show; close the room first')
+      if (download(target)?.active) throw codedError('in_use', 'this show is still downloading')
       const isFile = (await stat(target)).isFile()
       const clean = cleanName(name)
       const next = join(dirname(target), isFile && extname(clean) === '' ? `${clean}${extname(target)}` : clean)
       if (next === target) return { path: target }
-      if (await stat(next).then(() => true, () => false)) throw libraryError('exists', 'a show with that name is already in the library')
+      if (await stat(next).then(() => true, () => false)) throw codedError('exists', 'a show with that name is already in the library')
       await rename(target, next)
       if (meta[target] !== undefined) {
         meta[next] = meta[target]
@@ -535,7 +534,8 @@ export function createLibrary(options) {
     /** Start the countdown now (or restart it): deleted `autoDeleteDays` from now unless kept. */
     async countdown(path, { by = null } = {}) {
       const target = requireShow(path)
-      if (!(options.autoDeleteDays > 0)) throw libraryError('invalid', 'automatic deleting is off')
+      if (!(options.autoDeleteDays > 0)) throw codedError('invalid', 'automatic deleting is off')
+      if (!autoDeletes(target)) throw codedError('invalid', 'shows outside the hub\'s own library are never deleted on their own')
       const restart = deletesAt(target) !== null
       update(target, { keep: false, countdownFrom: now() })
       note(restart ? 'library.countdownRestarted' : 'library.countdownStarted', target, { by, deletesAt: new Date(deletesAt(target)).toISOString() })
@@ -566,8 +566,9 @@ export function createLibrary(options) {
       const entry = record(show)
       const finished = new Set(entry.finished ?? [])
       finished.add(basename(episodePath))
-      const names = ((await episodeFiles(show)) ?? []).map(file => file.name)
-      const keys = slotsOf(entry, ((await episodeFiles(show)) ?? [])).map(slot => slot.key)
+      const files = (await episodeFiles(show)) ?? []
+      const names = files.map(file => file.name)
+      const keys = slotsOf(entry, files).map(slot => slot.key)
       const done = new Set([...finished].map(name => keyOf(entry, name)))
       // A sourced show is watched through its source's list, whether or not the episodes are still on disk.
       const complete = isSourced(entry) || names.length >= (entry.source?.episodes ?? names.length)
@@ -576,7 +577,7 @@ export function createLibrary(options) {
       // Finishing the show starts its countdown; finishing it again later (a rewatch) restarts it. A kept show stays kept.
       const newFinish = (lastDone || allDone) && (!entry.watchedAt || now() - entry.watchedAt > REFINISH_MS)
       update(show, { finished: [...finished], ...(newFinish ? { watchedAt: now(), countdownFrom: now() } : {}) })
-      if (newFinish && !entry.keep && options.autoDeleteDays > 0) note('library.countdownStarted', show, { by: null, reason: 'watched to the end', deletesAt: new Date(deletesAt(show)).toISOString() })
+      if (newFinish && !entry.keep && autoDeletes(show)) note('library.countdownStarted', show, { by: null, reason: 'watched to the end', deletesAt: new Date(deletesAt(show)).toISOString() })
       changed(show)
     },
 

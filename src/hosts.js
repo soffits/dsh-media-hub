@@ -9,8 +9,7 @@
  * matching fails rather than guessing.
  */
 import { readFile, stat } from 'node:fs/promises'
-
-const hostsError = (code, message) => Object.assign(new Error(message), { code })
+import { codedError } from './errors.js'
 
 /** The host of a URL, lowercase and without a trailing dot, or '' when it is not one. */
 export function hostOf(url) {
@@ -50,7 +49,7 @@ export function createHostRules(rules = [], io = {}) {
       if (files.get(rule.hostsFile)?.version !== current) files.set(rule.hostsFile, { version: current, patterns: parseHosts(await read(rule.hostsFile)) })
     } catch (error) {
       files.delete(rule.hostsFile)
-      throw hostsError('hosts_unreadable', `cannot read the hosts file ${rule.hostsFile}: ${error.message}`)
+      throw codedError('hosts_unreadable', `cannot read the hosts file ${rule.hostsFile}: ${error.message}`)
     }
     return [...listed, ...files.get(rule.hostsFile).patterns]
   }

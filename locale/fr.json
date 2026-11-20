@@ -310,6 +310,8 @@
     "points.newSeries": "Commencer une nouvelle série",
     "points.newSeriesAbout": "Commencer une série qui n’est pas encore dans la bibliothèque. Continuer une série reste gratuit.",
     "points.bingeNight": "Nuit de marathon",
-    "points.bingeNightAbout": "Lancer des épisodes tard dans la nuit, autant que vous voulez, jusqu’au matin."
+    "points.bingeNightAbout": "Lancer des épisodes tard dans la nuit, autant que vous voulez, jusqu’au matin.",
+    "page.crashed": "Cette page a cessé de fonctionner.",
+    "page.reload": "Recharger"
   }
 }

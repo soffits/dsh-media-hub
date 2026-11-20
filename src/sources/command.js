@@ -18,12 +18,12 @@
  * requires, for example) holds for the source, since nothing here talks to
  * the site.
  */
-import { createHash } from 'node:crypto'
-import { createReadStream } from 'node:fs'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
+import { codedError } from '../errors.js'
 import { BASE, pick } from '../i18n.js'
 import { heightChoices, isHeight } from '../quality.js'
+import { sha256Of } from '../sha256.js'
 import { commandExists, lastLine, parseLine, run } from './process.js'
 
 const SEARCH_LIMIT = 12
@@ -32,7 +32,6 @@ const QUERY_TIMEOUT_MS = 60_000
 const COVER_TIMEOUT_MS = 30_000
 const ID = /^[^\s\0]{1,200}$/
 
-const sourceError = (code, message) => Object.assign(new Error(message), { code })
 const text = value => (typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '')
 const numberOrNull = value => (Number.isFinite(value) ? value : null)
 
@@ -112,7 +111,7 @@ export function resultOf(raw, kindIds) {
 
 /** The `search` document into results; hits of kinds the source did not declare are dropped. */
 export function parseSearch(document, kinds) {
-  if (!Array.isArray(document?.results)) throw sourceError('source_failed', 'the search answer has no results list')
+  if (!Array.isArray(document?.results)) throw codedError('source_failed', 'the search answer has no results list')
   const kindIds = new Set(kinds.map(kind => kind.id))
   return document.results.map(raw => resultOf(raw, kindIds)).filter(result => result !== null)
 }
@@ -136,7 +135,7 @@ function labelOf(value) {
 export function parseTrending(document, kinds, kind) {
   const kindIds = new Set(kinds.map(entry => entry.id))
   const raw = Array.isArray(document?.lists) ? document.lists : (Array.isArray(document?.results) ? [{ id: 'trending', results: document.results }] : null)
-  if (raw === null) throw sourceError('source_failed', 'the trending answer has no lists')
+  if (raw === null) throw codedError('source_failed', 'the trending answer has no lists')
   const seen = new Set()
   return raw.slice(0, MAX_LISTS).flatMap((list, index) => {
     const results = Array.isArray(list?.results) ? list.results.map(item => resultOf(item, kindIds)).filter(result => result !== null && result.kind === kind) : []
@@ -158,7 +157,7 @@ export function nextOffset(document, offset = 0) {
  */
 export function parseInfo(document) {
   const id = text(document?.id)
-  if (!ID.test(id)) throw sourceError('source_failed', 'the source returned no work')
+  if (!ID.test(id)) throw codedError('source_failed', 'the source returned no work')
   const listed = Array.isArray(document.episodes) ? document.episodes.length : 0
   const related = (Array.isArray(document.related) ? document.related : [])
     .map(raw => { const work = resultOf(raw, null); return work === null ? null : { ...work, relation: text(raw.relation) } })
@@ -180,7 +179,7 @@ const count = value => (Number.isInteger(value) && value >= 0 ? value : 0)
 /** The `danmaku` answer (one JSON object per line, one line per episode) into episode `number`'s items `{ time, text, likes }`, in time order. */
 export function parseDanmaku(lines, number) {
   const found = lines.find(line => line?.episode === number) ?? (lines.length === 1 ? lines[0] : null)
-  if (!Array.isArray(found?.items)) throw sourceError('source_failed', 'the danmaku answer has no items')
+  if (!Array.isArray(found?.items)) throw codedError('source_failed', 'the danmaku answer has no items')
   return found.items
     .map(raw => ({ time: Number.isFinite(raw?.time) && raw.time >= 0 ? raw.time : null, text: text(raw?.text).replace(/\s+/g, ' ').slice(0, MAX_DANMAKU_TEXT), likes: count(raw?.likes) }))
     .filter(item => item.time !== null && item.text !== '')
@@ -192,7 +191,7 @@ const ISO_TIME = value => (typeof value === 'string' && Number.isFinite(Date.par
 
 /** The `comments` document into `{ total, items, next }`: each comment `{ id, name, text, created, likes, replies, rating }`, `next` the cursor of the following page or null. */
 export function parseComments(document) {
-  if (!Array.isArray(document?.items)) throw sourceError('source_failed', 'the comments answer has no items')
+  if (!Array.isArray(document?.items)) throw codedError('source_failed', 'the comments answer has no items')
   const items = document.items
     .map(raw => ({
       id: text(raw?.id),
@@ -206,13 +205,6 @@ export function parseComments(document) {
     .filter(item => item.id !== '' && item.text !== '')
   const next = text(document.next_cursor ?? document.next)
   return { total: countOrNull(document.total), items, next: next !== '' && next.length <= MAX_CURSOR && items.length > 0 ? next : null }
-}
-
-function sha256Of(path) {
-  return new Promise((resolve, reject) => {
-    const hash = createHash('sha256')
-    createReadStream(path).on('data', chunk => hash.update(chunk)).on('error', reject).on('end', () => resolve(hash.digest('hex')))
-  })
 }
 
 /**
@@ -269,8 +261,8 @@ export function createCommandSource(definition, { logger, cwd }) {
 
   async function answer(args) {
     const { code, stdout, stderr, oversized } = await run([...command, ...args], { timeoutMs: QUERY_TIMEOUT_MS, cwd: await workDir(), env })
-    if (oversized) throw sourceError('source_failed', `${name()}: the answer is too large`)
-    if (code !== 0) throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
+    if (oversized) throw codedError('source_failed', `${name()}: the answer is too large`)
+    if (code !== 0) throw codedError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
     return stdout
   }
 
@@ -279,14 +271,14 @@ export function createCommandSource(definition, { logger, cwd }) {
     try {
       return JSON.parse(stdout)
     } catch {
-      throw sourceError('source_failed', `${name()}: the answer is not JSON`)
+      throw codedError('source_failed', `${name()}: the answer is not JSON`)
     }
   }
 
   /** Whether a kind of this source declares an optional verb (`danmaku`, `comments`). */
   const offers = (kind, verb) => kinds.some(entry => entry.id === kind && entry[verb] === true)
   const checkId = (id) => {
-    if (!ID.test(String(id))) throw sourceError('invalid', `not a ${name()} id`)
+    if (!ID.test(String(id))) throw codedError('invalid', `not a ${name()} id`)
   }
 
   return {
@@ -298,7 +290,7 @@ export function createCommandSource(definition, { logger, cwd }) {
 
     /** @returns {{ results: object[], next: number | null }} `next` is the offset of the following page when the source offers one. */
     async search(textQuery, { kind = kinds[0]?.id, limit = SEARCH_LIMIT, offset = 0, filters = {} } = {}) {
-      if (!kindIds.has(kind)) throw sourceError('invalid', `${name()} has no kind ${kind}`)
+      if (!kindIds.has(kind)) throw codedError('invalid', `${name()} has no kind ${kind}`)
       const q = String(textQuery ?? '').trim()
       if (q === '') return { results: [], next: null }
       const paging = offset > 0 ? ['--offset', String(offset)] : []
@@ -309,20 +301,20 @@ export function createCommandSource(definition, { logger, cwd }) {
 
     /** What the site itself puts forward for a kind that declares `trending`: lists of works, in the site's order. */
     async trending(kind, { limit = TRENDING_LIMIT } = {}) {
-      if (!kinds.some(entry => entry.id === kind && entry.trending === true)) throw sourceError('invalid', `${name()} has no trending list for ${kind}`)
+      if (!kinds.some(entry => entry.id === kind && entry.trending === true)) throw codedError('invalid', `${name()} has no trending list for ${kind}`)
       return parseTrending(await query(['trending', '--kind', kind, '--limit', String(limit), '--json']), kinds, kind)
     },
 
     async info(id) {
-      if (!ID.test(String(id))) throw sourceError('invalid', `not a ${name()} id`)
+      if (!ID.test(String(id))) throw codedError('invalid', `not a ${name()} id`)
       return parseInfo(await query(['info', '--json', '--', String(id)]))
     },
 
     /** Fetch a cover image into `file` through the command, which keeps its own network policy. Rejects when the command has no `cover` verb or cannot fetch it. */
     async cover(url, file) {
-      if (!WEB_URL.test(String(url))) throw sourceError('invalid', 'not a cover url')
+      if (!WEB_URL.test(String(url))) throw codedError('invalid', 'not a cover url')
       const { code, stderr } = await run([...command, 'cover', '--output', file, '--', String(url)], { timeoutMs: COVER_TIMEOUT_MS, cwd: await workDir(), env })
-      if (code !== 0) throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
+      if (code !== 0) throw codedError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
     },
 
     offers,
@@ -330,7 +322,7 @@ export function createCommandSource(definition, { logger, cwd }) {
     /** The danmaku of episode `number` of a work of a kind that declares `danmaku`: `[{ time, text, likes }]`. */
     async danmaku(id, number, kind) {
       checkId(id)
-      if (!offers(kind, 'danmaku') || !Number.isInteger(number) || number < 1) throw sourceError('invalid', `${name()} has no danmaku for this`)
+      if (!offers(kind, 'danmaku') || !Number.isInteger(number) || number < 1) throw codedError('invalid', `${name()} has no danmaku for this`)
       const lines = (await answer(['danmaku', '--episodes', String(number), '--json', '--', String(id)])).split('\n').map(parseLine).filter(line => line !== null)
       return parseDanmaku(lines, number)
     },
@@ -338,13 +330,13 @@ export function createCommandSource(definition, { logger, cwd }) {
     /** A page of the comments on a work of a kind that declares `comments`; `cursor` continues where an earlier page's `next` left off. */
     async comments(id, kind, { cursor = '', limit = COMMENTS_PAGE } = {}) {
       checkId(id)
-      if (!offers(kind, 'comments')) throw sourceError('invalid', `${name()} has no comments for this`)
+      if (!offers(kind, 'comments')) throw codedError('invalid', `${name()} has no comments for this`)
       const paging = cursor === '' ? [] : ['--cursor', String(cursor).slice(0, MAX_CURSOR)]
       return parseComments(await query(['comments', '--limit', String(limit), ...paging, '--json', '--', String(id)]))
     },
 
     async download({ id, dir, from = 1, to = null, quality = '', signal, onEpisode, onStart, onPartial }) {
-      if (!ID.test(String(id))) throw sourceError('invalid', `not a ${name()} id`)
+      if (!ID.test(String(id))) throw codedError('invalid', `not a ${name()} id`)
       const failed = []
       let result = null
       let checking = Promise.resolve()
@@ -386,9 +378,9 @@ export function createCommandSource(definition, { logger, cwd }) {
       if (signal?.aborted) return { failed }
       if (code !== 0 && failed.length === 0) {
         logger.warn('%s download %s ended with %s: %s', name(), id, code, lastLine(stderr))
-        throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
+        throw codedError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
       }
-      if (code === 0 && result === null) throw sourceError('source_failed', `${name()}: the download ended without a result`)
+      if (code === 0 && result === null) throw codedError('source_failed', `${name()}: the download ended without a result`)
       return { failed }
     },
 
@@ -397,8 +389,8 @@ export function createCommandSource(definition, { logger, cwd }) {
      * @returns {Promise<{ name: string, bytes: number, sha256: string }>} the file, checked against what the command reported
      */
     async downloadFile({ id, format, dir, signal }) {
-      if (!ID.test(String(id))) throw sourceError('invalid', `not a ${name()} id`)
-      if (!FORMAT.test(String(format))) throw sourceError('invalid', `not a format: ${format}`)
+      if (!ID.test(String(id))) throw codedError('invalid', `not a ${name()} id`)
+      if (!FORMAT.test(String(format))) throw codedError('invalid', `not a format: ${format}`)
       await mkdir(dir, { recursive: true })
       const reported = []
       let result = null
@@ -409,12 +401,12 @@ export function createCommandSource(definition, { logger, cwd }) {
       }
       const argv = [...command, 'download', `--id=${String(id)}`, '--format', String(format), '--output', dir, '--json']
       const { code, stderr } = await run(argv, { signal, cwd: await workDir(), env, onStdoutLine: onLine })
-      if (signal?.aborted) throw sourceError('cancelled', `${name()}: cancelled`)
-      if (code !== 0) throw sourceError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
-      if (result === null || reported.length === 0) throw sourceError('source_failed', `${name()}: the download ended without a file`)
+      if (signal?.aborted) throw codedError('cancelled', `${name()}: cancelled`)
+      if (code !== 0) throw codedError('source_failed', `${name()}: ${lastLine(stderr) || `exit ${code}`}`)
+      if (result === null || reported.length === 0) throw codedError('source_failed', `${name()}: the download ended without a file`)
       const event = reported[reported.length - 1]
       const file = await verify(dir, event, name(), logger)
-      if (!file.ok) throw sourceError('source_failed', `${name()}: the file did not arrive whole`)
+      if (!file.ok) throw codedError('source_failed', `${name()}: the file did not arrive whole`)
       return { name: file.name, bytes: event.bytes, sha256: typeof event.sha256 === 'string' ? event.sha256 : await sha256Of(join(dir, file.name)) }
     },
   }

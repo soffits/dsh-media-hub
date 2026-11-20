@@ -13,8 +13,9 @@
  * them) is not fetched on. A show with a room open goes before a show without one, and may
  * interrupt it; the interrupted job resumes afterwards.
  */
-import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { codedError } from './errors.js'
+import { createJsonSaver, readJson } from './json-file.js'
 import { nextRun } from './window.js'
 
 const ACTIVE = new Set(['queued', 'running'])
@@ -29,8 +30,6 @@ function nextOfRun(job, onDisk) {
   return null
 }
 
-const sourceError = (code, message) => Object.assign(new Error(message), { code })
-
 /**
  * @param {object} options
  * @param {string} options.stateDir
@@ -41,23 +40,28 @@ const sourceError = (code, message) => Object.assign(new Error(message), { code 
  * @param {(job: object, number: number, progress: object) => void} [options.onProgress] - how far an episode's download is
  * @param {(job: object, number: number, partial: object) => void} [options.onPartial] - an episode's files while they are still being fetched (a source's `onPartial`)
  * @param {{ info: Function, warn: Function }} options.logger
+ * @param {number} [options.stopWaitMs] - how long a stop waits for a source's run to end
  * @param {() => number} [options.now]
  */
-export function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {}, onPartial = () => {}, logger, now = Date.now }) {
+export function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {}, onPartial = () => {}, logger, stopWaitMs = 10_000, now = Date.now }) {
   const file = join(stateDir, 'downloads.json')
   const jobs = new Map()
   let running = null
   let disposed = false
-  let saving = Promise.resolve()
+  const saver = createJsonSaver(file, logger)
   let notifying = Promise.resolve()
 
+  /** Wait for a stopped run to end, at most `stopWaitMs`: a source that ignores the abort must not hold up a reload or shutdown. */
+  async function letGo(busy) {
+    const end = Date.now() + stopWaitMs
+    while (busy()) {
+      if (Date.now() > end) return logger.warn('a download did not stop when asked; going on without waiting for it')
+      await new Promise(done => setTimeout(done, 50))
+    }
+  }
+
   function save() {
-    const body = JSON.stringify({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) }, null, 1)
-    saving = saving.then(async () => {
-      await writeFile(`${file}.part`, body)
-      await rename(`${file}.part`, file)
-    }).catch(error => logger.warn('could not save downloads: %s', error.message))
-    return saving
+    return saver.save({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) })
   }
 
   function notify(job) {
@@ -94,11 +98,11 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
     const { signal } = job.controller
     save()
     try {
-      if (source === undefined) throw sourceError('unavailable', `source ${job.source} is not available`)
+      if (source === undefined) throw codedError('unavailable', `source ${job.source} is not available`)
       for (;;) {
         const range = nextRun(job.want, await have(job.dir))
         if (range === null || signal.aborted) break
-        if (!(await hasSpace())) throw sourceError('no_space', 'the library disk is almost full; delete something first')
+        if (!(await hasSpace())) throw codedError('no_space', 'the library disk is almost full; delete something first')
         job.current = range
         job.at = range[0]
         const result = await source.download({ ...howOf(job.how), id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job), onProgress: (n, progress) => onProgress(job, n, progress), onPartial: (n, partial) => onPartial(job, n, partial) })
@@ -106,7 +110,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
         if (signal.aborted) break
         if (result.failed.length > 0) {
           job.failed = result.failed
-          throw sourceError('source_failed', `${result.failed.length} episodes could not be downloaded`)
+          throw codedError('source_failed', `${result.failed.length} episodes could not be downloaded`)
         }
       }
       if (signal.aborted) {
@@ -133,12 +137,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
 
   return {
     async load() {
-      let data = { jobs: [] }
-      try {
-        data = JSON.parse(await readFile(file, 'utf8'))
-      } catch (error) {
-        if (error.code !== 'ENOENT') logger.warn('could not read %s: %s', file, error.message)
-      }
+      const data = (await readJson(file, { logger })).value ?? {}
       // A job without a want list is from before the rolling cache (the whole show): the cache plans the show again when someone needs it.
       for (const job of data.jobs ?? []) if (Array.isArray(job.want)) jobs.set(job.dir, { ...job, status: job.status === 'running' ? 'queued' : job.status })
       pump()
@@ -225,14 +224,14 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       jobs.delete(dir)
       job.controller?.abort('cancel')
       save()
-      while (running === job) await new Promise(done => setTimeout(done, 50))
+      await letGo(() => running === job)
     },
 
     async dispose() {
       disposed = true
       running?.controller?.abort('stop')
-      while (running !== null) await new Promise(done => setTimeout(done, 50))
-      await saving
+      await letGo(() => running !== null)
+      await saver.settled()
     },
   }
 }

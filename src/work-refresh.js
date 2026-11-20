@@ -1,3 +1,4 @@
+import { createLimiter } from './limit.js'
 import { snapshotOf } from './work.js'
 
 const DAY_MS = 86_400_000
@@ -24,15 +25,7 @@ const HOUR_MS = 3_600_000
 export function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS, retryMs = HOUR_MS, parallel = 2, now = Date.now, logger }) {
   const flying = new Set()
   const failedAt = new Map()
-  const waiting = []
-  let running = 0
-
-  function pump() {
-    while (running < parallel && waiting.length > 0) {
-      running += 1
-      waiting.shift()().finally(() => { running -= 1; pump() })
-    }
-  }
+  const limit = createLimiter(parallel)
 
   /** Ask for a show's work again if its copy is missing or old. Returns at once. */
   return function touch(path, entry) {
@@ -42,7 +35,7 @@ export function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS, retryMs = H
     const key = `${sourceId}\n${entry.source.id}`
     if (flying.has(key) || now() - (failedAt.get(key) ?? -Infinity) < retryMs) return
     flying.add(key)
-    waiting.push(async () => {
+    limit(async () => {
       try {
         keep(path, snapshotOf(await found.info(entry.source.id, { person: entry.source.person }), now()))
         failedAt.delete(key)
@@ -53,6 +46,5 @@ export function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS, retryMs = H
         flying.delete(key)
       }
     })
-    pump()
   }
 }

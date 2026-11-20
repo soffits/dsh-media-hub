@@ -69,7 +69,7 @@ export function apply(ctx, config) {
       current = service
       return service.pruneCache(config.cacheDays)
     }).catch(error => logger.warn('could not start rooms: %s', error.message))
-    const prune = setInterval(() => { service.pruneCache(config.cacheDays).catch(() => {}) }, DAY_MS)
+    const prune = setInterval(() => { service.pruneCache(config.cacheDays).catch(error => logger.warn('pruning the cache: %s', error.message)) }, DAY_MS)
 
     const identity = () => ctx.get('requestIdentity')
     const fetchRoutes = [

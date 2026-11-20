@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renam
 import { basename, dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { createDelivery } from '../src/delivery.js'
+import { createDownloads } from '../src/downloads.js'
 import { createMediaHub } from '../src/media.js'
 import { isNearEnd } from '../src/watchlog.js'
 import { fileURLToPath } from 'node:url'
@@ -747,4 +748,35 @@ test('late at night, starting to watch is a binge night: one ticket for the whol
   const calls = points.calls.filter(c => c[0] === 'buy' || c[0] === 'use').map(c => [c[0], c.at(-1)])
   assert.deepEqual(calls, [['buy', 'media:binge:2026-11-18'], ['use', `media:start:${first.room.id}`], ['use', `media:start:${second.room.id}`]])
   assert.equal(points.players.ann, 60)
+})
+
+test('a saved show outside the library folders is left alone: the hub still starts and the cache cap still runs', async (t) => {
+  const dir = tempDir(t)
+  mkdirSync(join(dir, 'state'), { recursive: true })
+  const outside = join(dir, 'removed-root', 'Old show')
+  writeFileSync(join(dir, 'state', 'shows.json'), JSON.stringify({ shows: { [outside]: { source: { source: 'stub', id: '7', kind: 'drama', episodes: 3 }, pinned: true } } }))
+  const warnings = []
+  const logger = { info() {}, warn: (...args) => warnings.push(args.join(' ')) }
+  const hub = makeHub(dir, stubSource(3).source, { cache: { ...cacheOptions, capBytes: 1e9 }, logger })
+  t.after(() => hub.dispose())
+  await hub.load()
+  assert.deepEqual((await hub.library()).shows, [])
+  const fetched = await hub.fetch({ source: 'stub', id: '42' })
+  await until('the window is cached', () => numbersIn(fetched.path).length === 3)
+  await hub.fetch({ source: 'stub', id: '43' })
+  assert.deepEqual(warnings, [])
+})
+
+test('stopping a download whose source ignores the stop waits only so long', async (t) => {
+  const dir = tempDir(t)
+  const stubborn = { id: 'stuck', label: 'Stuck', kinds: [], available: async () => true, download: () => new Promise(() => {}) }
+  const warnings = []
+  const downloads = createDownloads({ stateDir: dir, sources: new Map([['stuck', stubborn]]), have: async () => new Set(), onFiles: async () => {}, logger: { info() {}, warn: message => warnings.push(message) }, stopWaitMs: 100 })
+  await downloads.load()
+  const show = join(dir, 'Show')
+  await downloads.want({ source: 'stuck', item: { id: '1', title: 'Show', kind: 'drama', episodes: 3 }, dir: show }, [1, 2, 3])
+  await until('the run started', () => downloads.state(show)?.active === true)
+  await downloads.cancel(show)
+  await downloads.dispose()
+  assert.equal(warnings.length, 2)
 })

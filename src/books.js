@@ -18,9 +18,12 @@
  */
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
+import { codedError } from './errors.js'
 import { convertBase } from './formats.js'
+import { createJsonSaver, readJson } from './json-file.js'
+import { sha256Of } from './sha256.js'
 
 export const BOOK_TYPES = Object.freeze({
   epub: 'application/epub+zip',
@@ -40,17 +43,12 @@ const CONVERT_TIMEOUT_MS = 10 * 60_000
 const CONCURRENCY = 2
 const ENTRY = /^[0-9a-f-]{36}$/
 
-const booksError = (code, message) => Object.assign(new Error(message), { code })
 export const fileKey = (source, id, format) => createHash('sha256').update(`${source}\n${id}\n${format}`).digest('hex').slice(0, 24)
 
 /** A `Content-Disposition` that keeps the full name (any script) and gives older clients a plain fallback. */
 export function attachment(name) {
   const fallback = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_') || 'book'
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name)}`
-}
-
-function sha256Of(path) {
-  return readFile(path).then(body => createHash('sha256').update(body).digest('hex'))
 }
 
 function runConverter(command, input, output) {
@@ -63,7 +61,7 @@ function runConverter(command, input, output) {
     child.on('close', (code) => {
       clearTimeout(timer)
       if (code === 0) resolve()
-      else reject(booksError('convert_failed', `conversion failed: ${stderr.trim().split('\n').pop() || `exit ${code}`}`))
+      else reject(codedError('convert_failed', `conversion failed: ${stderr.trim().split('\n').pop() || `exit ${code}`}`))
     })
   })
 }
@@ -80,7 +78,8 @@ function runConverter(command, input, output) {
  */
 export function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, changed = () => {}, now = Date.now }) {
   let state = { files: {}, shelves: {} }
-  let saving = Promise.resolve()
+  const stateFile = join(dir, STATE_FILE)
+  const saver = createJsonSaver(stateFile, logger)
   const running = new Map()
   const waiting = []
   let active = 0
@@ -88,13 +87,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
 
   const save = () => {
     changed()
-    saving = saving.then(async () => {
-      await mkdir(dir, { recursive: true })
-      const temporary = join(dir, `.${STATE_FILE}.${process.pid}.tmp`)
-      await writeFile(temporary, JSON.stringify(state))
-      await rename(temporary, join(dir, STATE_FILE))
-    }).catch(error => logger.warn('books: could not save the shelves: %s', error.message))
-    return saving
+    return saver.save(state)
   }
 
   const shelf = person => (state.shelves[person] ??= [])
@@ -151,7 +144,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
         name = (await source.downloadFile({ id, format, dir: scratch, signal })).name
       } else {
         const base = convertBase(work.formats)
-        if (base === null || !await converter.available()) throw booksError('unsupported', `${work.title || id} is not offered as ${format}`)
+        if (base === null || !await converter.available()) throw codedError('unsupported', `${work.title || id} is not offered as ${format}`)
         const downloaded = (await source.downloadFile({ id, format: base, dir: scratch, signal })).name
         name = `${downloaded.slice(0, downloaded.length - extname(downloaded).length)}.${format}`
         await runConverter(converter.command, join(scratch, downloaded), join(scratch, name))
@@ -185,7 +178,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
             entry.cover ||= got.cover ?? null
           }
         }
-        return enforceCap()
+        return enforceCap().catch(error => logger.warn('books: could not keep the shelves under the cap: %s', error.message))
       }, (error) => {
         if (disposed) return
         logger.warn('books: %s:%s as %s failed: %s', request.source, request.id, request.format, error.message)
@@ -208,12 +201,8 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
 
   return {
     async load() {
-      try {
-        const loaded = JSON.parse(await readFile(join(dir, STATE_FILE), 'utf8'))
-        if (loaded && typeof loaded.files === 'object' && typeof loaded.shelves === 'object') state = loaded
-      } catch (error) {
-        if (error.code !== 'ENOENT') logger.warn('books: could not read the shelves: %s', error.message)
-      }
+      const { value } = await readJson(stateFile, { logger, valid: loaded => typeof loaded?.files === 'object' && loaded.files !== null && typeof loaded.shelves === 'object' && loaded.shelves !== null })
+      if (value !== undefined) state = value
       // A fetch cut by a restart starts again; a file that vanished from disk is marked removed.
       for (const [key, file] of Object.entries(state.files)) {
         if (file.state === 'fetching') start(key, file)
@@ -223,10 +212,17 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
       await this.sweep()
     },
 
-    /** Folders under files/ that no record names (a crash between a rename and a save) are deleted. */
+    /**
+     * A folder under files/ that no record names and that is newer than the saved shelves is a fetch a crash cut off
+     * before its save: deleted. An older one stays: its record was lost with a damaged shelves file, set aside to restore.
+     */
     async sweep() {
+      const savedAt = await stat(stateFile).then(info => info.mtimeMs, () => null)
+      if (savedAt === null) return
       for (const name of await readdir(join(dir, 'files')).catch(() => [])) {
-        if (state.files[name] === undefined) await rm(join(dir, 'files', name), { recursive: true, force: true })
+        if (state.files[name] !== undefined) continue
+        const folder = join(dir, 'files', name)
+        if (await stat(folder).then(info => info.mtimeMs > savedAt, () => false)) await rm(folder, { recursive: true, force: true })
       }
     },
 
@@ -246,14 +242,14 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
      */
     async add(person, { source: sourceId, id, format, title = '', author = '', by = '' }) {
       const source = sources.get(sourceId)
-      if (source === undefined || typeof source.downloadFile !== 'function') throw booksError('not_found', `no source ${sourceId}`)
-      if (typeof id !== 'string' || !/^[^\s\0]{1,200}$/.test(id)) throw booksError('invalid', 'not a work id')
-      if (typeof format !== 'string' || !/^[a-z0-9]{1,8}$/.test(format)) throw booksError('invalid', 'not a format')
+      if (source === undefined || typeof source.downloadFile !== 'function') throw codedError('not_found', `no source ${sourceId}`)
+      if (typeof id !== 'string' || !/^[^\s\0]{1,200}$/.test(id)) throw codedError('invalid', 'not a work id')
+      if (typeof format !== 'string' || !/^[a-z0-9]{1,8}$/.test(format)) throw codedError('invalid', 'not a format')
       const key = fileKey(sourceId, id, format)
       const entries = shelf(person)
       let entry = entries.find(one => one.file === key)
       if (entry === undefined) {
-        if (entries.length >= MAX_ENTRIES) throw booksError('invalid', 'this shelf is full; delete some books first')
+        if (entries.length >= MAX_ENTRIES) throw codedError('invalid', 'this shelf is full; delete some books first')
         entry = { entry: randomUUID(), file: key, source: sourceId, id, format, title: String(title).slice(0, 300), author: String(author).slice(0, 200), cover: null, addedAt: new Date(now()).toISOString(), by: String(by).slice(0, 80) }
         entries.push(entry)
       }
@@ -267,7 +263,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
     /** Fetch an entry's file again (it failed, or was removed to save space). */
     async retry(person, entryId) {
       const entry = shelf(person).find(one => one.entry === entryId)
-      if (entry === undefined) throw booksError('not_found', 'not on this shelf')
+      if (entry === undefined) throw codedError('not_found', 'not on this shelf')
       if (state.files[entry.file]?.state !== 'ready') start(entry.file, entry)
       await save()
       return describe(entry)
@@ -276,7 +272,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
     async remove(person, entryId) {
       const entries = shelf(person)
       const index = entries.findIndex(one => one.entry === entryId)
-      if (index === -1) throw booksError('not_found', 'not on this shelf')
+      if (index === -1) throw codedError('not_found', 'not on this shelf')
       const [entry] = entries.splice(index, 1)
       if (!holders(entry.file)) {
         running.get(entry.file)?.abort()
@@ -304,7 +300,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
       disposed = true
       waiting.length = 0
       for (const controller of running.values()) controller.abort()
-      await saving
+      await saver.settled()
     },
   }
 }

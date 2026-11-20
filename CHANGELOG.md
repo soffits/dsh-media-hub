@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.3
+
+- A saved show whose folder is no longer one of the library folders no longer keeps the hub from starting (every page said "starting"); it is left alone.
+- When the page hits an error while drawing, it says what broke and offers *Reload* instead of going blank.
+- Auto-delete only removes watched shows from the hub's own library folder, never from a `libraryRoots` folder of yours.
+- A state file that can't be read (shows, shelves, rooms, downloads, Discover's copies) is moved aside as `<file>.bad-<time>` instead of being overwritten by the next save, and downloaded books are no longer deleted when the shelves file is damaged.
+- A broken address, an odd socket message, a source that ignores *Stop* or a book shelf that can't be trimmed no longer cause an unhandled error; stopping waits at most 10 s.
+
 ## 0.15.2
 
 - A click on the picture plays or pauses, for everyone in the room, and a double click goes full screen with the danmaku. On a phone the first tap still shows the controls.

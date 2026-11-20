@@ -90,11 +90,11 @@ window.__ModuleLoader__.load({
     /** The page's modules, loaded once and handed this page's React, DSH's components and the kit. */
     let pageModule
     const loadPage = () => {
-      pageModule ??= Promise.all([import(web('ui.js')), import(web('page.js'))]).then(([ui, page]) => {
+      pageModule ??= Promise.all([import(web('ui.js')), import(web('page.js')), import(web('boundary.js'))]).then(([ui, page, boundary]) => {
         ui.init(React, { primitives, kit })
         ui.setChat(chat)
         ui.setPoints(points)
-        return page
+        return { Page: page.Page, Boundary: boundary.createBoundary(React) }
       })
       return pageModule
     }
@@ -134,7 +134,7 @@ window.__ModuleLoader__.load({
         return () => { live = false }
       }, [ready])
       return h('div', { className: 'vsync-page' },
-        page !== null && h(page.Page, { t, initialRoom }),
+        page !== null && h(page.Boundary, { t }, h(page.Page, { t, initialRoom })),
         error && h('p', { className: 'vsync-error', role: 'alert', style: { padding: 24 } }, error))
     }
 
@@ -201,7 +201,7 @@ window.__ModuleLoader__.load({
               locale: NS,
               label: () => sourceName(),
             }, SidebarIcon)))
-          })
+          }, error => console.warn('[media-hub] could not load its words and settings: %s', error.message))
           return () => {
             live = false
             for (const dispose of disposers.reverse()) dispose()

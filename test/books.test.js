@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { chmodSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
@@ -168,4 +168,55 @@ test('shelf routes answer for the asking person only and serve the file as an at
   assert.equal((await (await route('/api/media-hub/shelf')(new Request('http://dsh.invalid/api/media-hub/shelf'))).json()).entries.length, 0)
   const bad = await post('/api/media-hub/shelf/add', { source: 'nope', id: 'x', format: 'txt' })
   assert.equal(bad.status, 404)
+})
+
+test('a shelves file that cannot be read is set aside and the downloaded books stay, then and after a restart', async (t) => {
+  const { dir, books, source } = setup(t)
+  const reopen = () => {
+    const opened = createBooks({ dir: join(dir, 'books'), sources: new Map([['lib', source]]), converter: { command: '', available: async () => false }, covers, logger: quiet })
+    t.after(() => opened.dispose())
+    return opened
+  }
+  await books.load()
+  const added = await books.add('ann', { source: 'lib', id: 'pg-1342', format: 'epub' })
+  await settled(books, 'ann', added.entry)
+  const { path } = await books.file('ann', added.entry)
+  await books.dispose()
+  writeFileSync(join(dir, 'books', 'books.json'), '{"files": {"trunc')
+
+  const again = reopen()
+  await again.load()
+  assert.ok(existsSync(path), 'the book survives the bad read')
+  assert.deepEqual(readdirSync(join(dir, 'books')).filter(name => name.startsWith('books.json.bad-')).map(name => readFileSync(join(dir, 'books', name), 'utf8')), ['{"files": {"trunc'])
+  const other = await again.add('bea', { source: 'lib', id: 'pg-1342', format: 'txt' })
+  await settled(again, 'bea', other.entry)
+  await again.dispose()
+
+  const cutOff = join(dir, 'books', 'files', 'cut-off')
+  mkdirSync(cutOff)
+  utimesSync(cutOff, new Date(Date.now() + 60_000), new Date(Date.now() + 60_000))
+  await reopen().load()
+  assert.ok(existsSync(path), 'the book survives the next start too')
+  assert.equal(existsSync(cutOff), false, 'a folder newer than the saved shelves is a fetch cut off before its save')
+})
+
+test('a shelf that cannot be trimmed to its cap is logged, not an unhandled failure', { skip: process.getuid?.() === 0 }, async (t) => {
+  const dir = tempDir(t)
+  const warnings = []
+  const { source } = setup(t)
+  const books = createBooks({ dir: join(dir, 'books'), sources: new Map([['lib', source]]), capBytes: 1, converter: { command: '', available: async () => false }, covers, logger: { warn: (...args) => warnings.push(args.join(' ')) } })
+  t.after(() => books.dispose())
+  await books.load()
+  const first = await books.add('ann', { source: 'lib', id: 'pg-1342', format: 'epub' })
+  await settled(books, 'ann', first.entry)
+  const [kept] = readdirSync(join(dir, 'books', 'files')).map(name => join(dir, 'books', 'files', name))
+  chmodSync(kept, 0o555)
+  try {
+    const second = await books.add('ann', { source: 'lib', id: 'pg-1342', format: 'txt' })
+    await settled(books, 'ann', second.entry)
+    await new Promise(done => setTimeout(done, 50))
+  } finally {
+    chmodSync(kept, 0o755)
+  }
+  assert.ok(warnings.some(line => line.includes('cap')), warnings.join('\n'))
 })

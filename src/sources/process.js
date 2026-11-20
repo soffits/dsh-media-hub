@@ -6,10 +6,9 @@
 import { spawn } from 'node:child_process'
 import { access, constants } from 'node:fs/promises'
 import { delimiter, isAbsolute, join } from 'node:path'
+import { codedError } from '../errors.js'
 
 const MAX_OUTPUT = 16 * 1024 * 1024
-
-const sourceError = (code, message) => Object.assign(new Error(message), { code })
 
 /** Whether `command` names an executable file, on the PATH or by path. */
 export async function commandExists(command, path = process.env.PATH ?? '') {
@@ -55,7 +54,7 @@ export function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } =
     child.stderr.on('data', (chunk) => { stderr = (stderr + chunk).slice(-8000) })
     child.on('error', (error) => {
       if (timer) clearTimeout(timer)
-      reject(error.code === 'ENOENT' ? sourceError('unavailable', `${command} is not installed`) : error)
+      reject(error.code === 'ENOENT' ? codedError('unavailable', `${command} is not installed`) : error)
     })
     child.on('close', (code) => {
       if (timer) clearTimeout(timer)
