@@ -4,7 +4,8 @@
  * shows changed (src/changes.js). A Fetch route under DSH's `/api`, so DSH
  * admits the browser first, like the shelf's.
  */
-import { HEADERS, json } from './person-routes.js'
+import { SECURITY_HEADERS } from './http.js'
+import { json } from './person-routes.js'
 
 export const EVENTS_PATH = '/api/media-hub/events'
 const HEARTBEAT_MS = 25_000
@@ -40,7 +41,7 @@ export function createEventsRoute({ hub }) {
         },
         cancel() { stop() },
       })
-      return new Response(stream, { status: 200, headers: { ...HEADERS, 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'private, no-cache, no-transform', 'x-accel-buffering': 'no' } })
+      return new Response(stream, { status: 200, headers: { ...SECURITY_HEADERS, 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'private, no-cache, no-transform', 'x-accel-buffering': 'no' } })
     },
   }
 }

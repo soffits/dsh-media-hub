@@ -12263,6 +12263,14 @@ function resolveRange(header, size) {
   if (start >= size || end < start) return { kind: "unsatisfiable" };
   return { kind: "window", start, end };
 }
+function rangePlan(header, size) {
+  const range = resolveRange(header, size);
+  if (range.kind === "unsatisfiable") return { status: 416, headers: { "content-range": `bytes */${size}` } };
+  const start = range.kind === "window" ? range.start : 0;
+  const end = range.kind === "window" ? range.end : size - 1;
+  const headers = { "content-length": String(size === 0 ? 0 : end - start + 1), ...range.kind === "window" ? { "content-range": `bytes ${start}-${end}/${size}` } : {} };
+  return { status: range.kind === "window" ? 206 : 200, start, end, headers };
+}
 async function sendFile(req, res, path, type = MEDIA_TYPES[extname5(path).toLowerCase()] ?? "application/octet-stream") {
   let info;
   try {
@@ -12271,24 +12279,13 @@ async function sendFile(req, res, path, type = MEDIA_TYPES[extname5(path).toLowe
     return sendText(res, 404, "Not found.");
   }
   if (!info.isFile()) return sendText(res, 404, "Not found.");
-  const size = info.size;
-  const range = resolveRange(req.headers.range, size);
-  const headers = { ...SECURITY_HEADERS, "cache-control": "private, no-store", "accept-ranges": "bytes", "content-type": type };
-  if (range.kind === "unsatisfiable") {
-    res.writeHead(416, { ...headers, "content-range": `bytes */${size}` }).end();
-    return;
-  }
-  const start = range.kind === "window" ? range.start : 0;
-  const end = range.kind === "window" ? range.end : size - 1;
-  const status = range.kind === "window" ? 206 : 200;
-  if (range.kind === "window") headers["content-range"] = `bytes ${start}-${end}/${size}`;
-  headers["content-length"] = String(size === 0 ? 0 : end - start + 1);
-  res.writeHead(status, headers);
-  if (req.method === "HEAD" || size === 0) {
+  const plan = rangePlan(req.headers.range, info.size);
+  res.writeHead(plan.status, { ...SECURITY_HEADERS, "cache-control": "private, no-store", "accept-ranges": "bytes", "content-type": type, ...plan.headers });
+  if (plan.status === 416 || req.method === "HEAD" || info.size === 0) {
     res.end();
     return;
   }
-  const stream = createReadStream2(path, { start, end });
+  const stream = createReadStream2(path, { start: plan.start, end: plan.end });
   stream.on("error", () => res.destroy());
   res.on("close", () => stream.destroy());
   stream.pipe(res);
@@ -12324,7 +12321,53 @@ async function readJson(req) {
     throw Object.assign(new Error("request body is not JSON"), { status: 400 });
   }
 }
+var API = Object.freeze([
+  ["GET", "rooms", async ({ hub }) => ({ rooms: await hub.listRooms() })],
+  ["GET", "rooms/:room/work", ({ hub, params }) => hub.roomWork(params.room)],
+  ["GET", "rooms/:room/danmaku/:index", ({ hub, params }) => hub.roomDanmaku(params.room, Number(params.index))],
+  ["GET", "rooms/:room/comments", ({ hub, params, query }) => hub.roomComments(params.room, query("cursor"))],
+  ["POST", "rooms/:room/quality", async ({ hub, params, body: body2 }) => hub.roomQuality(params.room, String((await body2()).quality ?? ""))],
+  ["POST", "rooms/:room/together", ({ hub, params }) => hub.watchTogether(params.room)],
+  ["DELETE", "rooms/:room", ({ hub, params }) => hub.closeRoom(params.room)],
+  ["GET", "library", ({ hub }) => hub.library()],
+  ["GET", "library/episodes", async ({ hub, query }) => ({ episodes: await hub.episodes(query("path")) })],
+  ["DELETE", "library", ({ hub, query }) => query("episode") ? hub.removeEpisode(query("path"), query("episode"), query("by") || null) : hub.removeShow(query("path"), query("by") || null)],
+  ["POST", "library/rename", async ({ hub, body: body2 }) => {
+    const input = await body2();
+    return hub.renameShow(input.path, input.name, byOf(input));
+  }],
+  ["POST", "library/keep", async ({ hub, body: body2 }) => {
+    const input = await body2();
+    return hub.keepShow(input.path, byOf(input));
+  }],
+  ["POST", "library/countdown", async ({ hub, body: body2 }) => {
+    const input = await body2();
+    return hub.countdownShow(input.path, byOf(input));
+  }],
+  ["POST", "library/retry", async ({ hub, body: body2 }) => hub.retryDownload((await body2()).path)],
+  ["POST", "library/pin", async ({ hub, body: body2 }) => {
+    const input = await body2();
+    return hub.pinShow(input.path, input.pinned === true, byOf(input));
+  }],
+  ["POST", "library/seen", async ({ hub, body: body2 }) => hub.dismissNews((await body2()).path)],
+  ["POST", "library/cancel", async ({ hub, body: body2 }) => hub.cancelDownload((await body2()).path)],
+  ["POST", "follow", async ({ hub, body: body2 }) => hub.followWork(pick3(await body2(), ["source", "id", "follow"]))],
+  ["GET", "settings", ({ settings }) => settings()],
+  ["GET", "locales", ({ localeDir, logger }) => readLocales(localeDir, logger)],
+  ["GET", "sources", async ({ hub }) => ({ sources: await hub.sources() })],
+  ["GET", "trending", ({ hub, query }) => hub.trending(query("source"), query("kind"))],
+  ["GET", "search", ({ hub, query }) => hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query))]
+].map(([method, path, answer]) => ({ method, segments: path.split("/"), answer })));
+function matchApi(method, parts) {
+  for (const route of API) {
+    if (route.method !== method || route.segments.length !== parts.length) continue;
+    const params = {};
+    if (route.segments.every((segment, n) => segment.startsWith(":") ? (params[segment.slice(1)] = parts[n]) !== void 0 : segment === parts[n])) return { answer: route.answer, params };
+  }
+  return null;
+}
 var STATUS = Object.freeze({ points: 402, invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 });
+var statusOf = (error) => error?.status ?? STATUS[error?.code] ?? 500;
 var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, ...error?.points ? { points: error.points } : {}, message: error?.message ?? String(error) } });
 function createHandler({ connection, service, settings = () => ({ label: "", presence: {} }), localeDir = LOCALE_DIR, logger }) {
   return async (req, res) => {
@@ -12367,51 +12410,15 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         return file === void 0 ? sendText(res, 404, "Not found.") : sendFile(req, res, file, MEDIA_TYPES[".vtt"]);
       }
       if (parts[0] === "api") {
-        const route = `${req.method} ${parts.slice(1).join("/")}`;
-        const query = (name2) => url.searchParams.get(name2) ?? "";
-        if (route === "GET rooms") return sendJson(res, 200, { rooms: await hub.listRooms() });
-        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "work") return sendJson(res, 200, hub.roomWork(parts[2]));
-        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 5 && parts[3] === "danmaku") return sendJson(res, 200, await hub.roomDanmaku(parts[2], Number(parts[4])));
-        if (req.method === "GET" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "comments") return sendJson(res, 200, await hub.roomComments(parts[2], query("cursor")));
-        if (req.method === "POST" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "quality") return sendJson(res, 200, await hub.roomQuality(parts[2], String((await readJson(req)).quality ?? "")));
-        if (req.method === "DELETE" && parts[1] === "rooms" && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]));
-        if (req.method === "POST" && parts[1] === "rooms" && parts.length === 4 && parts[3] === "together") return sendJson(res, 200, hub.watchTogether(parts[2]));
-        if (route === "GET library") return sendJson(res, 200, await hub.library());
-        if (route === "GET library/episodes") return sendJson(res, 200, { episodes: await hub.episodes(query("path")) });
-        if (route === "DELETE library") {
-          const by = query("by") || null;
-          return sendJson(res, 200, query("episode") ? await hub.removeEpisode(query("path"), query("episode"), by) : await hub.removeShow(query("path"), by));
+        const found = matchApi(req.method, parts.slice(1));
+        if (found !== null) {
+          const query = (name2) => url.searchParams.get(name2) ?? "";
+          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, localeDir, logger }));
         }
-        if (route === "POST library/rename") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.renameShow(body2.path, body2.name, byOf(body2)));
-        }
-        if (route === "POST library/keep") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.keepShow(body2.path, byOf(body2)));
-        }
-        if (route === "POST library/countdown") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.countdownShow(body2.path, byOf(body2)));
-        }
-        if (route === "POST library/retry") return sendJson(res, 200, await hub.retryDownload((await readJson(req)).path));
-        if (route === "POST library/pin") {
-          const body2 = await readJson(req);
-          return sendJson(res, 200, await hub.pinShow(body2.path, body2.pinned === true, byOf(body2)));
-        }
-        if (route === "POST follow") return sendJson(res, 200, await hub.followWork(pick3(await readJson(req), ["source", "id", "follow"])));
-        if (route === "POST library/seen") return sendJson(res, 200, hub.dismissNews((await readJson(req)).path));
-        if (route === "POST library/cancel") return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path));
-        if (route === "GET settings") return sendJson(res, 200, settings());
-        if (route === "GET locales") return sendJson(res, 200, await readLocales(localeDir, logger));
-        if (route === "GET sources") return sendJson(res, 200, { sources: await hub.sources() });
-        if (route === "GET trending") return sendJson(res, 200, await hub.trending(query("source"), query("kind")));
-        if (route === "GET search") return sendJson(res, 200, await hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query)));
       }
       return sendText(res, 404, "Not found.");
     } catch (error) {
-      const status = error?.status ?? STATUS[error?.code] ?? 500;
-      if (!res.headersSent) sendJson(res, status, errorBody(error));
+      if (!res.headersSent) sendJson(res, statusOf(error), errorBody(error));
       else res.destroy();
     }
   };
@@ -14182,9 +14189,9 @@ function parsePicks(document2, hasSource, limit = PICKS_LIMIT) {
   if (!Array.isArray(document2?.picks)) throw new Error("the recommender answered without a picks list");
   const out = [];
   const seen = /* @__PURE__ */ new Set();
-  for (const pick5 of document2.picks) {
-    const raw = pick5?.work;
-    const why = typeof pick5?.why === "string" ? pick5.why.trim().slice(0, MAX_WHY_CHARS) : "";
+  for (const pick4 of document2.picks) {
+    const raw = pick4?.work;
+    const why = typeof pick4?.why === "string" ? pick4.why.trim().slice(0, MAX_WHY_CHARS) : "";
     if (typeof raw?.source !== "string" || !hasSource(raw.source) || why === "") continue;
     const work = resultOf(raw, null);
     if (work === null || work.title === "") continue;
@@ -15049,7 +15056,7 @@ function createDiscover({ copies, sources, covers, recommender }) {
         }
         return recommend(recommender, { person, language, candidates });
       });
-      return { picks: (copy.value ?? []).map((pick5) => ({ ...pick5, work: withCovers(sources.get(pick5.work.source), pick5.work) })), loading: copy.loading };
+      return { picks: (copy.value ?? []).map((pick4) => ({ ...pick4, work: withCovers(sources.get(pick4.work.source), pick4.work) })), loading: copy.loading };
     }
   };
 }
@@ -15507,9 +15514,8 @@ ${identity.id}`).digest("hex").slice(0, 20);
 
 // src/person-routes.js
 var PERSON_PATH = "/api/media-hub";
-var HEADERS = Object.freeze({ "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" });
-var json = (status, body2) => new Response(JSON.stringify(body2), { status, headers: { ...HEADERS, "content-type": "application/json; charset=utf-8" } });
-var failure2 = (error) => json(error?.status ?? STATUS[error?.code] ?? 500, errorBody(error));
+var json = (status, body2) => new Response(JSON.stringify(body2), { status, headers: { ...SECURITY_HEADERS, "content-type": "application/json; charset=utf-8" } });
+var failure2 = (error) => json(statusOf(error), errorBody(error));
 async function body(request) {
   try {
     const value = await request.json();
@@ -15518,7 +15524,6 @@ async function body(request) {
     throw Object.assign(new Error("request body is not JSON"), { status: 400 });
   }
 }
-var pick4 = (value, keys) => Object.fromEntries(keys.filter((key) => value?.[key] !== void 0).map((key) => [key, value[key]]));
 var text2 = (value) => typeof value === "string" ? value : "";
 function createPersonRoutes({ hub, identity }) {
   const handle = (fn) => async (request) => {
@@ -15544,7 +15549,7 @@ function createPersonRoutes({ hub, identity }) {
       requestBody: "buffered",
       fetch: handle(async (request, current, person) => {
         const input = await body(request);
-        return current.fetch({ ...pick4(input, ["source", "id", "watch", "together", "all", "quality", "by"]), language: text2(input.language), person: person.id });
+        return current.fetch({ ...pick3(input, ["source", "id", "watch", "together", "all", "quality", "by"]), language: text2(input.language), person: person.id });
       })
     },
     {
@@ -15553,7 +15558,7 @@ function createPersonRoutes({ hub, identity }) {
       requestBody: "buffered",
       fetch: handle(async (request, current, person) => {
         const input = await body(request);
-        return current.createRoom({ ...pick4(input, ["path", "title", "by", "start"]), fromPanel: true, person: person.id });
+        return current.createRoom({ ...pick3(input, ["path", "title", "by", "start"]), fromPanel: true, person: person.id });
       })
     },
     {
@@ -15624,7 +15629,7 @@ function createEventsRoute({ hub }) {
           stop();
         }
       });
-      return new Response(stream, { status: 200, headers: { ...HEADERS, "content-type": "text/event-stream; charset=utf-8", "cache-control": "private, no-cache, no-transform", "x-accel-buffering": "no" } });
+      return new Response(stream, { status: 200, headers: { ...SECURITY_HEADERS, "content-type": "text/event-stream; charset=utf-8", "cache-control": "private, no-cache, no-transform", "x-accel-buffering": "no" } });
     }
   };
 }
@@ -15637,15 +15642,10 @@ var SHELF_PATH = "/api/media-hub/shelf";
 async function fileResponse(request, { path, name: name2, type }) {
   const info = await stat11(path).catch(() => null);
   if (info === null || !info.isFile()) return json(404, { error: { code: "not_found", message: "the file is gone" } });
-  const range = resolveRange(request.headers.get("range"), info.size);
-  const headers = { ...HEADERS, "content-type": type, "content-disposition": attachment(name2), "accept-ranges": "bytes" };
-  if (range.kind === "unsatisfiable") return new Response(null, { status: 416, headers: { ...headers, "content-range": `bytes */${info.size}` } });
-  const start = range.kind === "window" ? range.start : 0;
-  const end = range.kind === "window" ? range.end : info.size - 1;
-  headers["content-length"] = String(info.size === 0 ? 0 : end - start + 1);
-  if (range.kind === "window") headers["content-range"] = `bytes ${start}-${end}/${info.size}`;
-  const stream = request.method === "HEAD" || info.size === 0 ? null : Readable2.toWeb(createReadStream3(path, { start, end }));
-  return new Response(stream, { status: range.kind === "window" ? 206 : 200, headers });
+  const plan = rangePlan(request.headers.get("range"), info.size);
+  const headers = { ...SECURITY_HEADERS, "content-type": type, "content-disposition": attachment(name2), "accept-ranges": "bytes", ...plan.headers };
+  const stream = plan.status === 416 || request.method === "HEAD" || info.size === 0 ? null : Readable2.toWeb(createReadStream3(path, { start: plan.start, end: plan.end }));
+  return new Response(stream, { status: plan.status, headers });
 }
 function createShelfRoutes({ books, identity }) {
   const handle = (fn) => async (request) => {

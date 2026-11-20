@@ -13,9 +13,9 @@ import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { attachment } from './books.js'
-import { resolveRange } from './http.js'
+import { SECURITY_HEADERS, rangePlan } from './http.js'
 import { personOf } from './people.js'
-import { HEADERS, body, failure, json } from './person-routes.js'
+import { body, failure, json } from './person-routes.js'
 
 export const SHELF_PATH = '/api/media-hub/shelf'
 
@@ -23,15 +23,10 @@ export const SHELF_PATH = '/api/media-hub/shelf'
 export async function fileResponse(request, { path, name, type }) {
   const info = await stat(path).catch(() => null)
   if (info === null || !info.isFile()) return json(404, { error: { code: 'not_found', message: 'the file is gone' } })
-  const range = resolveRange(request.headers.get('range'), info.size)
-  const headers = { ...HEADERS, 'content-type': type, 'content-disposition': attachment(name), 'accept-ranges': 'bytes' }
-  if (range.kind === 'unsatisfiable') return new Response(null, { status: 416, headers: { ...headers, 'content-range': `bytes */${info.size}` } })
-  const start = range.kind === 'window' ? range.start : 0
-  const end = range.kind === 'window' ? range.end : info.size - 1
-  headers['content-length'] = String(info.size === 0 ? 0 : end - start + 1)
-  if (range.kind === 'window') headers['content-range'] = `bytes ${start}-${end}/${info.size}`
-  const stream = request.method === 'HEAD' || info.size === 0 ? null : Readable.toWeb(createReadStream(path, { start, end }))
-  return new Response(stream, { status: range.kind === 'window' ? 206 : 200, headers })
+  const plan = rangePlan(request.headers.get('range'), info.size)
+  const headers = { ...SECURITY_HEADERS, 'content-type': type, 'content-disposition': attachment(name), 'accept-ranges': 'bytes', ...plan.headers }
+  const stream = plan.status === 416 || request.method === 'HEAD' || info.size === 0 ? null : Readable.toWeb(createReadStream(path, { start: plan.start, end: plan.end }))
+  return new Response(stream, { status: plan.status, headers })
 }
 
 /**

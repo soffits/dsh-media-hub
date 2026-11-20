@@ -138,3 +138,38 @@ test('an address with a broken escape is a bad request, not a crash', async (t) 
   const response = await get('%E0%A4')
   assert.equal(response.status, 400)
 })
+
+test('every page API route reaches the hub method it names, with its arguments', async (t) => {
+  const calls = []
+  const hub = new Proxy({}, { get: (_, name) => (...args) => { calls.push([name, ...args]); return { from: name } } })
+  const get = await serve(t, hub)
+  const post = (path, body) => get(path, { method: 'POST', body: JSON.stringify(body) })
+  const cases = [
+    [() => get('api/rooms/r1/work'), ['roomWork', 'r1']],
+    [() => get('api/rooms/r1/danmaku/3'), ['roomDanmaku', 'r1', 3]],
+    [() => get('api/rooms/r1/comments?cursor=c'), ['roomComments', 'r1', 'c']],
+    [() => post('api/rooms/r1/quality', { quality: 720 }), ['roomQuality', 'r1', '720']],
+    [() => post('api/rooms/r1/together', {}), ['watchTogether', 'r1']],
+    [() => get('api/rooms/r1', { method: 'DELETE' }), ['closeRoom', 'r1']],
+    [() => get('api/library/episodes?path=p'), ['episodes', 'p']],
+    [() => get('api/library?path=p&episode=e&by=Ann', { method: 'DELETE' }), ['removeEpisode', 'p', 'e', 'Ann']],
+    [() => get('api/library?path=p', { method: 'DELETE' }), ['removeShow', 'p', null]],
+    [() => post('api/library/rename', { path: 'p', name: 'n', by: 'Ann' }), ['renameShow', 'p', 'n', 'Ann']],
+    [() => post('api/library/keep', { path: 'p' }), ['keepShow', 'p', null]],
+    [() => post('api/library/countdown', { path: 'p', by: 'Ann' }), ['countdownShow', 'p', 'Ann']],
+    [() => post('api/library/retry', { path: 'p' }), ['retryDownload', 'p']],
+    [() => post('api/library/pin', { path: 'p', pinned: true }), ['pinShow', 'p', true, null]],
+    [() => post('api/library/seen', { path: 'p' }), ['dismissNews', 'p']],
+    [() => post('api/library/cancel', { path: 'p' }), ['cancelDownload', 'p']],
+    [() => post('api/follow', { source: 's', id: 'i', follow: true, extra: 1 }), ['followWork', { source: 's', id: 'i', follow: true }]],
+    [() => get('api/trending?source=s&kind=k'), ['trending', 's', 'k']],
+  ]
+  for (const [request, call] of cases) {
+    calls.length = 0
+    const response = await request()
+    assert.equal(response.status, 200, call[0])
+    assert.deepEqual(calls, [call])
+  }
+  assert.equal((await get('api/rooms/r1/work/more')).status, 404)
+  assert.equal((await get('api/library/rename')).status, 404, 'a route answers only its own method')
+})

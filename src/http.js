@@ -126,6 +126,19 @@ export function resolveRange(header, size) {
   return { kind: 'window', start, end }
 }
 
+/**
+ * What to send of a file of `size` bytes for a Range header: the status, the bytes and their headers.
+ * @returns {{ status: 416, headers: object } | { status: 200 | 206, start: number, end: number, headers: object }}
+ */
+export function rangePlan(header, size) {
+  const range = resolveRange(header, size)
+  if (range.kind === 'unsatisfiable') return { status: 416, headers: { 'content-range': `bytes */${size}` } }
+  const start = range.kind === 'window' ? range.start : 0
+  const end = range.kind === 'window' ? range.end : size - 1
+  const headers = { 'content-length': String(size === 0 ? 0 : end - start + 1), ...(range.kind === 'window' ? { 'content-range': `bytes ${start}-${end}/${size}` } : {}) }
+  return { status: range.kind === 'window' ? 206 : 200, start, end, headers }
+}
+
 /** Serve one file with Range support. */
 export async function sendFile(req, res, path, type = MEDIA_TYPES[extname(path).toLowerCase()] ?? 'application/octet-stream') {
   let info
@@ -135,24 +148,13 @@ export async function sendFile(req, res, path, type = MEDIA_TYPES[extname(path).
     return sendText(res, 404, 'Not found.')
   }
   if (!info.isFile()) return sendText(res, 404, 'Not found.')
-  const size = info.size
-  const range = resolveRange(req.headers.range, size)
-  const headers = { ...SECURITY_HEADERS, 'cache-control': 'private, no-store', 'accept-ranges': 'bytes', 'content-type': type }
-  if (range.kind === 'unsatisfiable') {
-    res.writeHead(416, { ...headers, 'content-range': `bytes */${size}` }).end()
-    return
-  }
-  const start = range.kind === 'window' ? range.start : 0
-  const end = range.kind === 'window' ? range.end : size - 1
-  const status = range.kind === 'window' ? 206 : 200
-  if (range.kind === 'window') headers['content-range'] = `bytes ${start}-${end}/${size}`
-  headers['content-length'] = String(size === 0 ? 0 : end - start + 1)
-  res.writeHead(status, headers)
-  if (req.method === 'HEAD' || size === 0) {
+  const plan = rangePlan(req.headers.range, info.size)
+  res.writeHead(plan.status, { ...SECURITY_HEADERS, 'cache-control': 'private, no-store', 'accept-ranges': 'bytes', 'content-type': type, ...plan.headers })
+  if (plan.status === 416 || req.method === 'HEAD' || info.size === 0) {
     res.end()
     return
   }
-  const stream = createReadStream(path, { start, end })
+  const stream = createReadStream(path, { start: plan.start, end: plan.end })
   stream.on('error', () => res.destroy())
   res.on('close', () => stream.destroy())
   stream.pipe(res)
@@ -181,7 +183,7 @@ const MAX_BODY = 64 * 1024
 const byOf = body => (typeof body?.by === 'string' ? body.by.slice(0, 40) : null)
 
 /** Only the named fields of a request body. */
-const pick = (body, keys) => Object.fromEntries(keys.filter(key => body?.[key] !== undefined).map(key => [key, body[key]]))
+export const pick = (body, keys) => Object.fromEntries(keys.filter(key => body?.[key] !== undefined).map(key => [key, body[key]]))
 
 async function readJson(req) {
   let size = 0
@@ -199,12 +201,56 @@ async function readJson(req) {
 }
 
 /**
+ * The page's JSON API under /media-hub/api: method, path (a `:name` segment is a parameter) and the answer, sent as JSON.
+ * Each answer gets the hub, the path's parameters, `query(name)`, `body()` (the JSON body) and the page's settings.
+ */
+export const API = Object.freeze([
+  ['GET', 'rooms', async ({ hub }) => ({ rooms: await hub.listRooms() })],
+  ['GET', 'rooms/:room/work', ({ hub, params }) => hub.roomWork(params.room)],
+  ['GET', 'rooms/:room/danmaku/:index', ({ hub, params }) => hub.roomDanmaku(params.room, Number(params.index))],
+  ['GET', 'rooms/:room/comments', ({ hub, params, query }) => hub.roomComments(params.room, query('cursor'))],
+  ['POST', 'rooms/:room/quality', async ({ hub, params, body }) => hub.roomQuality(params.room, String((await body()).quality ?? ''))],
+  ['POST', 'rooms/:room/together', ({ hub, params }) => hub.watchTogether(params.room)],
+  ['DELETE', 'rooms/:room', ({ hub, params }) => hub.closeRoom(params.room)],
+  ['GET', 'library', ({ hub }) => hub.library()],
+  ['GET', 'library/episodes', async ({ hub, query }) => ({ episodes: await hub.episodes(query('path')) })],
+  ['DELETE', 'library', ({ hub, query }) => (query('episode')
+    ? hub.removeEpisode(query('path'), query('episode'), query('by') || null)
+    : hub.removeShow(query('path'), query('by') || null))],
+  ['POST', 'library/rename', async ({ hub, body }) => { const input = await body(); return hub.renameShow(input.path, input.name, byOf(input)) }],
+  ['POST', 'library/keep', async ({ hub, body }) => { const input = await body(); return hub.keepShow(input.path, byOf(input)) }],
+  ['POST', 'library/countdown', async ({ hub, body }) => { const input = await body(); return hub.countdownShow(input.path, byOf(input)) }],
+  ['POST', 'library/retry', async ({ hub, body }) => hub.retryDownload((await body()).path)],
+  ['POST', 'library/pin', async ({ hub, body }) => { const input = await body(); return hub.pinShow(input.path, input.pinned === true, byOf(input)) }],
+  ['POST', 'library/seen', async ({ hub, body }) => hub.dismissNews((await body()).path)],
+  ['POST', 'library/cancel', async ({ hub, body }) => hub.cancelDownload((await body()).path)],
+  ['POST', 'follow', async ({ hub, body }) => hub.followWork(pick(await body(), ['source', 'id', 'follow']))],
+  ['GET', 'settings', ({ settings }) => settings()],
+  ['GET', 'locales', ({ localeDir, logger }) => readLocales(localeDir, logger)],
+  ['GET', 'sources', async ({ hub }) => ({ sources: await hub.sources() })],
+  ['GET', 'trending', ({ hub, query }) => hub.trending(query('source'), query('kind'))],
+  ['GET', 'search', ({ hub, query }) => hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query))],
+].map(([method, path, answer]) => ({ method, segments: path.split('/'), answer })))
+
+/** The API route for a method and the path's segments after `api`, with its parameters, or null. */
+function matchApi(method, parts) {
+  for (const route of API) {
+    if (route.method !== method || route.segments.length !== parts.length) continue
+    const params = {}
+    if (route.segments.every((segment, n) => (segment.startsWith(':') ? (params[segment.slice(1)] = parts[n]) !== undefined : segment === parts[n]))) return { answer: route.answer, params }
+  }
+  return null
+}
+
+/**
  * HTTP status for a service error code. A source that failed is 424 (the
  * request depended on a site that said no), never a gateway status: proxies
  * in front of DSH (Cloudflare among them) replace a 502's body with their own
  * page, and the page would lose the reason.
  */
 export const STATUS = Object.freeze({ points: 402, invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 })
+
+export const statusOf = error => error?.status ?? STATUS[error?.code] ?? 500
 
 /** The JSON body of a failed request: its code, the reason a page has words for, and a message for logs and the tool. */
 export const errorBody = error => ({ error: { code: error?.code ?? 'error', ...(error?.reason ? { reason: error.reason } : {}), ...(error?.points ? { points: error.points } : {}), message: error?.message ?? String(error) } })
@@ -254,39 +300,15 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         return file === undefined ? sendText(res, 404, 'Not found.') : sendFile(req, res, file, MEDIA_TYPES['.vtt'])
       }
       if (parts[0] === 'api') {
-        const route = `${req.method} ${parts.slice(1).join('/')}`
-        const query = name => url.searchParams.get(name) ?? ''
-        if (route === 'GET rooms') return sendJson(res, 200, { rooms: await hub.listRooms() })
-        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'work') return sendJson(res, 200, hub.roomWork(parts[2]))
-        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 5 && parts[3] === 'danmaku') return sendJson(res, 200, await hub.roomDanmaku(parts[2], Number(parts[4])))
-        if (req.method === 'GET' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'comments') return sendJson(res, 200, await hub.roomComments(parts[2], query('cursor')))
-        if (req.method === 'POST' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'quality') return sendJson(res, 200, await hub.roomQuality(parts[2], String((await readJson(req)).quality ?? '')))
-        if (req.method === 'DELETE' && parts[1] === 'rooms' && parts.length === 3) return sendJson(res, 200, hub.closeRoom(parts[2]))
-        if (req.method === 'POST' && parts[1] === 'rooms' && parts.length === 4 && parts[3] === 'together') return sendJson(res, 200, hub.watchTogether(parts[2]))
-        if (route === 'GET library') return sendJson(res, 200, await hub.library())
-        if (route === 'GET library/episodes') return sendJson(res, 200, { episodes: await hub.episodes(query('path')) })
-        if (route === 'DELETE library') {
-          const by = query('by') || null
-          return sendJson(res, 200, query('episode') ? await hub.removeEpisode(query('path'), query('episode'), by) : await hub.removeShow(query('path'), by))
+        const found = matchApi(req.method, parts.slice(1))
+        if (found !== null) {
+          const query = name => url.searchParams.get(name) ?? ''
+          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, localeDir, logger }))
         }
-        if (route === 'POST library/rename') { const body = await readJson(req); return sendJson(res, 200, await hub.renameShow(body.path, body.name, byOf(body))) }
-        if (route === 'POST library/keep') { const body = await readJson(req); return sendJson(res, 200, await hub.keepShow(body.path, byOf(body))) }
-        if (route === 'POST library/countdown') { const body = await readJson(req); return sendJson(res, 200, await hub.countdownShow(body.path, byOf(body))) }
-        if (route === 'POST library/retry') return sendJson(res, 200, await hub.retryDownload((await readJson(req)).path))
-        if (route === 'POST library/pin') { const body = await readJson(req); return sendJson(res, 200, await hub.pinShow(body.path, body.pinned === true, byOf(body))) }
-        if (route === 'POST follow') return sendJson(res, 200, await hub.followWork(pick(await readJson(req), ['source', 'id', 'follow'])))
-        if (route === 'POST library/seen') return sendJson(res, 200, hub.dismissNews((await readJson(req)).path))
-        if (route === 'POST library/cancel') return sendJson(res, 200, await hub.cancelDownload((await readJson(req)).path))
-        if (route === 'GET settings') return sendJson(res, 200, settings())
-        if (route === 'GET locales') return sendJson(res, 200, await readLocales(localeDir, logger))
-        if (route === 'GET sources') return sendJson(res, 200, { sources: await hub.sources() })
-        if (route === 'GET trending') return sendJson(res, 200, await hub.trending(query('source'), query('kind')))
-        if (route === 'GET search') return sendJson(res, 200, await hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query)))
       }
       return sendText(res, 404, 'Not found.')
     } catch (error) {
-      const status = error?.status ?? STATUS[error?.code] ?? 500
-      if (!res.headersSent) sendJson(res, status, errorBody(error))
+      if (!res.headersSent) sendJson(res, statusOf(error), errorBody(error))
       else res.destroy()
     }
   }

@@ -14,15 +14,13 @@
  *
  * `language` is the viewer's, for choosing subtitles.
  */
-import { STATUS, errorBody } from './http.js'
+import { SECURITY_HEADERS, errorBody, pick, statusOf } from './http.js'
 import { personOf } from './people.js'
 
 export const PERSON_PATH = '/api/media-hub'
 
-export const HEADERS = Object.freeze({ 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' })
-
-export const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { ...HEADERS, 'content-type': 'application/json; charset=utf-8' } })
-export const failure = error => json(error?.status ?? STATUS[error?.code] ?? 500, errorBody(error))
+export const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { ...SECURITY_HEADERS, 'content-type': 'application/json; charset=utf-8' } })
+export const failure = error => json(statusOf(error), errorBody(error))
 
 /** A request's JSON body, an empty object for none. */
 export async function body(request) {
@@ -34,7 +32,6 @@ export async function body(request) {
   }
 }
 
-const pick = (value, keys) => Object.fromEntries(keys.filter(key => value?.[key] !== undefined).map(key => [key, value[key]]))
 const text = value => (typeof value === 'string' ? value : '')
 
 /**
