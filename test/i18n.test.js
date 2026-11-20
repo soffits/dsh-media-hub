@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { BASE, chain, languageChoices, pick } from '../src/i18n.js'
-import { readLocales } from '../src/locales.js'
+import { readWords } from '../src/locales.js'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const read = path => readFileSync(join(root, path), 'utf8')
@@ -120,7 +120,7 @@ test('an extra locale file works with no code change', async () => {
     writeFileSync(join(dir, 'de.json'), JSON.stringify({ meta: { title: 'Medien', description: 'Test' }, ui }))
     writeFileSync(join(dir, 'notes.json'), '{}')
     const warnings = []
-    const locales = await readLocales(dir, { warn: (...args) => warnings.push(args) })
+    const locales = await readWords(dir, { warn: message => warnings.push(message) })
     assert.deepEqual(Object.keys(locales).sort(), [...Object.keys(tables), 'de'].sort())
     assert.equal(warnings.length, 1, 'a file that is not a language is skipped and logged')
     // The viewer's lookup, as DSH's locale store walks it: their tag, its primary subtag, then the base.

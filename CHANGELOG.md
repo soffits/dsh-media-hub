@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.4
+
+- An open page's change stream now ends when the plugin is unloaded or updated, so the page reconnects to the new version; before, it stayed open and heard nothing more until reloaded.
+- The locale reader, the change notices and the event stream come from the shared `@soffits/dsh-host-kit` (bundled into `dist/`) instead of copies kept here.
+
 ## 0.15.3
 
 - A saved show whose folder is no longer one of the library folders no longer keeps the hub from starting (every page said "starting"); it is left alone.

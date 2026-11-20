@@ -8972,6 +8972,156 @@ var require_build = __commonJS({
 // index.js
 import { join as join18, resolve as resolve7 } from "node:path";
 
+// node_modules/@soffits/dsh-host-kit/src/locales.js
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+var BASE = "en";
+var TAG = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
+async function readLocales(dir, { warn = () => {
+} } = {}) {
+  const locales = {};
+  for (const name2 of (await readdir(dir)).filter((file) => file.endsWith(".json")).sort()) {
+    const tag = name2.slice(0, -".json".length);
+    if (!TAG.test(tag)) {
+      warn(`locale/${name2}: the name is not a language tag; skipped`);
+      continue;
+    }
+    try {
+      const { ui } = JSON.parse(await readFile(join(dir, name2), "utf8"));
+      if (ui === null || typeof ui !== "object" || Array.isArray(ui)) throw new Error('no "ui" table');
+      locales[tag] = Object.fromEntries(Object.entries(ui).filter(([, text3]) => typeof text3 === "string"));
+    } catch (error) {
+      warn(`locale/${name2}: ${error.message}; skipped`);
+    }
+  }
+  if (locales[BASE] === void 0) warn(`locale/${BASE}.json is missing or unreadable; every language falls back to it`);
+  return locales;
+}
+
+// node_modules/@soffits/dsh-host-kit/src/notices.js
+function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
+  const listeners = /* @__PURE__ */ new Set();
+  let pending = [];
+  let timer;
+  let lastAt = -Infinity;
+  function flush() {
+    timer = void 0;
+    lastAt = Date.now();
+    const batch = pending;
+    pending = [];
+    for (const listener of [...listeners]) {
+      const what = /* @__PURE__ */ new Set();
+      for (const notice of batch) {
+        if (notice.scope === void 0 || listener.accepts === void 0 || listener.accepts(notice.scope)) what.add(notice.what);
+      }
+      if (what.size > 0) listener.send([...what]);
+    }
+  }
+  return {
+    /**
+     * Something of kind `what` changed, for `scope` (omit for everyone).
+     * @param {string} what
+     * @param {string} [scope]
+     */
+    notify(what, scope) {
+      pending.push({ what, scope });
+      if (timer !== void 0) return;
+      timer = setTimeout(flush, Math.max(settleMs, lastAt + spacingMs - Date.now()));
+    },
+    /**
+     * Hear batches of kinds (`send(['library', 'rooms'])`), only for the scopes `accepts` takes
+     * (omit it to hear every scope).
+     * @param {(what: string[]) => void} send
+     * @param {(scope: string) => boolean} [accepts]
+     * @returns {() => void} stop listening
+     */
+    listen(send, accepts) {
+      const listener = { send, accepts };
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    /** Drop every listener and anything pending (the plugin is going away). */
+    close() {
+      clearTimeout(timer);
+      timer = void 0;
+      pending = [];
+      listeners.clear();
+    }
+  };
+}
+
+// node_modules/@soffits/dsh-host-kit/src/event-streams.js
+function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
+  const open4 = /* @__PURE__ */ new Set();
+  function respond(request, start) {
+    const encoder = new TextEncoder();
+    let finish = () => {
+    };
+    const body2 = new ReadableStream({
+      async start(controller) {
+        let live = true;
+        let stop = () => {
+        };
+        const write2 = (text3) => {
+          if (!live) return;
+          try {
+            controller.enqueue(encoder.encode(text3));
+          } catch {
+            end();
+          }
+        };
+        const beat = setInterval(() => write2(": beat\n\n"), heartbeatMs);
+        finish = () => {
+          if (!live) return;
+          live = false;
+          clearInterval(beat);
+          open4.delete(end);
+          request.signal?.removeEventListener?.("abort", end);
+          stop();
+        };
+        const end = () => {
+          finish();
+          try {
+            controller.close();
+          } catch {
+          }
+        };
+        open4.add(end);
+        request.signal?.addEventListener?.("abort", end, { once: true });
+        if (request.signal?.aborted) return end();
+        write2("retry: 5000\n: open\n\n");
+        let stopping;
+        try {
+          stopping = await start({ send: (value) => write2(`data: ${JSON.stringify(value)}
+
+`), end });
+        } catch (error) {
+          finish();
+          controller.error(error);
+          return;
+        }
+        if (typeof stopping !== "function") return;
+        if (live) stop = stopping;
+        else stopping();
+      },
+      cancel() {
+        finish();
+      }
+    });
+    return new Response(body2, {
+      status: 200,
+      headers: { ...headers, "content-type": "text/event-stream; charset=utf-8", "cache-control": "private, no-cache, no-transform", "x-accel-buffering": "no", "x-content-type-options": "nosniff" }
+    });
+  }
+  return {
+    respond,
+    /** End every open stream (the plugin is going away). */
+    close() {
+      for (const end of [...open4]) end();
+    }
+  };
+}
+
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
 var import_extension = __toESM(require_extension(), 1);
@@ -8985,7 +9135,7 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 // src/config.js
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join as join9 } from "node:path";
+import { join as join10 } from "node:path";
 
 // node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
@@ -10458,7 +10608,7 @@ function omit2(obj, ...keys) {
 }
 
 // src/hosts.js
-import { readFile, stat } from "node:fs/promises";
+import { readFile as readFile2, stat } from "node:fs/promises";
 function hostOf(url) {
   try {
     return new URL(url).hostname.toLowerCase().replace(/\.$/, "");
@@ -10474,7 +10624,7 @@ function hostMatches(host, pattern2) {
   return host === pattern2 || host.endsWith(`.${pattern2}`);
 }
 function createHostRules(rules = [], io = {}) {
-  const read = io.read ?? ((path) => readFile(path, "utf8"));
+  const read = io.read ?? ((path) => readFile2(path, "utf8"));
   const version = io.version ?? (async (path) => (await stat(path)).mtimeMs);
   const files = /* @__PURE__ */ new Map();
   async function patternsOf(rule) {
@@ -10591,21 +10741,20 @@ function createProxies(rules = [], io = {}) {
 
 // src/sources/command.js
 import { mkdir, rm, stat as stat2 } from "node:fs/promises";
-import { basename as basename2, join as join2 } from "node:path";
+import { basename as basename2, join as join3 } from "node:path";
 
 // src/i18n.js
-var BASE = "en";
-var TAG = /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i;
-function chain(tag) {
+var BASE2 = "en";
+function chain2(tag) {
   const parts = String(tag ?? "").toLowerCase().split("-").filter(Boolean);
   const tags = parts.map((_, i) => parts.slice(0, parts.length - i).join("-"));
-  return tags.includes(BASE) ? tags : [...tags, BASE];
+  return tags.includes(BASE2) ? tags : [...tags, BASE2];
 }
 function pick2(value, tag) {
   if (typeof value === "string") return value;
   if (value === null || typeof value !== "object") return "";
   const byTag = new Map(Object.entries(value).map(([key, text3]) => [key.toLowerCase(), text3]));
-  for (const candidate of chain(tag)) {
+  for (const candidate of chain2(tag)) {
     const text3 = byTag.get(candidate);
     if (typeof text3 === "string" && text3 !== "") return text3;
   }
@@ -10656,10 +10805,10 @@ function sha256Of(path) {
 // src/sources/process.js
 import { spawn } from "node:child_process";
 import { access, constants } from "node:fs/promises";
-import { delimiter, isAbsolute, join } from "node:path";
+import { delimiter, isAbsolute, join as join2 } from "node:path";
 var MAX_OUTPUT = 16 * 1024 * 1024;
 async function commandExists(command, path = process.env.PATH ?? "") {
-  const candidates = isAbsolute(command) ? [command] : path.split(delimiter).filter(Boolean).map((dir) => join(dir, command));
+  const candidates = isAbsolute(command) ? [command] : path.split(delimiter).filter(Boolean).map((dir) => join2(dir, command));
   for (const candidate of candidates) {
     try {
       await access(candidate, constants.X_OK);
@@ -10863,7 +11012,7 @@ function parseComments(document2) {
 async function verify(dir, event, label, logger) {
   const name2 = typeof event.name === "string" ? event.name : "";
   if (name2 === "" || basename2(name2) !== name2 || name2.startsWith(".")) return { ok: false, name: name2 };
-  const path = join2(dir, name2);
+  const path = join3(dir, name2);
   try {
     const intact = (await stat2(path)).size === event.bytes && (typeof event.sha256 !== "string" || await sha256Of(path) === event.sha256);
     if (intact) return { ok: true, name: name2 };
@@ -10889,7 +11038,7 @@ function filterArgs({ language = "", format = "", yearFrom = null, yearTo = null
 function createCommandSource(definition, { logger, cwd }) {
   const { id: sourceId, label, kinds, command, env = {}, filters: understood = [] } = definition;
   const kindIds = new Set(kinds.map((kind) => kind.id));
-  const name2 = () => pick2(label, BASE) || sourceId;
+  const name2 = () => pick2(label, BASE2) || sourceId;
   async function workDir() {
     await mkdir(cwd, { recursive: true });
     return cwd;
@@ -10977,7 +11126,7 @@ function createCommandSource(definition, { logger, cwd }) {
           const names = Array.isArray(event.files) ? event.files.filter((file) => typeof file === "string" && file !== "" && basename2(file) === file) : [];
           if (names.length === 0) return;
           const until = new Promise((done) => growing.set(event.number, done));
-          onPartial?.(event.number, { files: names.map((file) => join2(dir, file)), subtitles: [], growing: until });
+          onPartial?.(event.number, { files: names.map((file) => join3(dir, file)), subtitles: [], growing: until });
         } else if (event?.event === "done") {
           if (Number.isInteger(event.number)) settle2(event.number);
           checking = checking.then(() => verify(dir, event, name2(), logger)).then((file) => {
@@ -11025,21 +11174,21 @@ function createCommandSource(definition, { logger, cwd }) {
       const event = reported[reported.length - 1];
       const file = await verify(dir, event, name2(), logger);
       if (!file.ok) throw codedError("source_failed", `${name2()}: the file did not arrive whole`);
-      return { name: file.name, bytes: event.bytes, sha256: typeof event.sha256 === "string" ? event.sha256 : await sha256Of(join2(dir, file.name)) };
+      return { name: file.name, bytes: event.bytes, sha256: typeof event.sha256 === "string" ? event.sha256 : await sha256Of(join3(dir, file.name)) };
     }
   };
 }
 
 // src/sources/index.js
-import { join as join8 } from "node:path";
+import { join as join9 } from "node:path";
 
 // src/sources/link.js
-import { mkdir as mkdir5, readdir as readdir3, rename as rename2, rm as rm5, writeFile as writeFile2 } from "node:fs/promises";
-import { dirname as dirname2, extname as extname4, join as join7 } from "node:path";
+import { mkdir as mkdir5, readdir as readdir4, rename as rename2, rm as rm5, writeFile as writeFile2 } from "node:fs/promises";
+import { dirname as dirname2, extname as extname4, join as join8 } from "node:path";
 
 // src/captions.js
 var MARKS = Object.freeze(["auto", "original"]);
-var known = new Intl.DisplayNames([BASE], { type: "language", fallback: "none" });
+var known = new Intl.DisplayNames([BASE2], { type: "language", fallback: "none" });
 function captionLanguage(tag) {
   try {
     const { language } = new Intl.Locale(tag);
@@ -11107,8 +11256,8 @@ function noteFor(entry, notes, name2) {
 }
 
 // src/library.js
-import { open, readdir, stat as stat3 } from "node:fs/promises";
-import { basename as basename4, dirname, extname as extname2, join as join3 } from "node:path";
+import { open, readdir as readdir2, stat as stat3 } from "node:fs/promises";
+import { basename as basename4, dirname, extname as extname2, join as join4 } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 var run2 = promisify(execFile);
@@ -11142,13 +11291,13 @@ var titleOf2 = (file) => basename4(file, extname2(file));
 async function scanSource(path) {
   const info = await stat3(path);
   const folder = info.isDirectory() ? path : dirname(path);
-  const names = await readdir(folder);
+  const names = await readdir2(folder);
   const videos = info.isDirectory() ? naturalSort(names.filter(isMedia)) : [basename4(path)];
   if (videos.length === 0) throw codedError("empty", `no video or audio files in ${path}`);
   return videos.map((name2) => ({
     title: titleOf2(name2),
-    path: join3(folder, name2),
-    subtitles: matchSubtitles(name2, names).map((sub) => ({ path: join3(folder, sub.name), label: sub.label }))
+    path: join4(folder, name2),
+    subtitles: matchSubtitles(name2, names).map((sub) => ({ path: join4(folder, sub.name), label: sub.label }))
   }));
 }
 async function probe(path, { ffprobe = "ffprobe" } = {}) {
@@ -11211,7 +11360,7 @@ function planVideo(path, info, { fastStart, maxHeight }) {
 // src/cookies.js
 import { randomBytes } from "node:crypto";
 import { copyFile, chmod, mkdir as mkdir2, rm as rm2 } from "node:fs/promises";
-import { join as join4 } from "node:path";
+import { join as join5 } from "node:path";
 var accountView = (account) => account === null ? null : { name: account.name || account.person || "" };
 function createCookies(rules = [], io = {}) {
   const hostRules = createHostRules(rules, io);
@@ -11233,7 +11382,7 @@ function createCookies(rules = [], io = {}) {
       if (account === null) return { args: [], done: async () => {
       } };
       await mkdir2(dir, { recursive: true });
-      const copy = join4(dir, `.cookies-${randomBytes(6).toString("hex")}.txt`);
+      const copy = join5(dir, `.cookies-${randomBytes(6).toString("hex")}.txt`);
       try {
         await copyFile(account.file, copy);
         await chmod(copy, 384);
@@ -11250,14 +11399,14 @@ function createCookies(rules = [], io = {}) {
 // src/prepare.js
 import { spawn as spawn3 } from "node:child_process";
 import { createHash as createHash3 } from "node:crypto";
-import { mkdir as mkdir4, readFile as readFile3, readdir as readdir2, rename, rm as rm4, stat as stat5, writeFile } from "node:fs/promises";
-import { extname as extname3, join as join6 } from "node:path";
+import { mkdir as mkdir4, readFile as readFile4, readdir as readdir3, rename, rm as rm4, stat as stat5, writeFile } from "node:fs/promises";
+import { extname as extname3, join as join7 } from "node:path";
 
 // src/stream.js
 import { spawn as spawn2 } from "node:child_process";
 import { createHash as createHash2 } from "node:crypto";
-import { mkdir as mkdir3, open as open2, readFile as readFile2, rm as rm3, stat as stat4 } from "node:fs/promises";
-import { join as join5 } from "node:path";
+import { mkdir as mkdir3, open as open2, readFile as readFile3, rm as rm3, stat as stat4 } from "node:fs/promises";
+import { join as join6 } from "node:path";
 import { Readable } from "node:stream";
 var PLAYLIST = "index.m3u8";
 var READY_SEGMENTS = 3;
@@ -11352,8 +11501,8 @@ function hlsArgs(plan, inputs, dir, { maxHeight = 1080, threads = 2 } = {}) {
     "-hls_flags",
     "independent_segments+temp_file",
     "-hls_segment_filename",
-    join5(dir, "%05d.m4s"),
-    join5(dir, PLAYLIST)
+    join6(dir, "%05d.m4s"),
+    join6(dir, PLAYLIST)
   ];
 }
 async function probeGrowing(file, ended, { ffprobe, signal }) {
@@ -11375,8 +11524,8 @@ function playable(text3) {
   return text3.includes("#EXT-X-ENDLIST") || (text3.match(/#EXTINF:/g) ?? []).length >= READY_SEGMENTS;
 }
 async function finishedPlaylist(dir) {
-  const file = join5(dir, PLAYLIST);
-  const text3 = await readFile2(file, "utf8").catch(() => "");
+  const file = join6(dir, PLAYLIST);
+  const text3 = await readFile3(file, "utf8").catch(() => "");
   return text3.includes("#EXT-X-ENDLIST") ? file : null;
 }
 async function streamEpisode({ files, growing, dir, ffmpeg = "ffmpeg", ffprobe = "ffprobe", maxHeight = 1080, threads = 2, onReady, signal }) {
@@ -11390,7 +11539,7 @@ async function streamEpisode({ files, growing, dir, ffmpeg = "ffmpeg", ffprobe =
   const duration = Math.max(0, ...infos.map((info) => info.duration ?? 0)) || null;
   const inputs = growing === void 0 ? files : files.map((_, n) => `pipe:${n + 3}`);
   const args = hlsArgs(plan, inputs, dir, { maxHeight, threads });
-  const playlist = join5(dir, PLAYLIST);
+  const playlist = join6(dir, PLAYLIST);
   const child = spawn2("nice", ["-n", "10", ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", ...args], {
     stdio: ["ignore", "ignore", "pipe", ...growing === void 0 ? [] : files.map(() => "pipe")],
     signal
@@ -11416,7 +11565,7 @@ async function streamEpisode({ files, growing, dir, ffmpeg = "ffmpeg", ffprobe =
   const running = settledFlag(exited);
   let told = false;
   while (!running.done && !told) {
-    if (playable(await readFile2(playlist, "utf8").catch(() => ""))) {
+    if (playable(await readFile3(playlist, "utf8").catch(() => ""))) {
       told = true;
       onReady?.({ playlist, duration });
     } else {
@@ -11435,7 +11584,7 @@ function createStreams({ cacheDir, tools, need, ready, lost, logger, convert }) 
   function start(key, entry) {
     const { show, number, partial: { files, subtitles = [], growing } } = entry;
     const controller = new AbortController();
-    const dir = join5(cacheDir, `stream-${createHash2("sha256").update(`${key}\0${Date.now()}`).digest("hex").slice(0, 20)}`);
+    const dir = join6(cacheDir, `stream-${createHash2("sha256").update(`${key}\0${Date.now()}`).digest("hex").slice(0, 20)}`);
     entry.controller = controller;
     entry.prepared = null;
     streamEpisode({
@@ -11541,12 +11690,12 @@ async function preparedBytes(cacheDir, path) {
   const key = await cacheKey(path).catch(() => null);
   if (key === null) return 0;
   let total = 0;
-  for (const name2 of await readdir2(join6(cacheDir, key)).catch(() => [])) total += (await stat5(join6(cacheDir, key, name2)).catch(() => null))?.size ?? 0;
+  for (const name2 of await readdir3(join7(cacheDir, key)).catch(() => [])) total += (await stat5(join7(cacheDir, key, name2)).catch(() => null))?.size ?? 0;
   return total;
 }
 async function dropPrepared(cacheDir, path) {
   const key = await cacheKey(path).catch(() => null);
-  if (key !== null) await rm4(join6(cacheDir, key), { recursive: true, force: true });
+  if (key !== null) await rm4(join7(cacheDir, key), { recursive: true, force: true });
 }
 function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
   return new Promise((resolve8, reject) => {
@@ -11570,14 +11719,14 @@ async function writeAtomic(path, data) {
 }
 var exists = (path) => stat5(path).then(() => true, () => false);
 async function convertSubtitle(source, dir, name2, { ffmpeg = "ffmpeg" } = {}) {
-  const out = join6(dir, `${name2}.vtt`);
+  const out = join7(dir, `${name2}.vtt`);
   if (await exists(out)) return out;
-  const text3 = decodeText(await readFile3(source));
+  const text3 = decodeText(await readFile4(source));
   const ext = extname3(source).toLowerCase();
   if (ext === ".srt") await writeAtomic(out, srtToVtt(text3));
   else if (ext === ".vtt" || isVtt(text3)) await writeAtomic(out, text3);
   else {
-    const utf8 = join6(dir, `${name2}.utf8${ext}`);
+    const utf8 = join7(dir, `${name2}.utf8${ext}`);
     await writeFile(utf8, text3);
     try {
       await runFfmpeg(["-y", "-i", utf8, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
@@ -11593,7 +11742,7 @@ async function prepareEpisode(episode, options) {
   if (extname3(episode.path).toLowerCase() === ".m3u8") {
     return { file: episode.path, kind: "hls", duration: null, plan: "direct", subtitles: await externalSubtitles(episode, null, ffmpeg, cacheDir) };
   }
-  const dir = join6(cacheDir, await cacheKey(episode.path));
+  const dir = join7(cacheDir, await cacheKey(episode.path));
   await mkdir4(dir, { recursive: true });
   const info = await probe(episode.path, { ffprobe });
   const mp4Family = [".mp4", ".m4v", ".mov", ".m4a"].includes(extname3(episode.path).toLowerCase());
@@ -11601,7 +11750,7 @@ async function prepareEpisode(episode, options) {
   const subtitles = await externalSubtitles(episode, dir, ffmpeg, cacheDir);
   await embeddedSubtitles(episode.path, info, dir, ffmpeg, subtitles);
   if (plan === "transcode") {
-    const hls = join6(dir, "hls");
+    const hls = join7(dir, "hls");
     const prepared = (file2) => ({ file: file2, kind: "hls", duration: info.duration, plan, subtitles });
     const done = await finishedPlaylist(hls);
     if (done !== null) return prepared(done);
@@ -11610,7 +11759,7 @@ async function prepareEpisode(episode, options) {
   }
   let file = episode.path;
   if (plan === "remux") {
-    file = join6(dir, "video.mp4");
+    file = join7(dir, "video.mp4");
     if (!await exists(file)) {
       await runFfmpeg(remuxArgs(episode.path, `${file}.part`), { ffmpeg, duration: info.duration, onProgress, signal });
       await rename(`${file}.part`, file);
@@ -11620,7 +11769,7 @@ async function prepareEpisode(episode, options) {
 }
 async function embeddedSubtitles(path, info, dir, ffmpeg, subtitles) {
   for (const stream of info.subtitles.filter((s) => isTextSubtitle(s.codec))) {
-    const out = join6(dir, `embedded-${stream.index}.vtt`);
+    const out = join7(dir, `embedded-${stream.index}.vtt`);
     if (!await exists(out)) {
       try {
         await runFfmpeg(["-y", "-i", path, "-map", `0:s:${stream.index}`, "-f", "webvtt", `${out}.part`], { ffmpeg, duration: null });
@@ -11634,7 +11783,7 @@ async function embeddedSubtitles(path, info, dir, ffmpeg, subtitles) {
 }
 async function externalSubtitles(episode, dir, ffmpeg, cacheDir) {
   if (episode.subtitles.length === 0) return [];
-  const target = dir ?? join6(cacheDir, await cacheKey(episode.path));
+  const target = dir ?? join7(cacheDir, await cacheKey(episode.path));
   await mkdir4(target, { recursive: true });
   const out = [];
   for (const [n, sub] of episode.subtitles.entries()) {
@@ -11647,10 +11796,10 @@ async function externalSubtitles(episode, dir, ffmpeg, cacheDir) {
 }
 async function pruneCache(cacheDir, used, days, now = Date.now()) {
   const keep = new Set(used.filter((file) => typeof file === "string" && file.startsWith(`${cacheDir}/`)).map((file) => file.slice(cacheDir.length + 1).split("/")[0]));
-  for (const name2 of await readdir2(cacheDir).catch(() => [])) {
+  for (const name2 of await readdir3(cacheDir).catch(() => [])) {
     if (keep.has(name2)) continue;
-    const info = await stat5(join6(cacheDir, name2)).catch(() => null);
-    if (info !== null && now - info.mtimeMs > days * 864e5) await rm4(join6(cacheDir, name2), { recursive: true, force: true });
+    const info = await stat5(join7(cacheDir, name2)).catch(() => null);
+    if (info !== null && now - info.mtimeMs > days * 864e5) await rm4(join7(cacheDir, name2), { recursive: true, force: true });
   }
 }
 
@@ -11869,26 +12018,26 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
   async function fetchCaptions(url, { entry, load, work, dir, stem, language, person, signal }) {
     const chosen = chooseCaptions(entry, language);
     if (chosen.length === 0) return [];
-    const result = await ytdlp(url, ["--skip-download", ...captionArgs(chosen), "-o", join7(work, "captions")], { person, load, signal });
+    const result = await ytdlp(url, ["--skip-download", ...captionArgs(chosen), "-o", join8(work, "captions")], { person, load, signal });
     if (result.code !== 0) logger.warn("link %s: captions: %s", url, lastLine(result.stderr));
     const placed = [];
     for (const track of chosen) {
       const label = captionLabel(track);
-      const target = join7(dir, `${stem}.${label}.vtt`);
-      if (await rename2(join7(work, `captions.${track.tag}.vtt`), target).then(() => true, () => false)) placed.push({ path: target, label });
+      const target = join8(dir, `${stem}.${label}.vtt`);
+      if (await rename2(join8(work, `captions.${track.tag}.vtt`), target).then(() => true, () => false)) placed.push({ path: target, label });
     }
     return placed;
   }
   async function assemble(files, dir, stem) {
     if (files.length === 1) {
-      const target = join7(dir, `${stem}${extname4(files[0])}`);
+      const target = join8(dir, `${stem}${extname4(files[0])}`);
       await rename2(files[0], target);
       return target;
     }
     let last = null;
     for (const ext of MERGED) {
-      const target = join7(dir, `${stem}.${ext}`);
-      const part = join7(dirname2(files[0]), `merged.${ext}`);
+      const target = join8(dir, `${stem}.${ext}`);
+      const part = join8(dirname2(files[0]), `merged.${ext}`);
       try {
         await runFfmpeg(["-y", ...files.flatMap((file) => ["-i", file]), ...files.flatMap((_, n) => ["-map", String(n)]), "-c", "copy", ...ext === "mp4" ? ["-movflags", "+faststart"] : [], part], { ffmpeg, duration: null });
         await rename2(part, target);
@@ -11930,9 +12079,9 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
       const failed = [];
       let first = null;
       for (let number = from2; number <= to && !signal?.aborted; number++) {
-        if ((await readdir3(dir)).some((name2) => isMedia(name2) && episodeNumber(name2) === number)) continue;
+        if ((await readdir4(dir)).some((name2) => isMedia(name2) && episodeNumber(name2) === number)) continue;
         onStart?.(number);
-        const work = join7(dir, INCOMING, String(number));
+        const work = join8(dir, INCOMING, String(number));
         try {
           await fetchEpisode(number, work);
         } catch (error) {
@@ -11953,7 +12102,7 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
         const { data } = await lookUp(url, [...formatArgs(quality, maxHeight), "--write-subs", "--playlist-items", String(number)], { person, signal, timeoutMs: INFO_TIMEOUT_MS });
         const entry = data._type === "playlist" ? (data.entries ?? []).find((item) => item !== null && typeof item === "object") : data;
         if (entry === void 0) throw failure("not_found");
-        const load = join7(work, "info.json");
+        const load = join8(work, "info.json");
         await writeFile2(load, JSON.stringify(entry));
         const stem = episodeStem(number, entry.title);
         const captions = await fetchCaptions(url, { entry, load, work, dir, stem, language, person, signal });
@@ -11967,7 +12116,7 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
             ...quality === AUDIO ? AUDIO_FILE : [],
             ...PROGRESS_ARGS,
             "-o",
-            join7(work, `part${n}.%(ext)s`)
+            join8(work, `part${n}.%(ext)s`)
           ], { person, load, signal, onStdoutLine: (line) => {
             const event = parseLine(line);
             if (event !== null) progress.event(event);
@@ -11975,12 +12124,12 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
             if (result.code === 0) progress.finished(part.format_id);
             return result;
           }));
-          if (quality !== AUDIO) onPartial?.(number, { files: parts.map((part, n) => join7(work, `part${n}.${part.ext}`)), subtitles: captions, growing: Promise.allSettled(runs) });
+          if (quality !== AUDIO) onPartial?.(number, { files: parts.map((part, n) => join8(work, `part${n}.${part.ext}`)), subtitles: captions, growing: Promise.allSettled(runs) });
           const results = await Promise.all(runs);
           const broken = results.find((result) => result.code !== 0);
           if (broken !== void 0) throw await reasonOf(url, broken);
-          const names = (await readdir3(work)).filter((name2) => /^part\d+\./.test(name2)).sort();
-          await assemble(names.map((name2) => join7(work, name2)), dir, stem);
+          const names = (await readdir4(work)).filter((name2) => /^part\d+\./.test(name2)).sort();
+          await assemble(names.map((name2) => join8(work, name2)), dir, stem);
         } catch (error) {
           for (const caption of captions) await rm5(caption.path, { force: true });
           throw error;
@@ -12004,8 +12153,8 @@ function createSources(definitions, { stateDir, logger, link }) {
     seen.add(id);
   }
   return [
-    ...definitions.map((definition) => createCommandSource(definition, { logger, cwd: join8(stateDir, definition.id) })),
-    createLinkSource({ ...link, logger, cwd: join8(stateDir, LINK_SOURCE) })
+    ...definitions.map((definition) => createCommandSource(definition, { logger, cwd: join9(stateDir, definition.id) })),
+    createLinkSource({ ...link, logger, cwd: join9(stateDir, LINK_SOURCE) })
   ];
 }
 async function describeSources(sources) {
@@ -12017,10 +12166,10 @@ async function describeSources(sources) {
 }
 
 // src/config.js
-var DSH_HOME = process.env.DSH_HOME || join9(homedir(), ".dsh");
+var DSH_HOME = process.env.DSH_HOME || join10(homedir(), ".dsh");
 function defaultStateDir(home = DSH_HOME, exists2 = existsSync) {
-  const current = join9(home, "media-hub");
-  const earlier = join9(home, "videosync");
+  const current = join10(home, "media-hub");
+  const earlier = join10(home, "videosync");
   return !exists2(current) && exists2(earlier) ? earlier : current;
 }
 var DEFAULT_STATE_DIR = defaultStateDir();
@@ -12169,30 +12318,10 @@ function interleave(lists) {
 }
 
 // src/locales.js
-import { readdir as readdir4, readFile as readFile4 } from "node:fs/promises";
-import { dirname as dirname3, join as join10, resolve as resolve2 } from "node:path";
+import { dirname as dirname3, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 var LOCALE_DIR = resolve2(dirname3(fileURLToPath(import.meta.url)), "../locale");
-async function readLocales(dir, logger) {
-  const names = (await readdir4(dir).catch(() => [])).filter((name2) => name2.endsWith(".json")).sort();
-  const locales = {};
-  for (const name2 of names) {
-    const tag = name2.slice(0, -".json".length);
-    if (!TAG.test(tag)) {
-      logger?.warn("locale/%s: the name is not a language tag; skipped", name2);
-      continue;
-    }
-    try {
-      const { ui } = JSON.parse(await readFile4(join10(dir, name2), "utf8"));
-      if (ui === null || typeof ui !== "object" || Array.isArray(ui)) throw new Error('no "ui" table');
-      locales[tag] = Object.fromEntries(Object.entries(ui).filter(([, text3]) => typeof text3 === "string"));
-    } catch (error) {
-      logger?.warn("locale/%s: %s; skipped", name2, error.message);
-    }
-  }
-  if (locales[BASE] === void 0) logger?.warn("locale/%s.json is missing; every other language falls back to it", BASE);
-  return locales;
-}
+var readWords = (dir, logger) => readLocales(dir, { warn: (message) => logger?.warn(message) });
 
 // src/vendored.js
 var VENDORED = Object.freeze({
@@ -12353,7 +12482,7 @@ var API = Object.freeze([
   ["POST", "library/cancel", async ({ hub, body: body2 }) => hub.cancelDownload((await body2()).path)],
   ["POST", "follow", async ({ hub, body: body2 }) => hub.followWork(pick3(await body2(), ["source", "id", "follow"]))],
   ["GET", "settings", ({ settings }) => settings()],
-  ["GET", "locales", ({ localeDir, logger }) => readLocales(localeDir, logger)],
+  ["GET", "locales", ({ localeDir, logger }) => readWords(localeDir, logger)],
   ["GET", "sources", async ({ hub }) => ({ sources: await hub.sources() })],
   ["GET", "trending", ({ hub, query }) => hub.trending(query("source"), query("kind"))],
   ["GET", "search", ({ hub, query }) => hub.search(query("source"), query("q"), query("kind") || void 0, Math.max(0, Number.parseInt(query("offset"), 10) || 0), parseFilters(query))]
@@ -12713,10 +12842,10 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
 
 // src/cache.js
 function createCache({ library, downloads, rooms, window: size, logger }) {
-  let chain2 = Promise.resolve();
+  let chain3 = Promise.resolve();
   const serial = (step) => {
-    const result = chain2.then(step);
-    chain2 = result.catch((error) => logger.warn("rolling cache: %s", error.message));
+    const result = chain3.then(step);
+    chain3 = result.catch((error) => logger.warn("rolling cache: %s", error.message));
     return result;
   };
   async function protectedEpisodes() {
@@ -14912,39 +15041,6 @@ function createExtras({ points, night, locales, now = Date.now }) {
   };
 }
 
-// src/changes.js
-function createChanges({ intervalMs = 300 } = {}) {
-  const listeners = /* @__PURE__ */ new Set();
-  let pending = /* @__PURE__ */ new Set();
-  let timer = null;
-  let lastAt = 0;
-  function flush() {
-    timer = null;
-    lastAt = Date.now();
-    const what = [...pending];
-    pending = /* @__PURE__ */ new Set();
-    for (const listener of listeners) listener(what);
-  }
-  return {
-    notify(kind) {
-      pending.add(kind);
-      if (timer !== null) return;
-      timer = setTimeout(flush, Math.max(0, lastAt + intervalMs - Date.now()));
-      timer.unref?.();
-    },
-    /** @returns {() => void} stop listening */
-    listen(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    close() {
-      clearTimeout(timer);
-      timer = null;
-      listeners.clear();
-    }
-  };
-}
-
 // src/copies.js
 var DAY_MS4 = 864e5;
 var HOUR_MS2 = 36e5;
@@ -15100,8 +15196,8 @@ function createMediaHub(options) {
   const sources = new Map(options.sources.map((source2) => [source2.id, source2]));
   const covers = createCovers({ dir: join17(stateDir, "covers"), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, (id) => sources.get(id));
   const log = createWatchLog({ file: join17(stateDir, LOG_NAME), now, logger });
-  const changes = createChanges({ intervalMs: options.changeIntervalMs });
-  const points = createExtras({ points: options.points ?? (() => void 0), night: options.bingeNight ?? { from: "01:00", to: "06:00" }, locales: () => readLocales(LOCALE_DIR, logger), now });
+  const changes = createNotices({ spacingMs: options.changeIntervalMs ?? 300 });
+  const points = createExtras({ points: options.points ?? (() => void 0), night: options.bingeNight ?? { from: "01:00", to: "06:00" }, locales: () => readWords(LOCALE_DIR, logger), now });
   const books = createBooks({ changed: () => changes.notify("shelf"), dir: join17(stateDir, "books"), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now });
   let rooms;
   let cache;
@@ -15588,8 +15684,7 @@ function createPersonRoutes({ hub, identity }) {
 
 // src/events-route.js
 var EVENTS_PATH = "/api/media-hub/events";
-var HEARTBEAT_MS = 25e3;
-function createEventsRoute({ hub }) {
+function createEventsRoute({ hub, streams }) {
   return {
     path: EVENTS_PATH,
     methods: ["GET"],
@@ -15597,40 +15692,7 @@ function createEventsRoute({ hub }) {
     fetch: async (request) => {
       const current = hub();
       if (current === void 0) return json(503, { error: { code: "unavailable", message: "The media hub is starting." } });
-      const encoder = new TextEncoder();
-      let stop = () => {
-      };
-      const stream = new ReadableStream({
-        start(controller) {
-          const write2 = (chunk) => {
-            try {
-              controller.enqueue(encoder.encode(chunk));
-            } catch {
-              stop();
-            }
-          };
-          write2("retry: 5000\n: open\n\n");
-          const unlisten = current.listenChanges((what) => write2(`data: ${JSON.stringify({ type: "change", what })}
-
-`));
-          const beat = setInterval(() => write2(": beat\n\n"), HEARTBEAT_MS);
-          stop = () => {
-            unlisten();
-            clearInterval(beat);
-          };
-          request.signal?.addEventListener("abort", () => {
-            stop();
-            try {
-              controller.close();
-            } catch {
-            }
-          }, { once: true });
-        },
-        cancel() {
-          stop();
-        }
-      });
-      return new Response(stream, { status: 200, headers: { ...SECURITY_HEADERS, "content-type": "text/event-stream; charset=utf-8", "cache-control": "private, no-cache, no-transform", "x-accel-buffering": "no" } });
+      return streams.respond(request, ({ send }) => current.listenChanges((what) => send({ type: "change", what })));
     }
   };
 }
@@ -15726,10 +15788,11 @@ function apply(ctx, config) {
       service.pruneCache(config.cacheDays).catch((error) => logger.warn("pruning the cache: %s", error.message));
     }, DAY_MS6);
     const identity = () => ctx.get("requestIdentity");
+    const streams = createEventStreams({ headers: SECURITY_HEADERS });
     const fetchRoutes = [
       ...createShelfRoutes({ books: () => current?.books, identity }),
       ...createPersonRoutes({ hub: () => current, identity }),
-      createEventsRoute({ hub: () => current })
+      createEventsRoute({ hub: () => current, streams })
     ].map((route) => ctx.connection.fetch.register(route));
     const sockets = new import_websocket_server.default({ noServer: true, maxPayload: 16 * 1024, perMessageDeflate: false });
     const disposeHttp = ctx.webServer.register({
@@ -15757,6 +15820,7 @@ function apply(ctx, config) {
       disposeUpgrade();
       disposeHttp();
       await Promise.all(fetchRoutes.map((dispose) => dispose()));
+      streams.close();
       await loading;
       await service.dispose();
       sockets.close();

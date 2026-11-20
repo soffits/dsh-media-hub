@@ -24,9 +24,9 @@ import { LOG_NAME, createWatchLog } from './watchlog.js'
 import { createFollows, dueFollows, nextCheckAt, seenAtStart } from './follow.js'
 import { parseAnnotation, pendingRatings, ratingLine } from './presence.js'
 import { createExtras } from './points.js'
-import { LOCALE_DIR, readLocales } from './locales.js'
+import { LOCALE_DIR, readWords } from './locales.js'
 import { snapshotOf } from './work.js'
-import { createChanges } from './changes.js'
+import { createNotices } from '@soffits/dsh-host-kit'
 import { createCopies } from './copies.js'
 import { createDiscover } from './discover.js'
 import { createWorkRefresh } from './work-refresh.js'
@@ -58,8 +58,9 @@ export function createMediaHub(options) {
   const sources = new Map(options.sources.map(source => [source.id, source]))
   const covers = createCovers({ dir: join(stateDir, 'covers'), capBytes: options.coverCacheBytes, ffmpeg: options.tools.ffmpeg, logger }, id => sources.get(id))
   const log = createWatchLog({ file: join(stateDir, LOG_NAME), now, logger })
-  const changes = createChanges({ intervalMs: options.changeIntervalMs })
-  const points = createExtras({ points: options.points ?? (() => undefined), night: options.bingeNight ?? { from: '01:00', to: '06:00' }, locales: () => readLocales(LOCALE_DIR, logger), now })
+  // What open pages are told: a kind of change (`library`, `rooms`, `shelf`, `discover`), at most once per interval, so a download's progress doesn't flood a page.
+  const changes = createNotices({ spacingMs: options.changeIntervalMs ?? 300 })
+  const points = createExtras({ points: options.points ?? (() => undefined), night: options.bingeNight ?? { from: '01:00', to: '06:00' }, locales: () => readWords(LOCALE_DIR, logger), now })
   const books = createBooks({ changed: () => changes.notify('shelf'), dir: join(stateDir, 'books'), sources, capBytes: options.books?.capBytes ?? 0, converter: options.books?.converter ?? NO_CONVERTER, covers, logger, now })
   let rooms
   let cache

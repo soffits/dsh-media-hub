@@ -9,10 +9,11 @@
  * service, which the assistant's tool (tools.js) looks up at call time.
  */
 import { join, resolve } from 'node:path'
+import { createEventStreams } from '@soffits/dsh-host-kit'
 import { WebSocketServer } from 'ws'
 import { Config } from './src/config.js'
 import { createDelivery } from './src/delivery.js'
-import { ROUTE, WS_PATH, admitOwner, createHandler, refuseUpgrade } from './src/http.js'
+import { ROUTE, SECURITY_HEADERS, WS_PATH, admitOwner, createHandler, refuseUpgrade } from './src/http.js'
 import { createMediaHub } from './src/media.js'
 import { createPersonRoutes } from './src/person-routes.js'
 import { createEventsRoute } from './src/events-route.js'
@@ -72,10 +73,11 @@ export function apply(ctx, config) {
     const prune = setInterval(() => { service.pruneCache(config.cacheDays).catch(error => logger.warn('pruning the cache: %s', error.message)) }, DAY_MS)
 
     const identity = () => ctx.get('requestIdentity')
+    const streams = createEventStreams({ headers: SECURITY_HEADERS })
     const fetchRoutes = [
       ...createShelfRoutes({ books: () => current?.books, identity }),
       ...createPersonRoutes({ hub: () => current, identity }),
-      createEventsRoute({ hub: () => current }),
+      createEventsRoute({ hub: () => current, streams }),
     ].map(route => ctx.connection.fetch.register(route))
 
     const sockets = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024, perMessageDeflate: false })
@@ -105,6 +107,7 @@ export function apply(ctx, config) {
       disposeUpgrade()
       disposeHttp()
       await Promise.all(fetchRoutes.map(dispose => dispose()))
+      streams.close()
       await loading
       await service.dispose()
       sockets.close()
