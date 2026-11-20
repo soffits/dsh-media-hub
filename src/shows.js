@@ -46,20 +46,6 @@ export function cleanName(value) {
 }
 
 /**
- * @param {object} options
- * @param {string[]} options.roots - library folders; the first one receives downloads
- * @param {string} options.stateDir
- * @param {number} options.autoDeleteDays - 0 keeps watched shows
- * @param {ReturnType<import('./covers.js').createCovers>} options.covers - makes the poster frame of a show's first episode
- * @param {(path: string) => boolean} options.inUse - whether an open room plays from this show
- * @param {(path: string) => object | null} options.download - the download state of a show folder
- * @param {(path: string) => void} options.forget - stop anything working on a show being removed
- * @param {(type: string, fields: object) => void} [options.record] - library actions for the watch log
- * @param {() => void} [options.changed] - told whenever the notes change or an episode file is deleted, so open pages re-read
- * @param {{ info: Function, warn: Function }} options.logger
- * @param {() => number} [options.now]
- */
-/**
  * Seasons of one work sit together: a show with a `group` key goes next to the
  * first member of its group in the list (oldest season first), and says which
  * season it is and how many there are. Shows without a group keep their place.
@@ -80,6 +66,20 @@ export function groupSeasons(shows) {
   shows.splice(0, shows.length, ...ordered)
 }
 
+/**
+ * @param {object} options
+ * @param {string[]} options.roots - library folders; the first one receives downloads
+ * @param {string} options.stateDir
+ * @param {number} options.autoDeleteDays - 0 keeps watched shows
+ * @param {ReturnType<import('./covers.js').createCovers>} options.covers - makes the poster frame of a show's first episode
+ * @param {(path: string) => boolean} options.inUse - whether an open room plays from this show
+ * @param {(path: string) => object | null} options.download - the download state of a show folder
+ * @param {(path: string) => void} options.forget - stop anything working on a show being removed
+ * @param {(type: string, fields: object) => void} [options.record] - library actions for the watch log
+ * @param {() => void} [options.changed] - told whenever the notes change or an episode file is deleted, so open pages re-read
+ * @param {{ info: Function, warn: Function }} options.logger
+ * @param {() => number} [options.now]
+ */
 export function createLibrary(options) {
   const { roots, stateDir, covers, inUse, download, forget, logger, now = Date.now } = options
   const metaFile = join(stateDir, 'shows.json')
@@ -566,8 +566,9 @@ export function createLibrary(options) {
       const entry = record(show)
       const finished = new Set(entry.finished ?? [])
       finished.add(basename(episodePath))
-      const names = ((await episodeFiles(show)) ?? []).map(file => file.name)
-      const keys = slotsOf(entry, ((await episodeFiles(show)) ?? [])).map(slot => slot.key)
+      const files = (await episodeFiles(show)) ?? []
+      const names = files.map(file => file.name)
+      const keys = slotsOf(entry, files).map(slot => slot.key)
       const done = new Set([...finished].map(name => keyOf(entry, name)))
       // A sourced show is watched through its source's list, whether or not the episodes are still on disk.
       const complete = isSourced(entry) || names.length >= (entry.source?.episodes ?? names.length)

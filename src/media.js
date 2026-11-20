@@ -195,7 +195,6 @@ export function createMediaHub(options) {
     return found
   }
 
-  /** A library folder for a work from a source: its title, or title plus a short mark of its id (ids may be addresses) when another show has that name. */
   /**
    * Whether a series is new here: neither it nor any of its seasons (`related`, relation `season`) was ever had, in the
    * library now (by source and id) or anywhere in the watch log (by the folder it would have). Going on with a series,
@@ -216,6 +215,7 @@ export function createMediaHub(options) {
     return [name, `${name} (${mark})`].map(candidate => join(libraryRoots[0], candidate))
   }
 
+  /** A library folder for a work from a source: its title, or title plus a short mark of its id (ids may be addresses) when another show has that name. */
   async function folderFor(sourceId, item) {
     for (const path of foldersFor(sourceId, item)) {
       const exists = await stat(path).then(() => true, () => false)

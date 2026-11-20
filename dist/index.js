@@ -14667,8 +14667,9 @@ function createLibrary(options) {
       const entry = record(show);
       const finished = new Set(entry.finished ?? []);
       finished.add(basename5(episodePath));
-      const names = (await episodeFiles(show) ?? []).map((file) => file.name);
-      const keys = slotsOf(entry, await episodeFiles(show) ?? []).map((slot) => slot.key);
+      const files = await episodeFiles(show) ?? [];
+      const names = files.map((file) => file.name);
+      const keys = slotsOf(entry, files).map((slot) => slot.key);
       const done = new Set([...finished].map((name2) => keyOf(entry, name2)));
       const complete = isSourced(entry) || names.length >= (entry.source?.episodes ?? names.length);
       const lastDone = complete && keys.length > 0 && done.has(keys[keys.length - 1]);

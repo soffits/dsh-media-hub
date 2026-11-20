@@ -25,9 +25,12 @@
 - **The person behind the sync channel**: a room records who opened it by display name; the account a room fetches with comes from the request that opened it, so a room reopened by the assistant's tool (no signed-in person) uses the default account.
 
 - **Live duration while downloading**: an episode played as it downloads is an event playlist, so the player's timeline grows with what has arrived; the length is known from the start (probe) and could be shown.
-- **Browser suite after solo watching**: `npm run test:browsers` opens rooms with *Watch* and expects them in the Watching tab; rooms are now unlisted until *Watch together*, so its room-list steps need that click. Not rerun for 0.5.
+- **Browser suite after solo watching, and in CI**: `npm run test:browsers` opens rooms with *Watch* and expects them in the Watching tab; rooms are now unlisted until *Watch together*, so its room-list steps need that click. Not rerun for 0.5, and not in CI (it needs a `dsh` binary and Chromium there), so the page's drawing and the sync player are checked only by hand; CI only imports every page module (`test/web-modules.test.js`).
 - **A person's own solo rooms**: an unlisted room is reached only by its link; the Watching tab could list the asking person's own (rooms would need to record the person, not only a display name).
-- **Flaky on main**: `a show kept offline is fetched whole and never trimmed…` and `an episode deleted by hand stays gone…` in test/media.test.js fail in about a third of runs, with or without the change stream (timing of the rolling cache).
+- **Flaky on main**: `a show kept offline is fetched whole and never trimmed…` and `an episode deleted by hand stays gone…` in test/media.test.js fail in about a third of runs, with or without the change stream (timing of the rolling cache). Not reproduced in 12 lone runs and 6 runs side by side, so not fixed yet; both still wait on fixed sleeps where an event would do.
 - Danmaku text keeps a site's emoticon codes as written (Fanqie's `[偷笑]`); a source could send them as pictures or Unicode instead. *rare*
 - When an episode's danmaku crowd one moment, Danmaku overlaps lines instead of dropping the extra ones as the phone apps do. *likely, cosmetic*
 - Link could offer danmaku too: yt-dlp writes Bilibili's as a `danmaku` subtitle track (XML).
+- A fetch that adds a show and then fails to open its room leaves the empty show in the library (no points are spent). *rare*
+- `web/ui.js` keeps React, the primitives and the kit as module-level `export let` set by `init()`, and `web/page.js` sets the words during render, so the page modules depend on call order and are hard to test alone.
+- `src/prepare.js` assumes `nice` is on PATH.
