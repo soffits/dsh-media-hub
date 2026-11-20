@@ -12,6 +12,7 @@
  * requests, so a deployment under a sub-path works unchanged.
  */
 import { basename } from 'node:path'
+import { codedError } from './errors.js'
 
 export const PREFIX = 'media-hub'
 export const DELIVERY_MODES = Object.freeze(['origin', 'r2'])
@@ -38,9 +39,9 @@ export function createDelivery({ mode }) {
   if (mode === 'r2') {
     const reason = 'R2 delivery is not built yet; use delivery mode "origin".'
     const missing = () => {
-      throw Object.assign(new Error(reason), { code: 'unsupported' })
+      throw codedError('unsupported', reason)
     }
     return { mode, available: false, reason, mediaUrl: missing, subtitleUrl: missing }
   }
-  throw Object.assign(new Error(`unknown delivery mode ${String(mode)}`), { code: 'invalid' })
+  throw codedError('invalid', `unknown delivery mode ${String(mode)}`)
 }

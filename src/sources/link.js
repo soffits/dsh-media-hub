@@ -17,6 +17,7 @@ import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
 import { captionLabel } from '../captions.js'
 import { episodeNumber } from '../episodes.js'
+import { codedError } from '../errors.js'
 import { isMedia } from '../library.js'
 import { parseInfo } from './command.js'
 import { AUDIO, AUTO, isQuality } from '../quality.js'
@@ -44,8 +45,7 @@ const REASON_TEXT = Object.freeze({
   failed: 'the site did not give the video',
 })
 
-const linkError = (code, message, reason) => Object.assign(new Error(message), { code, ...(reason ? { reason } : {}) })
-const failure = reason => linkError('source_failed', REASON_TEXT[reason], reason)
+const failure = reason => codedError('source_failed', REASON_TEXT[reason], { reason })
 const isWebAddress = (value) => {
   try {
     return ['http:', 'https:'].includes(new URL(value).protocol)
@@ -132,7 +132,7 @@ export function createLinkSource({ ytDlp, ffmpeg = 'ffmpeg', proxies, cookies, m
 
   /** The route and account for a page, or the reason there is none. */
   async function access(url, person) {
-    if (!isWebAddress(url)) throw linkError('invalid', 'not a web address')
+    if (!isWebAddress(url)) throw codedError('invalid', 'not a web address')
     let proxy
     try {
       proxy = await proxies.route(url)
@@ -183,12 +183,12 @@ export function createLinkSource({ ytDlp, ffmpeg = 'ffmpeg', proxies, cookies, m
   /** A `-J` document, or why there is none. */
   async function lookUp(url, args, options) {
     const result = await ytdlp(url, ['-J', ...args], options)
-    if (result.oversized) throw linkError('source_failed', 'the page lists too much to read', 'failed')
+    if (result.oversized) throw codedError('source_failed', 'the page lists too much to read', { reason: 'failed' })
     if (result.code !== 0) throw await reasonOf(url, result)
     try {
       return { data: JSON.parse(result.stdout), account: result.account }
     } catch {
-      throw linkError('source_failed', 'yt-dlp answered something that is not JSON', 'failed')
+      throw codedError('source_failed', 'yt-dlp answered something that is not JSON', { reason: 'failed' })
     }
   }
 
@@ -241,8 +241,8 @@ export function createLinkSource({ ytDlp, ffmpeg = 'ffmpeg', proxies, cookies, m
     async info(url, { person = '' } = {}) {
       const { data, account } = await lookUp(String(url), ['--flat-playlist'], { person, timeoutMs: INFO_TIMEOUT_MS })
       const document = infoDocument(data, String(url), maxHeight)
-      if (document.id.length > MAX_URL) throw linkError('invalid', 'the address is too long')
-      if (document.episodes.length === 0) throw linkError('empty', 'there is no video at this address', 'not_found')
+      if (document.id.length > MAX_URL) throw codedError('invalid', 'the address is too long')
+      if (document.episodes.length === 0) throw codedError('empty', 'there is no video at this address', { reason: 'not_found' })
       return { ...parseInfo(document), qualities: document.qualities, account: accountView(account) }
     },
 

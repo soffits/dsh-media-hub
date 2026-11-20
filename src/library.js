@@ -7,6 +7,7 @@ import { open, readdir, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { codedError } from './errors.js'
 
 const run = promisify(execFile)
 
@@ -66,7 +67,7 @@ export async function scanSource(path) {
   const folder = info.isDirectory() ? path : dirname(path)
   const names = await readdir(folder)
   const videos = info.isDirectory() ? naturalSort(names.filter(isMedia)) : [basename(path)]
-  if (videos.length === 0) throw Object.assign(new Error(`no video or audio files in ${path}`), { code: 'empty' })
+  if (videos.length === 0) throw codedError('empty', `no video or audio files in ${path}`)
   return videos.map(name => ({
     title: titleOf(name),
     path: join(folder, name),

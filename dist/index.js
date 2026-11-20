@@ -9855,6 +9855,11 @@ defineMethod("transform", [
 
 // src/delivery.js
 import { basename } from "node:path";
+
+// src/errors.js
+var codedError = (code, message, fields = {}) => Object.assign(new Error(message), { code, ...fields });
+
+// src/delivery.js
 var PREFIX = "media-hub";
 var DELIVERY_MODES = Object.freeze(["origin", "r2"]);
 function createDelivery({ mode }) {
@@ -9869,11 +9874,11 @@ function createDelivery({ mode }) {
   if (mode === "r2") {
     const reason = 'R2 delivery is not built yet; use delivery mode "origin".';
     const missing = () => {
-      throw Object.assign(new Error(reason), { code: "unsupported" });
+      throw codedError("unsupported", reason);
     };
     return { mode, available: false, reason, mediaUrl: missing, subtitleUrl: missing };
   }
-  throw Object.assign(new Error(`unknown delivery mode ${String(mode)}`), { code: "invalid" });
+  throw codedError("invalid", `unknown delivery mode ${String(mode)}`);
 }
 
 // src/proxy.js
@@ -10454,7 +10459,6 @@ function omit2(obj, ...keys) {
 
 // src/hosts.js
 import { readFile, stat } from "node:fs/promises";
-var hostsError = (code, message) => Object.assign(new Error(message), { code });
 function hostOf(url) {
   try {
     return new URL(url).hostname.toLowerCase().replace(/\.$/, "");
@@ -10481,7 +10485,7 @@ function createHostRules(rules = [], io = {}) {
       if (files.get(rule.hostsFile)?.version !== current) files.set(rule.hostsFile, { version: current, patterns: parseHosts(await read(rule.hostsFile)) });
     } catch (error) {
       files.delete(rule.hostsFile);
-      throw hostsError("hosts_unreadable", `cannot read the hosts file ${rule.hostsFile}: ${error.message}`);
+      throw codedError("hosts_unreadable", `cannot read the hosts file ${rule.hostsFile}: ${error.message}`);
     }
     return [...listed2, ...files.get(rule.hostsFile).patterns];
   }
@@ -10507,7 +10511,6 @@ var PROXY_URL = /^(socks4a?|socks5h?|https?):\/\/[^\s/]+\/?$/;
 var MAX_REDIRECTS = 5;
 var USER_AGENT = "dsh-media-hub";
 var PROBE_TIMEOUT_MS = 3e3;
-var proxyError = (code, message) => Object.assign(new Error(message), { code });
 function proxyAnswers(proxy, timeoutMs = PROBE_TIMEOUT_MS) {
   const { hostname, port, protocol } = new URL(proxy);
   const defaultPort = protocol.startsWith("socks") ? 1080 : protocol === "https:" ? 443 : 80;
@@ -10529,7 +10532,7 @@ function createProxies(rules = [], io = {}) {
     try {
       return (await hostRules.match(url, page))?.url ?? "";
     } catch (error) {
-      throw proxyError("proxy_unavailable", error.message);
+      throw codedError("proxy_unavailable", error.message);
     }
   }
   function agentFor(proxy) {
@@ -10539,12 +10542,12 @@ function createProxies(rules = [], io = {}) {
   }
   async function get(url, page, timeoutMs) {
     const protocol = new URL(url).protocol;
-    if (protocol !== "https:" && protocol !== "http:") throw proxyError("invalid", `not a web address: ${url}`);
+    if (protocol !== "https:" && protocol !== "http:") throw codedError("invalid", `not a web address: ${url}`);
     const agent = agentFor(await route(url, page));
     return new Promise((resolve8, reject) => {
       const send = protocol === "https:" ? httpsRequest : httpRequest;
       const req = send(url, { agent, headers: { "user-agent": USER_AGENT, accept: "image/*,*/*;q=0.5" }, timeout: timeoutMs }, resolve8);
-      req.on("timeout", () => req.destroy(proxyError("timeout", `no answer from ${hostOf(url)} in ${timeoutMs / 1e3} s`)));
+      req.on("timeout", () => req.destroy(codedError("timeout", `no answer from ${hostOf(url)} in ${timeoutMs / 1e3} s`)));
       req.on("error", reject);
       req.end();
     });
@@ -10567,28 +10570,26 @@ function createProxies(rules = [], io = {}) {
         }
         if (statusCode !== 200) {
           response.resume();
-          throw proxyError("fetch_failed", `${hostOf(target)} answered ${statusCode}`);
+          throw codedError("fetch_failed", `${hostOf(target)} answered ${statusCode}`);
         }
         if (Number(headers["content-length"]) > maxBytes) {
           response.destroy();
-          throw proxyError("too_large", `the file is over ${maxBytes} bytes`);
+          throw codedError("too_large", `the file is over ${maxBytes} bytes`);
         }
         let received = 0;
         response.on("data", (chunk) => {
           received += chunk.length;
-          if (received > maxBytes) response.destroy(proxyError("too_large", `the file is over ${maxBytes} bytes`));
+          if (received > maxBytes) response.destroy(codedError("too_large", `the file is over ${maxBytes} bytes`));
         });
         await pipeline(response, createWriteStream(file));
         return;
       }
-      throw proxyError("fetch_failed", `more than ${MAX_REDIRECTS} redirects from ${hostOf(url)}`);
+      throw codedError("fetch_failed", `more than ${MAX_REDIRECTS} redirects from ${hostOf(url)}`);
     }
   };
 }
 
 // src/sources/command.js
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
 import { mkdir, rm, stat as stat2 } from "node:fs/promises";
 import { basename as basename2, join as join2 } from "node:path";
 
@@ -10642,12 +10643,21 @@ function heightChoices(raw) {
   return heights.length > 1 ? [AUTO, ...heights] : [];
 }
 
+// src/sha256.js
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+function sha256Of(path) {
+  return new Promise((resolve8, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve8(hash.digest("hex")));
+  });
+}
+
 // src/sources/process.js
 import { spawn } from "node:child_process";
 import { access, constants } from "node:fs/promises";
 import { delimiter, isAbsolute, join } from "node:path";
 var MAX_OUTPUT = 16 * 1024 * 1024;
-var sourceError = (code, message) => Object.assign(new Error(message), { code });
 async function commandExists(command, path = process.env.PATH ?? "") {
   const candidates = isAbsolute(command) ? [command] : path.split(delimiter).filter(Boolean).map((dir) => join(dir, command));
   for (const candidate of candidates) {
@@ -10699,7 +10709,7 @@ function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } = {}) {
     });
     child.on("error", (error) => {
       if (timer) clearTimeout(timer);
-      reject(error.code === "ENOENT" ? sourceError("unavailable", `${command} is not installed`) : error);
+      reject(error.code === "ENOENT" ? codedError("unavailable", `${command} is not installed`) : error);
     });
     child.on("close", (code) => {
       if (timer) clearTimeout(timer);
@@ -10725,7 +10735,6 @@ var TRENDING_LIMIT = 20;
 var QUERY_TIMEOUT_MS = 6e4;
 var COVER_TIMEOUT_MS = 3e4;
 var ID = /^[^\s\0]{1,200}$/;
-var sourceError2 = (code, message) => Object.assign(new Error(message), { code });
 var text = (value) => typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
 var numberOrNull = (value) => Number.isFinite(value) ? value : null;
 var STATUSES = /* @__PURE__ */ new Set(["finished", "ongoing", "stopped"]);
@@ -10785,7 +10794,7 @@ function resultOf(raw, kindIds) {
   return { id, title: text(raw.title), kind, author: text(raw.author), score: numberOrNull(raw.score), blurb: text(raw.blurb).replace(/\s+/g, " "), episodes: countOrNull(raw.episode_count), ...factsOf(raw) };
 }
 function parseSearch(document2, kinds) {
-  if (!Array.isArray(document2?.results)) throw sourceError2("source_failed", "the search answer has no results list");
+  if (!Array.isArray(document2?.results)) throw codedError("source_failed", "the search answer has no results list");
   const kindIds = new Set(kinds.map((kind) => kind.id));
   return document2.results.map((raw) => resultOf(raw, kindIds)).filter((result) => result !== null);
 }
@@ -10801,7 +10810,7 @@ function labelOf(value) {
 function parseTrending(document2, kinds, kind) {
   const kindIds = new Set(kinds.map((entry) => entry.id));
   const raw = Array.isArray(document2?.lists) ? document2.lists : Array.isArray(document2?.results) ? [{ id: "trending", results: document2.results }] : null;
-  if (raw === null) throw sourceError2("source_failed", "the trending answer has no lists");
+  if (raw === null) throw codedError("source_failed", "the trending answer has no lists");
   const seen = /* @__PURE__ */ new Set();
   return raw.slice(0, MAX_LISTS).flatMap((list, index) => {
     const results = Array.isArray(list?.results) ? list.results.map((item) => resultOf(item, kindIds)).filter((result) => result !== null && result.kind === kind) : [];
@@ -10816,7 +10825,7 @@ function nextOffset(document2, offset = 0) {
 }
 function parseInfo(document2) {
   const id = text(document2?.id);
-  if (!ID.test(id)) throw sourceError2("source_failed", "the source returned no work");
+  if (!ID.test(id)) throw codedError("source_failed", "the source returned no work");
   const listed2 = Array.isArray(document2.episodes) ? document2.episodes.length : 0;
   const related = (Array.isArray(document2.related) ? document2.related : []).map((raw) => {
     const work = resultOf(raw, null);
@@ -10833,12 +10842,12 @@ var COMMENTS_PAGE = 20;
 var count = (value) => Number.isInteger(value) && value >= 0 ? value : 0;
 function parseDanmaku(lines, number) {
   const found = lines.find((line) => line?.episode === number) ?? (lines.length === 1 ? lines[0] : null);
-  if (!Array.isArray(found?.items)) throw sourceError2("source_failed", "the danmaku answer has no items");
+  if (!Array.isArray(found?.items)) throw codedError("source_failed", "the danmaku answer has no items");
   return found.items.map((raw) => ({ time: Number.isFinite(raw?.time) && raw.time >= 0 ? raw.time : null, text: text(raw?.text).replace(/\s+/g, " ").slice(0, MAX_DANMAKU_TEXT), likes: count(raw?.likes) })).filter((item) => item.time !== null && item.text !== "").sort((a, b) => a.time - b.time).slice(0, MAX_DANMAKU);
 }
 var ISO_TIME = (value) => typeof value === "string" && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
 function parseComments(document2) {
-  if (!Array.isArray(document2?.items)) throw sourceError2("source_failed", "the comments answer has no items");
+  if (!Array.isArray(document2?.items)) throw codedError("source_failed", "the comments answer has no items");
   const items = document2.items.map((raw) => ({
     id: text(raw?.id),
     name: text(raw?.user?.name ?? raw?.name),
@@ -10850,12 +10859,6 @@ function parseComments(document2) {
   })).filter((item) => item.id !== "" && item.text !== "");
   const next = text(document2.next_cursor ?? document2.next);
   return { total: countOrNull(document2.total), items, next: next !== "" && next.length <= MAX_CURSOR && items.length > 0 ? next : null };
-}
-function sha256Of(path) {
-  return new Promise((resolve8, reject) => {
-    const hash = createHash("sha256");
-    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve8(hash.digest("hex")));
-  });
 }
 async function verify(dir, event, label, logger) {
   const name2 = typeof event.name === "string" ? event.name : "";
@@ -10893,8 +10896,8 @@ function createCommandSource(definition, { logger, cwd }) {
   }
   async function answer(args) {
     const { code, stdout, stderr, oversized } = await run([...command, ...args], { timeoutMs: QUERY_TIMEOUT_MS, cwd: await workDir(), env });
-    if (oversized) throw sourceError2("source_failed", `${name2()}: the answer is too large`);
-    if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+    if (oversized) throw codedError("source_failed", `${name2()}: the answer is too large`);
+    if (code !== 0) throw codedError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
     return stdout;
   }
   async function query(args) {
@@ -10902,12 +10905,12 @@ function createCommandSource(definition, { logger, cwd }) {
     try {
       return JSON.parse(stdout);
     } catch {
-      throw sourceError2("source_failed", `${name2()}: the answer is not JSON`);
+      throw codedError("source_failed", `${name2()}: the answer is not JSON`);
     }
   }
   const offers = (kind, verb) => kinds.some((entry) => entry.id === kind && entry[verb] === true);
   const checkId = (id) => {
-    if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
+    if (!ID.test(String(id))) throw codedError("invalid", `not a ${name2()} id`);
   };
   return {
     id: sourceId,
@@ -10917,7 +10920,7 @@ function createCommandSource(definition, { logger, cwd }) {
     available: () => commandExists(command[0]),
     /** @returns {{ results: object[], next: number | null }} `next` is the offset of the following page when the source offers one. */
     async search(textQuery, { kind = kinds[0]?.id, limit = SEARCH_LIMIT, offset = 0, filters = {} } = {}) {
-      if (!kindIds.has(kind)) throw sourceError2("invalid", `${name2()} has no kind ${kind}`);
+      if (!kindIds.has(kind)) throw codedError("invalid", `${name2()} has no kind ${kind}`);
       const q = String(textQuery ?? "").trim();
       if (q === "") return { results: [], next: null };
       const paging = offset > 0 ? ["--offset", String(offset)] : [];
@@ -10926,36 +10929,36 @@ function createCommandSource(definition, { logger, cwd }) {
     },
     /** What the site itself puts forward for a kind that declares `trending`: lists of works, in the site's order. */
     async trending(kind, { limit = TRENDING_LIMIT } = {}) {
-      if (!kinds.some((entry) => entry.id === kind && entry.trending === true)) throw sourceError2("invalid", `${name2()} has no trending list for ${kind}`);
+      if (!kinds.some((entry) => entry.id === kind && entry.trending === true)) throw codedError("invalid", `${name2()} has no trending list for ${kind}`);
       return parseTrending(await query(["trending", "--kind", kind, "--limit", String(limit), "--json"]), kinds, kind);
     },
     async info(id) {
-      if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
+      if (!ID.test(String(id))) throw codedError("invalid", `not a ${name2()} id`);
       return parseInfo(await query(["info", "--json", "--", String(id)]));
     },
     /** Fetch a cover image into `file` through the command, which keeps its own network policy. Rejects when the command has no `cover` verb or cannot fetch it. */
     async cover(url, file) {
-      if (!WEB_URL.test(String(url))) throw sourceError2("invalid", "not a cover url");
+      if (!WEB_URL.test(String(url))) throw codedError("invalid", "not a cover url");
       const { code, stderr } = await run([...command, "cover", "--output", file, "--", String(url)], { timeoutMs: COVER_TIMEOUT_MS, cwd: await workDir(), env });
-      if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+      if (code !== 0) throw codedError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
     },
     offers,
     /** The danmaku of episode `number` of a work of a kind that declares `danmaku`: `[{ time, text, likes }]`. */
     async danmaku(id, number, kind) {
       checkId(id);
-      if (!offers(kind, "danmaku") || !Number.isInteger(number) || number < 1) throw sourceError2("invalid", `${name2()} has no danmaku for this`);
+      if (!offers(kind, "danmaku") || !Number.isInteger(number) || number < 1) throw codedError("invalid", `${name2()} has no danmaku for this`);
       const lines = (await answer(["danmaku", "--episodes", String(number), "--json", "--", String(id)])).split("\n").map(parseLine).filter((line) => line !== null);
       return parseDanmaku(lines, number);
     },
     /** A page of the comments on a work of a kind that declares `comments`; `cursor` continues where an earlier page's `next` left off. */
     async comments(id, kind, { cursor = "", limit = COMMENTS_PAGE } = {}) {
       checkId(id);
-      if (!offers(kind, "comments")) throw sourceError2("invalid", `${name2()} has no comments for this`);
+      if (!offers(kind, "comments")) throw codedError("invalid", `${name2()} has no comments for this`);
       const paging = cursor === "" ? [] : ["--cursor", String(cursor).slice(0, MAX_CURSOR)];
       return parseComments(await query(["comments", "--limit", String(limit), ...paging, "--json", "--", String(id)]));
     },
     async download({ id, dir, from: from2 = 1, to = null, quality = "", signal, onEpisode, onStart, onPartial }) {
-      if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
+      if (!ID.test(String(id))) throw codedError("invalid", `not a ${name2()} id`);
       const failed = [];
       let result = null;
       let checking = Promise.resolve();
@@ -10994,9 +10997,9 @@ function createCommandSource(definition, { logger, cwd }) {
       if (signal?.aborted) return { failed };
       if (code !== 0 && failed.length === 0) {
         logger.warn("%s download %s ended with %s: %s", name2(), id, code, lastLine(stderr));
-        throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+        throw codedError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
       }
-      if (code === 0 && result === null) throw sourceError2("source_failed", `${name2()}: the download ended without a result`);
+      if (code === 0 && result === null) throw codedError("source_failed", `${name2()}: the download ended without a result`);
       return { failed };
     },
     /**
@@ -11004,8 +11007,8 @@ function createCommandSource(definition, { logger, cwd }) {
      * @returns {Promise<{ name: string, bytes: number, sha256: string }>} the file, checked against what the command reported
      */
     async downloadFile({ id, format, dir, signal }) {
-      if (!ID.test(String(id))) throw sourceError2("invalid", `not a ${name2()} id`);
-      if (!FORMAT.test(String(format))) throw sourceError2("invalid", `not a format: ${format}`);
+      if (!ID.test(String(id))) throw codedError("invalid", `not a ${name2()} id`);
+      if (!FORMAT.test(String(format))) throw codedError("invalid", `not a format: ${format}`);
       await mkdir(dir, { recursive: true });
       const reported = [];
       let result = null;
@@ -11016,12 +11019,12 @@ function createCommandSource(definition, { logger, cwd }) {
       };
       const argv = [...command, "download", `--id=${String(id)}`, "--format", String(format), "--output", dir, "--json"];
       const { code, stderr } = await run(argv, { signal, cwd: await workDir(), env, onStdoutLine: onLine });
-      if (signal?.aborted) throw sourceError2("cancelled", `${name2()}: cancelled`);
-      if (code !== 0) throw sourceError2("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
-      if (result === null || reported.length === 0) throw sourceError2("source_failed", `${name2()}: the download ended without a file`);
+      if (signal?.aborted) throw codedError("cancelled", `${name2()}: cancelled`);
+      if (code !== 0) throw codedError("source_failed", `${name2()}: ${lastLine(stderr) || `exit ${code}`}`);
+      if (result === null || reported.length === 0) throw codedError("source_failed", `${name2()}: the download ended without a file`);
       const event = reported[reported.length - 1];
       const file = await verify(dir, event, name2(), logger);
-      if (!file.ok) throw sourceError2("source_failed", `${name2()}: the file did not arrive whole`);
+      if (!file.ok) throw codedError("source_failed", `${name2()}: the file did not arrive whole`);
       return { name: file.name, bytes: event.bytes, sha256: typeof event.sha256 === "string" ? event.sha256 : await sha256Of(join2(dir, file.name)) };
     }
   };
@@ -11141,7 +11144,7 @@ async function scanSource(path) {
   const folder = info.isDirectory() ? path : dirname(path);
   const names = await readdir(folder);
   const videos = info.isDirectory() ? naturalSort(names.filter(isMedia)) : [basename4(path)];
-  if (videos.length === 0) throw Object.assign(new Error(`no video or audio files in ${path}`), { code: "empty" });
+  if (videos.length === 0) throw codedError("empty", `no video or audio files in ${path}`);
   return videos.map((name2) => ({
     title: titleOf2(name2),
     path: join3(folder, name2),
@@ -11209,7 +11212,6 @@ function planVideo(path, info, { fastStart, maxHeight }) {
 import { randomBytes } from "node:crypto";
 import { copyFile, chmod, mkdir as mkdir2, rm as rm2 } from "node:fs/promises";
 import { join as join4 } from "node:path";
-var cookiesError = (code, message) => Object.assign(new Error(message), { code });
 var accountView = (account) => account === null ? null : { name: account.name || account.person || "" };
 function createCookies(rules = [], io = {}) {
   const hostRules = createHostRules(rules, io);
@@ -11237,7 +11239,7 @@ function createCookies(rules = [], io = {}) {
         await chmod(copy, 384);
       } catch (error) {
         await rm2(copy, { force: true });
-        throw cookiesError("cookies_unavailable", `cannot read the cookies of the account ${accountView(account).name}: ${error.code ?? error.message}`);
+        throw codedError("cookies_unavailable", `cannot read the cookies of the account ${accountView(account).name}: ${error.code ?? error.message}`);
       }
       const args = ["--cookies", copy, ...account.userAgent ? ["--user-agent", account.userAgent] : []];
       return { args, done: () => rm2(copy, { force: true }) };
@@ -11749,8 +11751,7 @@ var REASON_TEXT = Object.freeze({
   proxy_down: "the proxy for this site is not answering",
   failed: "the site did not give the video"
 });
-var linkError = (code, message, reason) => Object.assign(new Error(message), { code, ...reason ? { reason } : {} });
-var failure = (reason) => linkError("source_failed", REASON_TEXT[reason], reason);
+var failure = (reason) => codedError("source_failed", REASON_TEXT[reason], { reason });
 var isWebAddress = (value) => {
   try {
     return ["http:", "https:"].includes(new URL(value).protocol);
@@ -11815,7 +11816,7 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
     return cwd;
   }
   async function access2(url, person) {
-    if (!isWebAddress(url)) throw linkError("invalid", "not a web address");
+    if (!isWebAddress(url)) throw codedError("invalid", "not a web address");
     let proxy;
     try {
       proxy = await proxies.route(url);
@@ -11857,12 +11858,12 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
   }
   async function lookUp(url, args, options) {
     const result = await ytdlp(url, ["-J", ...args], options);
-    if (result.oversized) throw linkError("source_failed", "the page lists too much to read", "failed");
+    if (result.oversized) throw codedError("source_failed", "the page lists too much to read", { reason: "failed" });
     if (result.code !== 0) throw await reasonOf(url, result);
     try {
       return { data: JSON.parse(result.stdout), account: result.account };
     } catch {
-      throw linkError("source_failed", "yt-dlp answered something that is not JSON", "failed");
+      throw codedError("source_failed", "yt-dlp answered something that is not JSON", { reason: "failed" });
     }
   }
   async function fetchCaptions(url, { entry, load, work, dir, stem, language, person, signal }) {
@@ -11909,8 +11910,8 @@ function createLinkSource({ ytDlp, ffmpeg = "ffmpeg", proxies, cookies, maxHeigh
     async info(url, { person = "" } = {}) {
       const { data, account } = await lookUp(String(url), ["--flat-playlist"], { person, timeoutMs: INFO_TIMEOUT_MS });
       const document2 = infoDocument(data, String(url), maxHeight);
-      if (document2.id.length > MAX_URL) throw linkError("invalid", "the address is too long");
-      if (document2.episodes.length === 0) throw linkError("empty", "there is no video at this address", "not_found");
+      if (document2.id.length > MAX_URL) throw codedError("invalid", "the address is too long");
+      if (document2.episodes.length === 0) throw codedError("empty", "there is no video at this address", { reason: "not_found" });
       return { ...parseInfo(document2), qualities: document2.qualities, account: accountView(account) };
     },
     /** The thumbnail, through the route of its own host or its page's. */
@@ -12524,7 +12525,6 @@ function nextOfRun(job, onDisk) {
   for (let n = job.at ?? from2; n <= to; n++) if (!onDisk.has(n)) return n;
   return null;
 }
-var sourceError3 = (code, message) => Object.assign(new Error(message), { code });
 function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {
 }, onPartial = () => {
 }, logger, stopWaitMs = 1e4, now = Date.now }) {
@@ -12574,11 +12574,11 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
     const { signal } = job.controller;
     save();
     try {
-      if (source === void 0) throw sourceError3("unavailable", `source ${job.source} is not available`);
+      if (source === void 0) throw codedError("unavailable", `source ${job.source} is not available`);
       for (; ; ) {
         const range = nextRun(job.want, await have(job.dir));
         if (range === null || signal.aborted) break;
-        if (!await hasSpace()) throw sourceError3("no_space", "the library disk is almost full; delete something first");
+        if (!await hasSpace()) throw codedError("no_space", "the library disk is almost full; delete something first");
         job.current = range;
         job.at = range[0];
         const result = await source.download({ ...howOf(job.how), id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => {
@@ -12588,7 +12588,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
         if (signal.aborted) break;
         if (result.failed.length > 0) {
           job.failed = result.failed;
-          throw sourceError3("source_failed", `${result.failed.length} episodes could not be downloaded`);
+          throw codedError("source_failed", `${result.failed.length} episodes could not be downloaded`);
         }
       }
       if (signal.aborted) {
@@ -12794,7 +12794,7 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
 // src/books.js
 import { spawn as spawn4 } from "node:child_process";
 import { createHash as createHash4, randomUUID } from "node:crypto";
-import { mkdir as mkdir7, readFile as readFile7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat7 } from "node:fs/promises";
+import { mkdir as mkdir7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat7 } from "node:fs/promises";
 import { extname as extname6, join as join12 } from "node:path";
 
 // src/formats.js
@@ -12822,16 +12822,12 @@ var MAX_ENTRIES = 2e3;
 var CONVERT_TIMEOUT_MS = 10 * 6e4;
 var CONCURRENCY = 2;
 var ENTRY = /^[0-9a-f-]{36}$/;
-var booksError = (code, message) => Object.assign(new Error(message), { code });
 var fileKey = (source, id, format) => createHash4("sha256").update(`${source}
 ${id}
 ${format}`).digest("hex").slice(0, 24);
 function attachment(name2) {
   const fallback = name2.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_") || "book";
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name2)}`;
-}
-function sha256Of2(path) {
-  return readFile7(path).then((body2) => createHash4("sha256").update(body2).digest("hex"));
 }
 function runConverter(command, input, output) {
   return new Promise((resolve8, reject) => {
@@ -12853,7 +12849,7 @@ function runConverter(command, input, output) {
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code === 0) resolve8();
-      else reject(booksError("convert_failed", `conversion failed: ${stderr.trim().split("\n").pop() || `exit ${code}`}`));
+      else reject(codedError("convert_failed", `conversion failed: ${stderr.trim().split("\n").pop() || `exit ${code}`}`));
     });
   });
 }
@@ -12918,7 +12914,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
         name2 = (await source.downloadFile({ id, format, dir: scratch, signal })).name;
       } else {
         const base = convertBase(work.formats);
-        if (base === null || !await converter.available()) throw booksError("unsupported", `${work.title || id} is not offered as ${format}`);
+        if (base === null || !await converter.available()) throw codedError("unsupported", `${work.title || id} is not offered as ${format}`);
         const downloaded = (await source.downloadFile({ id, format: base, dir: scratch, signal })).name;
         name2 = `${downloaded.slice(0, downloaded.length - extname6(downloaded).length)}.${format}`;
         await runConverter(converter.command, join12(scratch, downloaded), join12(scratch, name2));
@@ -12930,7 +12926,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
       await mkdir7(join12(dir, "files"), { recursive: true });
       await rename4(scratch, target);
       const path = join12(target, name2);
-      return { name: name2, bytes: (await stat7(path)).size, sha256: await sha256Of2(path), converted, title: work.title, author: work.author, cover: work.cover };
+      return { name: name2, bytes: (await stat7(path)).size, sha256: await sha256Of(path), converted, title: work.title, author: work.author, cover: work.cover };
     } finally {
       await rm6(scratch, { recursive: true, force: true });
     }
@@ -13009,14 +13005,14 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
      */
     async add(person, { source: sourceId, id, format, title = "", author = "", by = "" }) {
       const source = sources.get(sourceId);
-      if (source === void 0 || typeof source.downloadFile !== "function") throw booksError("not_found", `no source ${sourceId}`);
-      if (typeof id !== "string" || !/^[^\s\0]{1,200}$/.test(id)) throw booksError("invalid", "not a work id");
-      if (typeof format !== "string" || !/^[a-z0-9]{1,8}$/.test(format)) throw booksError("invalid", "not a format");
+      if (source === void 0 || typeof source.downloadFile !== "function") throw codedError("not_found", `no source ${sourceId}`);
+      if (typeof id !== "string" || !/^[^\s\0]{1,200}$/.test(id)) throw codedError("invalid", "not a work id");
+      if (typeof format !== "string" || !/^[a-z0-9]{1,8}$/.test(format)) throw codedError("invalid", "not a format");
       const key = fileKey(sourceId, id, format);
       const entries = shelf(person);
       let entry = entries.find((one) => one.file === key);
       if (entry === void 0) {
-        if (entries.length >= MAX_ENTRIES) throw booksError("invalid", "this shelf is full; delete some books first");
+        if (entries.length >= MAX_ENTRIES) throw codedError("invalid", "this shelf is full; delete some books first");
         entry = { entry: randomUUID(), file: key, source: sourceId, id, format, title: String(title).slice(0, 300), author: String(author).slice(0, 200), cover: null, addedAt: new Date(now()).toISOString(), by: String(by).slice(0, 80) };
         entries.push(entry);
       }
@@ -13029,7 +13025,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
     /** Fetch an entry's file again (it failed, or was removed to save space). */
     async retry(person, entryId) {
       const entry = shelf(person).find((one) => one.entry === entryId);
-      if (entry === void 0) throw booksError("not_found", "not on this shelf");
+      if (entry === void 0) throw codedError("not_found", "not on this shelf");
       if (state.files[entry.file]?.state !== "ready") start(entry.file, entry);
       await save();
       return describe(entry);
@@ -13037,7 +13033,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
     async remove(person, entryId) {
       const entries = shelf(person);
       const index = entries.findIndex((one) => one.entry === entryId);
-      if (index === -1) throw booksError("not_found", "not on this shelf");
+      if (index === -1) throw codedError("not_found", "not on this shelf");
       const [entry] = entries.splice(index, 1);
       if (!holders(entry.file)) {
         running.get(entry.file)?.abort();
@@ -13072,6 +13068,27 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
 import { createHash as createHash5 } from "node:crypto";
 import { mkdir as mkdir8, open as open3, readdir as readdir6, rename as rename5, rm as rm7, stat as stat8, utimes } from "node:fs/promises";
 import { join as join13 } from "node:path";
+
+// src/limit.js
+function createLimiter(concurrency) {
+  const waiting = [];
+  let running = 0;
+  const pump = () => {
+    while (running < concurrency && waiting.length > 0) {
+      running += 1;
+      waiting.shift()().finally(() => {
+        running -= 1;
+        pump();
+      });
+    }
+  };
+  return (job) => new Promise((resolve8, reject) => {
+    waiting.push(() => job().then(resolve8, reject));
+    pump();
+  });
+}
+
+// src/covers.js
 var KEY = /^[0-9a-f]{32}$/;
 var FAILED_FOR_MS = 5 * 6e4;
 var MAX_REMEMBERED = 5e3;
@@ -13103,8 +13120,6 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
   const known2 = /* @__PURE__ */ new Map();
   const inFlight = /* @__PURE__ */ new Map();
   const failed = /* @__PURE__ */ new Map();
-  const waiting = [];
-  let running = 0;
   const makers = {
     async source({ sourceId, url, page }, file) {
       const source = sourceOf(sourceId);
@@ -13119,19 +13134,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
     if (known2.size > MAX_REMEMBERED) known2.delete(known2.keys().next().value);
     return `covers/${key}`;
   };
-  const pump = () => {
-    while (running < concurrency && waiting.length > 0) {
-      running += 1;
-      waiting.shift()().finally(() => {
-        running -= 1;
-        pump();
-      });
-    }
-  };
-  const queued = (job) => new Promise((resolve8, reject) => {
-    waiting.push(() => job().then(resolve8, reject));
-    pump();
-  });
+  const queued = createLimiter(concurrency);
   async function trim() {
     if (!(capBytes > 0)) return;
     const files = [];
@@ -13457,7 +13460,6 @@ var MAX_NAME = 40;
 var localItem = (episode) => ({ title: episode.title, kind: "file", status: "preparing", sourcePath: episode.path, sourceSubtitles: episode.subtitles });
 var slotItem = (entry, status) => ({ title: entry.title, kind: "file", slot: entry.n, status: entry.path === null ? status : "preparing", sourcePath: entry.path, sourceSubtitles: entry.subtitles ?? [] });
 var itemKey = (item) => item.slot ?? item.sourcePath;
-var serviceError = (code, message) => Object.assign(new Error(message), { code });
 var isTogether = (room) => room.together !== false;
 var cleanText = (value, max) => typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max) : "";
 function createRoomService(options) {
@@ -13804,10 +13806,10 @@ function createRoomService(options) {
     });
   }
   async function localItems(path, fromPanel) {
-    if (typeof path !== "string" || !isAbsolute3(path)) throw serviceError("invalid", "path must be an absolute path");
+    if (typeof path !== "string" || !isAbsolute3(path)) throw codedError("invalid", "path must be an absolute path");
     const target = resolve4(path);
     if (fromPanel && !libraryRoots.some((root) => target === root || target.startsWith(`${root}/`))) {
-      throw serviceError("outside", "the panel can only open files from the library folders");
+      throw codedError("outside", "the panel can only open files from the library folders");
     }
     const entries = await options.directory?.(target);
     if (entries) return entries.map((entry) => slotItem(entry, "remote"));
@@ -13815,7 +13817,7 @@ function createRoomService(options) {
     try {
       episodes = await scanSource(target);
     } catch (error) {
-      if (error.code === "ENOENT") throw serviceError("not_found", `${path} does not exist`);
+      if (error.code === "ENOENT") throw codedError("not_found", `${path} does not exist`);
       throw error;
     }
     return episodes.map(localItem);
@@ -13852,7 +13854,7 @@ function createRoomService(options) {
      * @param {{ path: string, title?: string, by?: string, fromPanel?: boolean, together?: boolean, start?: { index: number, position: number } | null }} input - `together`: open to others from the start; else one person watches until they share it
      */
     async createRoom(input) {
-      if (!delivery.available) throw serviceError("unsupported", delivery.reason);
+      if (!delivery.available) throw codedError("unsupported", delivery.reason);
       const items = await localItems(input.path, input.fromPanel === true);
       const id = randomBytes2(9).toString("base64url");
       const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : input.path.split("/").filter(Boolean).pop());
@@ -13894,12 +13896,12 @@ function createRoomService(options) {
     /** Open a room someone watches alone to others, as it is: same episode, same position. */
     watchTogether(id) {
       const room = rooms.get(id);
-      if (room === void 0) throw serviceError("not_found", "no such room");
+      if (room === void 0) throw codedError("not_found", "no such room");
       if (!isTogether(room)) commit({ ...room, together: true });
       return { room: summary(rooms.get(id)) };
     },
     closeRoom(id) {
-      if (!close(id)) throw serviceError("not_found", "no such room");
+      if (!close(id)) throw codedError("not_found", "no such room");
       return { closed: id };
     },
     sweep,
@@ -13980,7 +13982,7 @@ function createRoomService(options) {
 }
 
 // src/watchlog.js
-import { appendFile, readFile as readFile8 } from "node:fs/promises";
+import { appendFile, readFile as readFile7 } from "node:fs/promises";
 var LOG_NAME = "watch-log.jsonl";
 var isWatching = (type) => /^(?:room|viewer|episode)\./.test(type) || type === "position";
 function isNearEnd(position, duration) {
@@ -13999,7 +14001,7 @@ function createWatchLog({ file, now = Date.now, logger }) {
     await tail;
     let text3 = "";
     try {
-      text3 = await readFile8(file, "utf8");
+      text3 = await readFile7(file, "utf8");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -14109,7 +14111,7 @@ function createJournal({ log, library, now = Date.now }) {
 }
 
 // src/shows.js
-import { mkdir as mkdir10, readFile as readFile9, readdir as readdir7, rename as rename6, rm as rm8, stat as stat9, statfs, writeFile as writeFile4 } from "node:fs/promises";
+import { mkdir as mkdir10, readFile as readFile8, readdir as readdir7, rename as rename6, rm as rm8, stat as stat9, statfs, writeFile as writeFile4 } from "node:fs/promises";
 import { basename as basename5, dirname as dirname7, extname as extname7, join as join15, resolve as resolve5 } from "node:path";
 
 // src/presence.js
@@ -14124,7 +14126,6 @@ var MAX_PROMPT_CHARS = 2e3;
 var PICKS_LIMIT = 8;
 var PICKS_TIMEOUT_MS = 6e4;
 var MAX_WHY_CHARS = 280;
-var badInput = (message) => Object.assign(new Error(message), { code: "invalid_arguments" });
 function pendingRatings({ shows, events, person, now, days = RATE_WITHIN_DAYS, limit = MAX_PENDING }) {
   const since = now - days * 864e5;
   const rated = new Set(events.filter((event) => event.type === "rating" && event.person === person).map((event) => event.show));
@@ -14140,8 +14141,8 @@ function pendingRatings({ shows, events, person, now, days = RATE_WITHIN_DAYS, l
   return [...asks.values()].filter((ask) => ask.why === "finished" || !present.has(ask.show)).sort((a, b) => b.at - a.at).slice(0, limit);
 }
 function ratingLine({ show, title, rating }, person) {
-  if (!RATINGS.includes(rating)) throw badInput(`rating must be one of ${RATINGS.join(", ")}`);
-  if (typeof show !== "string" || show === "") throw badInput("rating needs the show");
+  if (!RATINGS.includes(rating)) throw codedError("invalid_arguments", `rating must be one of ${RATINGS.join(", ")}`);
+  if (typeof show !== "string" || show === "") throw codedError("invalid_arguments", "rating needs the show");
   return { show, title: typeof title === "string" ? title.slice(0, 200) : "", rating, person: person.key, by: person.name };
 }
 var textOrPerLanguage = (value, max) => {
@@ -14156,22 +14157,22 @@ function parseAnnotation({ recap, steps } = {}) {
   const out = {};
   if (recap === null) out.recap = null;
   else if (recap !== void 0) {
-    if (typeof recap?.text !== "string" || recap.text.trim() === "") throw badInput("recap needs text");
-    if (!Number.isInteger(recap.upTo) || recap.upTo < 1) throw badInput("recap needs upTo, the last episode it covers (1 or more)");
+    if (typeof recap?.text !== "string" || recap.text.trim() === "") throw codedError("invalid_arguments", "recap needs text");
+    if (!Number.isInteger(recap.upTo) || recap.upTo < 1) throw codedError("invalid_arguments", "recap needs upTo, the last episode it covers (1 or more)");
     out.recap = { text: recap.text.trim().slice(0, MAX_RECAP_CHARS), upTo: recap.upTo };
   }
   if (steps === null) out.steps = null;
   else if (steps !== void 0) {
-    if (!Array.isArray(steps) || steps.length > MAX_STEPS) throw badInput(`steps is a list of at most ${MAX_STEPS}`);
+    if (!Array.isArray(steps) || steps.length > MAX_STEPS) throw codedError("invalid_arguments", `steps is a list of at most ${MAX_STEPS}`);
     out.steps = steps.map((step, n) => {
       const id = step?.id ?? `step-${n + 1}`;
-      if (typeof id !== "string" || !STEP_ID.test(id)) throw badInput("a step id is lowercase letters, digits, - and _");
+      if (typeof id !== "string" || !STEP_ID.test(id)) throw codedError("invalid_arguments", "a step id is lowercase letters, digits, - and _");
       const label = textOrPerLanguage(step?.label, MAX_LABEL_CHARS);
-      if (label === null) throw badInput("a step needs a label that says the step");
+      if (label === null) throw codedError("invalid_arguments", "a step needs a label that says the step");
       const prompt = textOrPerLanguage(step?.prompt, MAX_PROMPT_CHARS);
       return { kind: "step", id, label, ...prompt === null ? {} : { payload: { prompt } } };
     });
-    if (new Set(out.steps.map((step) => step.id)).size !== out.steps.length) throw badInput("step ids repeat");
+    if (new Set(out.steps.map((step) => step.id)).size !== out.steps.length) throw codedError("invalid_arguments", "step ids repeat");
     if (out.steps.length === 0) out.steps = null;
   }
   return out;
@@ -14208,10 +14209,9 @@ var STOP_DIFF_S = 30;
 var REFINISH_MS = 36e5;
 var MAX_NAME2 = 120;
 var SUMS = "SHA256SUMS.txt";
-var libraryError = (code, message) => Object.assign(new Error(message), { code });
 function cleanName(value) {
   const name2 = String(value ?? "").replace(/[\u0000-\u001f\u007f/\\]/g, "").trim().slice(0, MAX_NAME2);
-  if (name2 === "" || name2.startsWith(".")) throw libraryError("invalid", "give a name");
+  if (name2 === "" || name2.startsWith(".")) throw codedError("invalid", "give a name");
   return name2;
 }
 function groupSeasons(shows) {
@@ -14265,7 +14265,7 @@ function createLibrary(options) {
   const sourcedPaths = () => Object.keys(meta).filter((path) => isSourced(meta[path]) && showPath(path) === path);
   function requireShow(path) {
     const target = showPath(path);
-    if (target === null) throw libraryError("not_found", "not a show in the library");
+    if (target === null) throw codedError("not_found", "not a show in the library");
     return target;
   }
   function showOf(episodePath) {
@@ -14301,7 +14301,7 @@ function createLibrary(options) {
   }
   async function forgetSum(show, file) {
     const sums = join15(show, SUMS);
-    const text3 = await readFile9(sums, "utf8").catch(() => null);
+    const text3 = await readFile8(sums, "utf8").catch(() => null);
     if (text3 !== null) await writeFile4(sums, text3.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
   }
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename5(path), ...fields });
@@ -14520,7 +14520,7 @@ function createLibrary(options) {
     /** Keep a show's every episode on disk (or go back to the rolling cache). */
     async pin(path, pinned, { by = null } = {}) {
       const target = requireShow(path);
-      if (!isSourced(record(target))) throw libraryError("invalid", "only a show from a source can be kept offline");
+      if (!isSourced(record(target))) throw codedError("invalid", "only a show from a source can be kept offline");
       update(target, { pinned });
       note(pinned ? "library.pinned" : "library.unpinned", target, { by });
       return { path: target, pinned };
@@ -14559,7 +14559,7 @@ function createLibrary(options) {
     setQuality(path, quality) {
       const target = requireShow(path);
       const entry = record(target);
-      if (!isSourced(entry)) throw libraryError("invalid", "this show has no source to fetch from");
+      if (!isSourced(entry)) throw codedError("invalid", "this show has no source to fetch from");
       update(target, { source: { ...entry.source, quality } });
     },
     /** The saved (offline fallback) copy of a show's work, or null. */
@@ -14580,7 +14580,7 @@ function createLibrary(options) {
     },
     async remove(path, { by = null, reason = "by hand" } = {}) {
       const target = requireShow(path);
-      if (inUse(target)) throw libraryError("in_use", "a room is playing this show; close the room first");
+      if (inUse(target)) throw codedError("in_use", "a room is playing this show; close the room first");
       await forget(target);
       await rm8(target, { recursive: true, force: true });
       delete meta[target];
@@ -14591,9 +14591,9 @@ function createLibrary(options) {
     async removeEpisode(path, name2, { by = null } = {}) {
       const target = requireShow(path);
       if ((await stat9(target)).isFile()) return this.remove(target, { by });
-      if (inUse(target)) throw libraryError("in_use", "a room is playing this show; close the room first");
+      if (inUse(target)) throw codedError("in_use", "a room is playing this show; close the room first");
       const file = cleanName(name2);
-      if (!isMedia(file)) throw libraryError("invalid", "not an episode");
+      if (!isMedia(file)) throw codedError("invalid", "not an episode");
       await deleteEpisode(target, file);
       note("library.episodeDeleted", target, { episode: titleOf(file), by });
       const entry = record(target);
@@ -14604,13 +14604,13 @@ function createLibrary(options) {
     },
     async rename(path, name2, { by = null } = {}) {
       const target = requireShow(path);
-      if (inUse(target)) throw libraryError("in_use", "a room is playing this show; close the room first");
-      if (download(target)?.active) throw libraryError("in_use", "this show is still downloading");
+      if (inUse(target)) throw codedError("in_use", "a room is playing this show; close the room first");
+      if (download(target)?.active) throw codedError("in_use", "this show is still downloading");
       const isFile = (await stat9(target)).isFile();
       const clean = cleanName(name2);
       const next = join15(dirname7(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
       if (next === target) return { path: target };
-      if (await stat9(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
+      if (await stat9(next).then(() => true, () => false)) throw codedError("exists", "a show with that name is already in the library");
       await rename6(target, next);
       if (meta[target] !== void 0) {
         meta[next] = meta[target];
@@ -14630,8 +14630,8 @@ function createLibrary(options) {
     /** Start the countdown now (or restart it): deleted `autoDeleteDays` from now unless kept. */
     async countdown(path, { by = null } = {}) {
       const target = requireShow(path);
-      if (!(options.autoDeleteDays > 0)) throw libraryError("invalid", "automatic deleting is off");
-      if (!autoDeletes(target)) throw libraryError("invalid", "shows outside the hub's own library are never deleted on their own");
+      if (!(options.autoDeleteDays > 0)) throw codedError("invalid", "automatic deleting is off");
+      if (!autoDeletes(target)) throw codedError("invalid", "shows outside the hub's own library are never deleted on their own");
       const restart = deletesAt(target) !== null;
       update(target, { keep: false, countdownFrom: now() });
       note(restart ? "library.countdownRestarted" : "library.countdownStarted", target, { by, deletesAt: new Date(deletesAt(target)).toISOString() });
@@ -14689,7 +14689,7 @@ function createLibrary(options) {
 }
 
 // src/remarks.js
-import { readFile as readFile10 } from "node:fs/promises";
+import { readFile as readFile9 } from "node:fs/promises";
 import { join as join16 } from "node:path";
 var HOUR_MS = 36e5;
 var DAY_MS2 = 24 * HOUR_MS;
@@ -14698,7 +14698,7 @@ function createRemarks({ source, logger, now = Date.now, danmakuMaxAgeMs = DAY_M
   const flying = /* @__PURE__ */ new Map();
   async function read(file) {
     try {
-      const copy = JSON.parse(await readFile10(file, "utf8"));
+      const copy = JSON.parse(await readFile9(file, "utf8"));
       return Number.isFinite(copy?.at) ? copy : null;
     } catch {
       return null;
@@ -14944,8 +14944,6 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
   const copies = /* @__PURE__ */ new Map();
   const flying = /* @__PURE__ */ new Map();
   const failedAt = /* @__PURE__ */ new Map();
-  const waiting = [];
-  let running = 0;
   const saver = createJsonSaver(file, logger);
   const loaded = readJson2(file, { logger }).then(({ value }) => {
     for (const [key, copy] of Object.entries(value ?? {})) copies.set(key, copy);
@@ -14953,21 +14951,13 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
   function save() {
     return saver.save(Object.fromEntries(copies));
   }
-  function pump() {
-    while (running < parallel && waiting.length > 0) {
-      running += 1;
-      waiting.shift()().finally(() => {
-        running -= 1;
-        pump();
-      });
-    }
-  }
+  const limit = createLimiter(parallel);
   function ask(key, produce) {
     let settled;
     flying.set(key, new Promise((resolve8) => {
       settled = resolve8;
     }));
-    waiting.push(async () => {
+    limit(async () => {
       try {
         copies.set(key, { at: now(), value: await produce() });
         failedAt.delete(key);
@@ -14982,7 +14972,6 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
         settled();
       }
     });
-    pump();
   }
   return {
     /**
@@ -15012,12 +15001,11 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
 }
 
 // src/discover.js
-var notFound = (message) => Object.assign(new Error(message), { code: "not_found" });
 function createDiscover({ copies, sources, covers, recommender }) {
   async function sourcesFor(sourceId, kind, ability) {
     if (sourceId !== ALL_SOURCES) {
       const one = sources.get(sourceId);
-      if (one === void 0) throw notFound(`no source ${String(sourceId)}`);
+      if (one === void 0) throw codedError("not_found", `no source ${String(sourceId)}`);
       return [one];
     }
     const found = [];
@@ -15072,17 +15060,7 @@ var HOUR_MS3 = 36e5;
 function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS5, retryMs = HOUR_MS3, parallel = 2, now = Date.now, logger }) {
   const flying = /* @__PURE__ */ new Set();
   const failedAt = /* @__PURE__ */ new Map();
-  const waiting = [];
-  let running = 0;
-  function pump() {
-    while (running < parallel && waiting.length > 0) {
-      running += 1;
-      waiting.shift()().finally(() => {
-        running -= 1;
-        pump();
-      });
-    }
-  }
+  const limit = createLimiter(parallel);
   return function touch(path, entry) {
     const sourceId = entry.source?.source;
     const found = sourceId ? source(sourceId) : void 0;
@@ -15091,7 +15069,7 @@ function createWorkRefresh({ source, keep, maxAgeMs = DAY_MS5, retryMs = HOUR_MS
 ${entry.source.id}`;
     if (flying.has(key) || now() - (failedAt.get(key) ?? -Infinity) < retryMs) return;
     flying.add(key);
-    waiting.push(async () => {
+    limit(async () => {
       try {
         keep(path, snapshotOf(await found.info(entry.source.id, { person: entry.source.person }), now()));
         failedAt.delete(key);
@@ -15102,7 +15080,6 @@ ${entry.source.id}`;
         flying.delete(key);
       }
     });
-    pump();
   };
 }
 
@@ -15110,7 +15087,6 @@ ${entry.source.id}`;
 var HOUR_MS4 = 36e5;
 var MIN_FREE_BYTES = 1e9;
 var NO_CONVERTER = Object.freeze({ command: "", available: async () => false });
-var hubError = (code, message) => Object.assign(new Error(message), { code });
 function createMediaHub(options) {
   const { stateDir, libraryRoots, logger, now = Date.now } = options;
   const sources = new Map(options.sources.map((source2) => [source2.id, source2]));
@@ -15187,7 +15163,7 @@ function createMediaHub(options) {
   }, HOUR_MS4);
   function roomShow(id) {
     const room = rooms.listRooms().find((entry) => entry.id === id);
-    if (room === void 0) throw hubError("not_found", "no such room");
+    if (room === void 0) throw codedError("not_found", "no such room");
     return room.show;
   }
   async function onFiles(job) {
@@ -15212,7 +15188,7 @@ function createMediaHub(options) {
   }
   const followStart = (info, at = now()) => ({ since: at, seen: seenAtStart(info.id, info), checkedAt: at, nextAt: nextCheckAt(at, (options.follow?.random ?? Math.random)()) });
   async function adoptEmpty(sourceId, item) {
-    if (!(item.episodes > 0)) throw hubError("empty", `${item.title || item.id} has no episodes yet`);
+    if (!(item.episodes > 0)) throw codedError("empty", `${item.title || item.id} has no episodes yet`);
     const dir = await folderFor(sourceId, item);
     await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title });
     library.setWork(dir, snapshotOf(item, now()));
@@ -15244,7 +15220,7 @@ function createMediaHub(options) {
   const withCovers = (show) => show.work && show.source?.source ? { ...show, work: covers.decorate(show.source.source, show.work) } : show;
   function source(id) {
     const found = sources.get(id);
-    if (found === void 0) throw hubError("not_found", `no source ${String(id)}`);
+    if (found === void 0) throw codedError("not_found", `no source ${String(id)}`);
     return found;
   }
   async function isNewSeries(sourceId, item) {
@@ -15269,7 +15245,7 @@ ${work.id}`).digest("hex").slice(0, 8);
       const owner = shows.find((show) => show.path === path);
       if (!exists2 || owner?.source?.source === sourceId && owner.source.id === item.id) return path;
     }
-    throw hubError("exists", `${cleanName(item.title)} is already in the library`);
+    throw codedError("exists", `${cleanName(item.title)} is already in the library`);
   }
   return {
     async load() {
@@ -15340,7 +15316,7 @@ ${work.id}`).digest("hex").slice(0, 8);
     },
     async startStep(path, id, person) {
       const show = library.showPath(path);
-      if (show === null || !library.stepStarted(show, id)) throw hubError("not_found", "no such step");
+      if (show === null || !library.stepStarted(show, id)) throw codedError("not_found", "no such step");
       await log.append("step.started", { show, title: library.workOf(show)?.title ?? "", step: id, person: person.key, by: person.name });
       return { ok: true };
     },
@@ -15385,7 +15361,7 @@ ${work.id}`).digest("hex").slice(0, 8);
     async roomQuality(id, quality) {
       const show = roomShow(id);
       const offered = show === null ? [] : library.workOf(show)?.qualities ?? [];
-      if (!isQuality(quality) || !offered.includes(quality)) throw hubError("invalid", "the show is not offered in this quality");
+      if (!isQuality(quality) || !offered.includes(quality)) throw codedError("invalid", "the show is not offered in this quality");
       await cache.requality(show, quality);
       return { quality };
     },
@@ -15417,7 +15393,7 @@ ${work.id}`).digest("hex").slice(0, 8);
       }
       const answers = await Promise.allSettled(candidates.map((one) => ask(one)));
       const failed = answers.flatMap((answer, index) => answer.status === "rejected" ? [{ source: candidates[index].id, message: answer.reason?.message ?? String(answer.reason) }] : []);
-      if (candidates.length > 0 && failed.length === candidates.length) throw hubError("source_failed", failed.map((entry) => entry.message).join("; "));
+      if (candidates.length > 0 && failed.length === candidates.length) throw codedError("source_failed", failed.map((entry) => entry.message).join("; "));
       return { results: interleave(answers.map((answer) => answer.status === "fulfilled" ? answer.value.results : [])), next: null, failed };
     },
     /** A work's details; `person` and `language` say who asks (their account for its site) and in which language (subtitles). */
@@ -15433,12 +15409,12 @@ ${work.id}`).digest("hex").slice(0, 8);
      */
     async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = "", by = "", person = "", language = "" }) {
       const item = await source(sourceId).info(id, { person, language });
-      if (!(item.episodes > 0)) throw hubError("empty", `${item.title || id} has no episodes`);
+      if (!(item.episodes > 0)) throw codedError("empty", `${item.title || id} has no episodes`);
       const dir = await folderFor(sourceId, item);
       const subject = `${sourceId}:${item.id}`;
       const isNew = points.enabled && await isNewSeries(sourceId, item);
       const disk = await statfs2(libraryRoots[0]).catch(() => null);
-      if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError("no_space", "the library disk is almost full; delete something first");
+      if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw codedError("no_space", "the library disk is almost full; delete something first");
       const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { subject });
       const how = { ...isQuality(quality) ? { quality } : {}, person, language };
       await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all });
@@ -15484,7 +15460,7 @@ ${work.id}`).digest("hex").slice(0, 8);
     /** Start a show's download again after it failed. */
     async retryDownload(path) {
       const show = library.showPath(path);
-      if (show === null || downloads.job(show) === void 0) throw hubError("not_found", "no download for this show");
+      if (show === null || downloads.job(show) === void 0) throw codedError("not_found", "no download for this show");
       downloads.retry(show);
       await cache.refresh(show, { retry: true });
       return { download: downloads.state(show) };

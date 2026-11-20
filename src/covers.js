@@ -22,6 +22,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, open, readdir, rename, rm, stat, utimes } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isAudio } from './library.js'
+import { createLimiter } from './limit.js'
 import { runFfmpeg } from './prepare.js'
 
 const KEY = /^[0-9a-f]{32}$/
@@ -67,8 +68,6 @@ export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurr
   const known = new Map()
   const inFlight = new Map()
   const failed = new Map()
-  const waiting = []
-  let running = 0
 
   const makers = {
     async source({ sourceId, url, page }, file) {
@@ -86,13 +85,7 @@ export function createCovers({ dir, capBytes = 50e6, maxFileBytes = 2e6, concurr
     return `covers/${key}`
   }
 
-  const pump = () => {
-    while (running < concurrency && waiting.length > 0) {
-      running += 1
-      waiting.shift()().finally(() => { running -= 1; pump() })
-    }
-  }
-  const queued = job => new Promise((resolve, reject) => { waiting.push(() => job().then(resolve, reject)); pump() })
+  const queued = createLimiter(concurrency)
 
   async function trim() {
     if (!(capBytes > 0)) return

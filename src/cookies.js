@@ -12,9 +12,8 @@
 import { randomBytes } from 'node:crypto'
 import { copyFile, chmod, mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
+import { codedError } from './errors.js'
 import { createHostRules } from './hosts.js'
-
-const cookiesError = (code, message) => Object.assign(new Error(message), { code })
 
 /** What a page or the tool may know of an account. */
 export const accountView = account => (account === null ? null : { name: account.name || account.person || '' })
@@ -53,7 +52,7 @@ export function createCookies(rules = [], io = {}) {
         await chmod(copy, 0o600)
       } catch (error) {
         await rm(copy, { force: true })
-        throw cookiesError('cookies_unavailable', `cannot read the cookies of the account ${accountView(account).name}: ${error.code ?? error.message}`)
+        throw codedError('cookies_unavailable', `cannot read the cookies of the account ${accountView(account).name}: ${error.code ?? error.message}`)
       }
       const args = ['--cookies', copy, ...(account.userAgent ? ['--user-agent', account.userAgent] : [])]
       return { args, done: () => rm(copy, { force: true }) }

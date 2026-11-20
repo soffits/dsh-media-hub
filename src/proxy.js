@@ -17,6 +17,7 @@ import { request as httpsRequest } from 'node:https'
 import { pipeline } from 'node:stream/promises'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { SocksProxyAgent } from 'socks-proxy-agent'
+import { codedError } from './errors.js'
 import { createHostRules, hostOf } from './hosts.js'
 
 /** Proxy URL schemes, the ones yt-dlp takes too. */
@@ -24,8 +25,6 @@ export const PROXY_URL = /^(socks4a?|socks5h?|https?):\/\/[^\s/]+\/?$/
 const MAX_REDIRECTS = 5
 const USER_AGENT = 'dsh-media-hub'
 const PROBE_TIMEOUT_MS = 3000
-
-const proxyError = (code, message) => Object.assign(new Error(message), { code })
 
 /** Whether a proxy accepts a connection at all: the signal that tells "the proxy is down" from "the site said no". */
 export function proxyAnswers(proxy, timeoutMs = PROBE_TIMEOUT_MS) {
@@ -53,7 +52,7 @@ export function createProxies(rules = [], io = {}) {
     try {
       return (await hostRules.match(url, page))?.url ?? ''
     } catch (error) {
-      throw proxyError('proxy_unavailable', error.message)
+      throw codedError('proxy_unavailable', error.message)
     }
   }
 
@@ -66,12 +65,12 @@ export function createProxies(rules = [], io = {}) {
   /** One GET through its route; resolves with the response once headers arrive. */
   async function get(url, page, timeoutMs) {
     const protocol = new URL(url).protocol
-    if (protocol !== 'https:' && protocol !== 'http:') throw proxyError('invalid', `not a web address: ${url}`)
+    if (protocol !== 'https:' && protocol !== 'http:') throw codedError('invalid', `not a web address: ${url}`)
     const agent = agentFor(await route(url, page))
     return new Promise((resolve, reject) => {
       const send = protocol === 'https:' ? httpsRequest : httpRequest
       const req = send(url, { agent, headers: { 'user-agent': USER_AGENT, accept: 'image/*,*/*;q=0.5' }, timeout: timeoutMs }, resolve)
-      req.on('timeout', () => req.destroy(proxyError('timeout', `no answer from ${hostOf(url)} in ${timeoutMs / 1000} s`)))
+      req.on('timeout', () => req.destroy(codedError('timeout', `no answer from ${hostOf(url)} in ${timeoutMs / 1000} s`)))
       req.on('error', reject)
       req.end()
     })
@@ -96,21 +95,21 @@ export function createProxies(rules = [], io = {}) {
         }
         if (statusCode !== 200) {
           response.resume()
-          throw proxyError('fetch_failed', `${hostOf(target)} answered ${statusCode}`)
+          throw codedError('fetch_failed', `${hostOf(target)} answered ${statusCode}`)
         }
         if (Number(headers['content-length']) > maxBytes) {
           response.destroy()
-          throw proxyError('too_large', `the file is over ${maxBytes} bytes`)
+          throw codedError('too_large', `the file is over ${maxBytes} bytes`)
         }
         let received = 0
         response.on('data', (chunk) => {
           received += chunk.length
-          if (received > maxBytes) response.destroy(proxyError('too_large', `the file is over ${maxBytes} bytes`))
+          if (received > maxBytes) response.destroy(codedError('too_large', `the file is over ${maxBytes} bytes`))
         })
         await pipeline(response, createWriteStream(file))
         return
       }
-      throw proxyError('fetch_failed', `more than ${MAX_REDIRECTS} redirects from ${hostOf(url)}`)
+      throw codedError('fetch_failed', `more than ${MAX_REDIRECTS} redirects from ${hostOf(url)}`)
     },
   }
 }

@@ -1,7 +1,6 @@
+import { codedError } from './errors.js'
 import { recommend } from './presence.js'
 import { ALL_SOURCES } from './sources/index.js'
-
-const notFound = message => Object.assign(new Error(message), { code: 'not_found' })
 
 /**
  * What the Discover tab shows before a search (what each source itself puts forward, its `trending` verb, per
@@ -20,7 +19,7 @@ export function createDiscover({ copies, sources, covers, recommender }) {
   async function sourcesFor(sourceId, kind, ability) {
     if (sourceId !== ALL_SOURCES) {
       const one = sources.get(sourceId)
-      if (one === undefined) throw notFound(`no source ${String(sourceId)}`)
+      if (one === undefined) throw codedError('not_found', `no source ${String(sourceId)}`)
       return [one]
     }
     const found = []

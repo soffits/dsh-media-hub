@@ -10,6 +10,7 @@
  * @soffits/dsh-ui-actions. The parsing and choosing here is pure; `recommend` runs the extension.
  */
 import { resultOf } from './sources/command.js'
+import { codedError } from './errors.js'
 import { run } from './sources/process.js'
 
 /** The answers to "How was it?", in the order the page offers them. */
@@ -29,8 +30,6 @@ const MAX_PROMPT_CHARS = 2000
 export const PICKS_LIMIT = 8
 const PICKS_TIMEOUT_MS = 60_000
 const MAX_WHY_CHARS = 280
-
-const badInput = message => Object.assign(new Error(message), { code: 'invalid_arguments' })
 
 /**
  * Which finished or removed shows to ask this person about, newest first: library shows watched to the end and
@@ -59,8 +58,8 @@ export function pendingRatings({ shows, events, person, now, days = RATE_WITHIN_
 
 /** The rating line for the watch log, or an error naming what is wrong. */
 export function ratingLine({ show, title, rating }, person) {
-  if (!RATINGS.includes(rating)) throw badInput(`rating must be one of ${RATINGS.join(', ')}`)
-  if (typeof show !== 'string' || show === '') throw badInput('rating needs the show')
+  if (!RATINGS.includes(rating)) throw codedError('invalid_arguments', `rating must be one of ${RATINGS.join(', ')}`)
+  if (typeof show !== 'string' || show === '') throw codedError('invalid_arguments', 'rating needs the show')
   return { show, title: typeof title === 'string' ? title.slice(0, 200) : '', rating, person: person.key, by: person.name }
 }
 
@@ -83,22 +82,22 @@ export function parseAnnotation({ recap, steps } = {}) {
   const out = {}
   if (recap === null) out.recap = null
   else if (recap !== undefined) {
-    if (typeof recap?.text !== 'string' || recap.text.trim() === '') throw badInput('recap needs text')
-    if (!Number.isInteger(recap.upTo) || recap.upTo < 1) throw badInput('recap needs upTo, the last episode it covers (1 or more)')
+    if (typeof recap?.text !== 'string' || recap.text.trim() === '') throw codedError('invalid_arguments', 'recap needs text')
+    if (!Number.isInteger(recap.upTo) || recap.upTo < 1) throw codedError('invalid_arguments', 'recap needs upTo, the last episode it covers (1 or more)')
     out.recap = { text: recap.text.trim().slice(0, MAX_RECAP_CHARS), upTo: recap.upTo }
   }
   if (steps === null) out.steps = null
   else if (steps !== undefined) {
-    if (!Array.isArray(steps) || steps.length > MAX_STEPS) throw badInput(`steps is a list of at most ${MAX_STEPS}`)
+    if (!Array.isArray(steps) || steps.length > MAX_STEPS) throw codedError('invalid_arguments', `steps is a list of at most ${MAX_STEPS}`)
     out.steps = steps.map((step, n) => {
       const id = step?.id ?? `step-${n + 1}`
-      if (typeof id !== 'string' || !STEP_ID.test(id)) throw badInput('a step id is lowercase letters, digits, - and _')
+      if (typeof id !== 'string' || !STEP_ID.test(id)) throw codedError('invalid_arguments', 'a step id is lowercase letters, digits, - and _')
       const label = textOrPerLanguage(step?.label, MAX_LABEL_CHARS)
-      if (label === null) throw badInput('a step needs a label that says the step')
+      if (label === null) throw codedError('invalid_arguments', 'a step needs a label that says the step')
       const prompt = textOrPerLanguage(step?.prompt, MAX_PROMPT_CHARS)
       return { kind: 'step', id, label, ...(prompt === null ? {} : { payload: { prompt } }) }
     })
-    if (new Set(out.steps.map(step => step.id)).size !== out.steps.length) throw badInput('step ids repeat')
+    if (new Set(out.steps.map(step => step.id)).size !== out.steps.length) throw codedError('invalid_arguments', 'step ids repeat')
     if (out.steps.length === 0) out.steps = null
   }
   return out

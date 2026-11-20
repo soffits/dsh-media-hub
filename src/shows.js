@@ -23,6 +23,7 @@
 import { mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { episodeNumber, isSourced, keyOf, noteFor, numbersOf, slotsOf, titleOf } from './episodes.js'
+import { codedError } from './errors.js'
 import { createJsonSaver, readJson } from './json-file.js'
 import { isAudio, isMedia, matchSubtitles, naturalSort } from './library.js'
 import { dropPrepared, preparedBytes } from './prepare.js'
@@ -37,12 +38,10 @@ const REFINISH_MS = 3_600_000
 const MAX_NAME = 120
 const SUMS = 'SHA256SUMS.txt'
 
-const libraryError = (code, message) => Object.assign(new Error(message), { code })
-
 /** A file or folder name someone typed: no path separators, no control characters, not hidden. */
 export function cleanName(value) {
   const name = String(value ?? '').replace(/[\u0000-\u001f\u007f/\\]/g, '').trim().slice(0, MAX_NAME)
-  if (name === '' || name.startsWith('.')) throw libraryError('invalid', 'give a name')
+  if (name === '' || name.startsWith('.')) throw codedError('invalid', 'give a name')
   return name
 }
 
@@ -117,7 +116,7 @@ export function createLibrary(options) {
 
   function requireShow(path) {
     const target = showPath(path)
-    if (target === null) throw libraryError('not_found', 'not a show in the library')
+    if (target === null) throw codedError('not_found', 'not a show in the library')
     return target
   }
 
@@ -415,7 +414,7 @@ export function createLibrary(options) {
     /** Keep a show's every episode on disk (or go back to the rolling cache). */
     async pin(path, pinned, { by = null } = {}) {
       const target = requireShow(path)
-      if (!isSourced(record(target))) throw libraryError('invalid', 'only a show from a source can be kept offline')
+      if (!isSourced(record(target))) throw codedError('invalid', 'only a show from a source can be kept offline')
       update(target, { pinned })
       note(pinned ? 'library.pinned' : 'library.unpinned', target, { by })
       return { path: target, pinned }
@@ -456,7 +455,7 @@ export function createLibrary(options) {
     setQuality(path, quality) {
       const target = requireShow(path)
       const entry = record(target)
-      if (!isSourced(entry)) throw libraryError('invalid', 'this show has no source to fetch from')
+      if (!isSourced(entry)) throw codedError('invalid', 'this show has no source to fetch from')
       update(target, { source: { ...entry.source, quality } })
     },
 
@@ -480,7 +479,7 @@ export function createLibrary(options) {
 
     async remove(path, { by = null, reason = 'by hand' } = {}) {
       const target = requireShow(path)
-      if (inUse(target)) throw libraryError('in_use', 'a room is playing this show; close the room first')
+      if (inUse(target)) throw codedError('in_use', 'a room is playing this show; close the room first')
       await forget(target)
       await rm(target, { recursive: true, force: true })
       delete meta[target]
@@ -492,9 +491,9 @@ export function createLibrary(options) {
     async removeEpisode(path, name, { by = null } = {}) {
       const target = requireShow(path)
       if ((await stat(target)).isFile()) return this.remove(target, { by })
-      if (inUse(target)) throw libraryError('in_use', 'a room is playing this show; close the room first')
+      if (inUse(target)) throw codedError('in_use', 'a room is playing this show; close the room first')
       const file = cleanName(name)
-      if (!isMedia(file)) throw libraryError('invalid', 'not an episode')
+      if (!isMedia(file)) throw codedError('invalid', 'not an episode')
       await deleteEpisode(target, file)
       note('library.episodeDeleted', target, { episode: titleOf(file), by })
       const entry = record(target)
@@ -507,13 +506,13 @@ export function createLibrary(options) {
 
     async rename(path, name, { by = null } = {}) {
       const target = requireShow(path)
-      if (inUse(target)) throw libraryError('in_use', 'a room is playing this show; close the room first')
-      if (download(target)?.active) throw libraryError('in_use', 'this show is still downloading')
+      if (inUse(target)) throw codedError('in_use', 'a room is playing this show; close the room first')
+      if (download(target)?.active) throw codedError('in_use', 'this show is still downloading')
       const isFile = (await stat(target)).isFile()
       const clean = cleanName(name)
       const next = join(dirname(target), isFile && extname(clean) === '' ? `${clean}${extname(target)}` : clean)
       if (next === target) return { path: target }
-      if (await stat(next).then(() => true, () => false)) throw libraryError('exists', 'a show with that name is already in the library')
+      if (await stat(next).then(() => true, () => false)) throw codedError('exists', 'a show with that name is already in the library')
       await rename(target, next)
       if (meta[target] !== undefined) {
         meta[next] = meta[target]
@@ -535,8 +534,8 @@ export function createLibrary(options) {
     /** Start the countdown now (or restart it): deleted `autoDeleteDays` from now unless kept. */
     async countdown(path, { by = null } = {}) {
       const target = requireShow(path)
-      if (!(options.autoDeleteDays > 0)) throw libraryError('invalid', 'automatic deleting is off')
-      if (!autoDeletes(target)) throw libraryError('invalid', 'shows outside the hub\'s own library are never deleted on their own')
+      if (!(options.autoDeleteDays > 0)) throw codedError('invalid', 'automatic deleting is off')
+      if (!autoDeletes(target)) throw codedError('invalid', 'shows outside the hub\'s own library are never deleted on their own')
       const restart = deletesAt(target) !== null
       update(target, { keep: false, countdownFrom: now() })
       note(restart ? 'library.countdownRestarted' : 'library.countdownStarted', target, { by, deletesAt: new Date(deletesAt(target)).toISOString() })

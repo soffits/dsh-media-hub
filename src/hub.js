@@ -15,6 +15,7 @@
 import { randomBytes } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { codedError } from './errors.js'
 import { readJson, writeJson } from './json-file.js'
 import { SKIP_AFTER_MS, advance, advanceOf, applyOp, clockOf, createRoom, hold, positionAt, settle, updateItems } from './room.js'
 import { scanSource } from './library.js'
@@ -37,7 +38,6 @@ const localItem = episode => ({ title: episode.title, kind: 'file', status: 'pre
 const slotItem = (entry, status) => ({ title: entry.title, kind: 'file', slot: entry.n, status: entry.path === null ? status : 'preparing', sourcePath: entry.path, sourceSubtitles: entry.subtitles ?? [] })
 /** What identifies an item across its states: its episode number, or its file. */
 const itemKey = item => item.slot ?? item.sourcePath
-const serviceError = (code, message) => Object.assign(new Error(message), { code })
 /** Whether a room is open to others (listed, its link shared), or one person watching alone. Rooms from before the choice were all shared. */
 const isTogether = room => room.together !== false
 const cleanText = (value, max) => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '')
@@ -462,10 +462,10 @@ export function createRoomService(options) {
   }
 
   async function localItems(path, fromPanel) {
-    if (typeof path !== 'string' || !isAbsolute(path)) throw serviceError('invalid', 'path must be an absolute path')
+    if (typeof path !== 'string' || !isAbsolute(path)) throw codedError('invalid', 'path must be an absolute path')
     const target = resolve(path)
     if (fromPanel && !libraryRoots.some(root => target === root || target.startsWith(`${root}/`))) {
-      throw serviceError('outside', 'the panel can only open files from the library folders')
+      throw codedError('outside', 'the panel can only open files from the library folders')
     }
     const entries = await options.directory?.(target)
     if (entries) return entries.map(entry => slotItem(entry, 'remote'))
@@ -473,7 +473,7 @@ export function createRoomService(options) {
     try {
       episodes = await scanSource(target)
     } catch (error) {
-      if (error.code === 'ENOENT') throw serviceError('not_found', `${path} does not exist`)
+      if (error.code === 'ENOENT') throw codedError('not_found', `${path} does not exist`)
       throw error
     }
     return episodes.map(localItem)
@@ -521,7 +521,7 @@ export function createRoomService(options) {
      * @param {{ path: string, title?: string, by?: string, fromPanel?: boolean, together?: boolean, start?: { index: number, position: number } | null }} input - `together`: open to others from the start; else one person watches until they share it
      */
     async createRoom(input) {
-      if (!delivery.available) throw serviceError('unsupported', delivery.reason)
+      if (!delivery.available) throw codedError('unsupported', delivery.reason)
       const items = await localItems(input.path, input.fromPanel === true)
       const id = randomBytes(9).toString('base64url')
       const title = cleanText(input.title, 120) || (items.length === 1 ? items[0].title : input.path.split('/').filter(Boolean).pop())
@@ -566,13 +566,13 @@ export function createRoomService(options) {
     /** Open a room someone watches alone to others, as it is: same episode, same position. */
     watchTogether(id) {
       const room = rooms.get(id)
-      if (room === undefined) throw serviceError('not_found', 'no such room')
+      if (room === undefined) throw codedError('not_found', 'no such room')
       if (!isTogether(room)) commit({ ...room, together: true })
       return { room: summary(rooms.get(id)) }
     },
 
     closeRoom(id) {
-      if (!close(id)) throw serviceError('not_found', 'no such room')
+      if (!close(id)) throw codedError('not_found', 'no such room')
       return { closed: id }
     },
 

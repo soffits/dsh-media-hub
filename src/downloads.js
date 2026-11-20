@@ -14,6 +14,7 @@
  * interrupt it; the interrupted job resumes afterwards.
  */
 import { join } from 'node:path'
+import { codedError } from './errors.js'
 import { createJsonSaver, readJson } from './json-file.js'
 import { nextRun } from './window.js'
 
@@ -28,8 +29,6 @@ function nextOfRun(job, onDisk) {
   for (let n = job.at ?? from; n <= to; n++) if (!onDisk.has(n)) return n
   return null
 }
-
-const sourceError = (code, message) => Object.assign(new Error(message), { code })
 
 /**
  * @param {object} options
@@ -99,11 +98,11 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
     const { signal } = job.controller
     save()
     try {
-      if (source === undefined) throw sourceError('unavailable', `source ${job.source} is not available`)
+      if (source === undefined) throw codedError('unavailable', `source ${job.source} is not available`)
       for (;;) {
         const range = nextRun(job.want, await have(job.dir))
         if (range === null || signal.aborted) break
-        if (!(await hasSpace())) throw sourceError('no_space', 'the library disk is almost full; delete something first')
+        if (!(await hasSpace())) throw codedError('no_space', 'the library disk is almost full; delete something first')
         job.current = range
         job.at = range[0]
         const result = await source.download({ ...howOf(job.how), id: job.id, dir: job.dir, from: range[0], to: range[1], signal, onStart: (n) => { job.at = n }, onEpisode: () => notify(job), onProgress: (n, progress) => onProgress(job, n, progress), onPartial: (n, partial) => onPartial(job, n, partial) })
@@ -111,7 +110,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
         if (signal.aborted) break
         if (result.failed.length > 0) {
           job.failed = result.failed
-          throw sourceError('source_failed', `${result.failed.length} episodes could not be downloaded`)
+          throw codedError('source_failed', `${result.failed.length} episodes could not be downloaded`)
         }
       }
       if (signal.aborted) {

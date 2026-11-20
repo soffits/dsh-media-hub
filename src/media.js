@@ -11,6 +11,7 @@ import { join, resolve } from 'node:path'
 import { createCache } from './cache.js'
 import { createBooks } from './books.js'
 import { createCovers } from './covers.js'
+import { codedError } from './errors.js'
 import { applyFilters, interleave } from './filters.js'
 import { createDownloads } from './downloads.js'
 import { createRoomService } from './hub.js'
@@ -36,8 +37,6 @@ const MIN_FREE_BYTES = 1e9
 
 /** No converter configured: only the formats sources have are offered. */
 const NO_CONVERTER = Object.freeze({ command: '', available: async () => false })
-
-const hubError = (code, message) => Object.assign(new Error(message), { code })
 
 /**
  * @param {object} options - as createRoomService, plus:
@@ -124,7 +123,7 @@ export function createMediaHub(options) {
   /** The show folder a room plays from (null for plain files). */
   function roomShow(id) {
     const room = rooms.listRooms().find(entry => entry.id === id)
-    if (room === undefined) throw hubError('not_found', 'no such room')
+    if (room === undefined) throw codedError('not_found', 'no such room')
     return room.show
   }
 
@@ -154,7 +153,7 @@ export function createMediaHub(options) {
 
   /** An empty show for a work: its details and episode list, nothing on disk. */
   async function adoptEmpty(sourceId, item) {
-    if (!(item.episodes > 0)) throw hubError('empty', `${item.title || item.id} has no episodes yet`)
+    if (!(item.episodes > 0)) throw codedError('empty', `${item.title || item.id} has no episodes yet`)
     const dir = await folderFor(sourceId, item)
     await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title })
     library.setWork(dir, snapshotOf(item, now()))
@@ -192,7 +191,7 @@ export function createMediaHub(options) {
 
   function source(id) {
     const found = sources.get(id)
-    if (found === undefined) throw hubError('not_found', `no source ${String(id)}`)
+    if (found === undefined) throw codedError('not_found', `no source ${String(id)}`)
     return found
   }
 
@@ -224,7 +223,7 @@ export function createMediaHub(options) {
       const owner = shows.find(show => show.path === path)
       if (!exists || (owner?.source?.source === sourceId && owner.source.id === item.id)) return path
     }
-    throw hubError('exists', `${cleanName(item.title)} is already in the library`)
+    throw codedError('exists', `${cleanName(item.title)} is already in the library`)
   }
 
   return {
@@ -302,7 +301,7 @@ export function createMediaHub(options) {
     },
     async startStep(path, id, person) {
       const show = library.showPath(path)
-      if (show === null || !library.stepStarted(show, id)) throw hubError('not_found', 'no such step')
+      if (show === null || !library.stepStarted(show, id)) throw codedError('not_found', 'no such step')
       await log.append('step.started', { show, title: library.workOf(show)?.title ?? '', step: id, person: person.key, by: person.name })
       return { ok: true }
     },
@@ -349,7 +348,7 @@ export function createMediaHub(options) {
     async roomQuality(id, quality) {
       const show = roomShow(id)
       const offered = show === null ? [] : library.workOf(show)?.qualities ?? []
-      if (!isQuality(quality) || !offered.includes(quality)) throw hubError('invalid', 'the show is not offered in this quality')
+      if (!isQuality(quality) || !offered.includes(quality)) throw codedError('invalid', 'the show is not offered in this quality')
       await cache.requality(show, quality)
       return { quality }
     },
@@ -385,7 +384,7 @@ export function createMediaHub(options) {
       }
       const answers = await Promise.allSettled(candidates.map(one => ask(one)))
       const failed = answers.flatMap((answer, index) => (answer.status === 'rejected' ? [{ source: candidates[index].id, message: answer.reason?.message ?? String(answer.reason) }] : []))
-      if (candidates.length > 0 && failed.length === candidates.length) throw hubError('source_failed', failed.map(entry => entry.message).join('; '))
+      if (candidates.length > 0 && failed.length === candidates.length) throw codedError('source_failed', failed.map(entry => entry.message).join('; '))
       return { results: interleave(answers.map(answer => (answer.status === 'fulfilled' ? answer.value.results : []))), next: null, failed }
     },
     /** A work's details; `person` and `language` say who asks (their account for its site) and in which language (subtitles). */
@@ -402,12 +401,12 @@ export function createMediaHub(options) {
      */
     async fetch({ source: sourceId, id, watch = false, together = false, all = false, quality = '', by = '', person = '', language = '' }) {
       const item = await source(sourceId).info(id, { person, language })
-      if (!(item.episodes > 0)) throw hubError('empty', `${item.title || id} has no episodes`)
+      if (!(item.episodes > 0)) throw codedError('empty', `${item.title || id} has no episodes`)
       const dir = await folderFor(sourceId, item)
       const subject = `${sourceId}:${item.id}`
       const isNew = points.enabled && await isNewSeries(sourceId, item)
       const disk = await statfs(libraryRoots[0]).catch(() => null)
-      if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw hubError('no_space', 'the library disk is almost full; delete something first')
+      if (disk !== null && disk.bavail * disk.bsize < MIN_FREE_BYTES) throw codedError('no_space', 'the library disk is almost full; delete something first')
       const tickets = await points.pay(person, points.wants({ isNew, starts: watch }), { subject })
       const how = { ...(isQuality(quality) ? { quality } : {}), person, language }
       await library.adopt(dir, { source: sourceId, id: item.id, kind: item.kind, episodes: item.episodes, title: item.title, ...how }, { pinned: all })
@@ -456,7 +455,7 @@ export function createMediaHub(options) {
     /** Start a show's download again after it failed. */
     async retryDownload(path) {
       const show = library.showPath(path)
-      if (show === null || downloads.job(show) === undefined) throw hubError('not_found', 'no download for this show')
+      if (show === null || downloads.job(show) === undefined) throw codedError('not_found', 'no download for this show')
       downloads.retry(show)
       await cache.refresh(show, { retry: true })
       return { download: downloads.state(show) }

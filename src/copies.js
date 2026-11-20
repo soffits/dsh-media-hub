@@ -1,4 +1,5 @@
 import { createJsonSaver, readJson } from './json-file.js'
+import { createLimiter } from './limit.js'
 
 const DAY_MS = 86_400_000
 const HOUR_MS = 3_600_000
@@ -28,8 +29,6 @@ export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs
   /** @type {Map<string, Promise<void>>} */
   const flying = new Map()
   const failedAt = new Map()
-  const waiting = []
-  let running = 0
   const saver = createJsonSaver(file, logger)
   const loaded = readJson(file, { logger }).then(({ value }) => { for (const [key, copy] of Object.entries(value ?? {})) copies.set(key, copy) })
 
@@ -37,17 +36,12 @@ export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs
     return saver.save(Object.fromEntries(copies))
   }
 
-  function pump() {
-    while (running < parallel && waiting.length > 0) {
-      running += 1
-      waiting.shift()().finally(() => { running -= 1; pump() })
-    }
-  }
+  const limit = createLimiter(parallel)
 
   function ask(key, produce) {
     let settled
     flying.set(key, new Promise((resolve) => { settled = resolve }))
-    waiting.push(async () => {
+    limit(async () => {
       try {
         copies.set(key, { at: now(), value: await produce() })
         failedAt.delete(key)
@@ -62,7 +56,6 @@ export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs
         settled()
       }
     })
-    pump()
   }
 
   return {
