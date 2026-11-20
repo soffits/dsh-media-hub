@@ -1,5 +1,6 @@
 /* Video Sync page styles. Only the host theme tokens (--dsw-*), except the player's stage. */
 .vsync-page{width:100%;min-width:0;height:100%;min-height:0;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);font-size:14px;line-height:1.6;display:flex;flex-direction:column;overflow:hidden}
+.vsync-crash{padding:24px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .vsync-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable;--dsh-scrollbar-width:9px;--dsh-scrollbar-thumb-border:2px}
 .vsync-content{max-width:960px;margin:0 auto;padding:0 clamp(24px,4vw,48px) 48px}
 @media (width<=767px){.vsync-content{padding-inline:20px}}

@@ -310,6 +310,8 @@
     "points.newSeries": "Start a new series",
     "points.newSeriesAbout": "Begin watching a series that is new to the library. Going on with one stays free.",
     "points.bingeNight": "Binge night",
-    "points.bingeNightAbout": "Start watching late at night, as often as you like, until morning."
+    "points.bingeNightAbout": "Start watching late at night, as often as you like, until morning.",
+    "page.crashed": "This page stopped working.",
+    "page.reload": "Reload"
   }
 }

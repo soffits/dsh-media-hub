@@ -310,6 +310,8 @@
     "points.newSeries": "开一部新剧",
     "points.newSeriesAbout": "开始看一部库里还没有的剧。接着看已有的剧不花分。",
     "points.bingeNight": "通宵追剧夜",
-    "points.bingeNightAbout": "深夜开播，想看几次都行，到早上为止。"
+    "points.bingeNightAbout": "深夜开播，想看几次都行，到早上为止。",
+    "page.crashed": "页面出错了。",
+    "page.reload": "重新加载"
   }
 }
