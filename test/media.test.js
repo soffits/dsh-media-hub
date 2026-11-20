@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renam
 import { basename, dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { createDelivery } from '../src/delivery.js'
+import { createDownloads } from '../src/downloads.js'
 import { createMediaHub } from '../src/media.js'
 import { isNearEnd } from '../src/watchlog.js'
 import { fileURLToPath } from 'node:url'
@@ -764,4 +765,18 @@ test('a saved show outside the library folders is left alone: the hub still star
   await until('the window is cached', () => numbersIn(fetched.path).length === 3)
   await hub.fetch({ source: 'stub', id: '43' })
   assert.deepEqual(warnings, [])
+})
+
+test('stopping a download whose source ignores the stop waits only so long', async (t) => {
+  const dir = tempDir(t)
+  const stubborn = { id: 'stuck', label: 'Stuck', kinds: [], available: async () => true, download: () => new Promise(() => {}) }
+  const warnings = []
+  const downloads = createDownloads({ stateDir: dir, sources: new Map([['stuck', stubborn]]), have: async () => new Set(), onFiles: async () => {}, logger: { info() {}, warn: message => warnings.push(message) }, stopWaitMs: 100 })
+  await downloads.load()
+  const show = join(dir, 'Show')
+  await downloads.want({ source: 'stuck', item: { id: '1', title: 'Show', kind: 'drama', episodes: 3 }, dir: show }, [1, 2, 3])
+  await until('the run started', () => downloads.state(show)?.active === true)
+  await downloads.cancel(show)
+  await downloads.dispose()
+  assert.equal(warnings.length, 2)
 })

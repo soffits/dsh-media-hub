@@ -199,3 +199,24 @@ test('a shelves file that cannot be read is set aside and the downloaded books s
   assert.ok(existsSync(path), 'the book survives the next start too')
   assert.equal(existsSync(cutOff), false, 'a folder newer than the saved shelves is a fetch cut off before its save')
 })
+
+test('a shelf that cannot be trimmed to its cap is logged, not an unhandled failure', { skip: process.getuid?.() === 0 }, async (t) => {
+  const dir = tempDir(t)
+  const warnings = []
+  const { source } = setup(t)
+  const books = createBooks({ dir: join(dir, 'books'), sources: new Map([['lib', source]]), capBytes: 1, converter: { command: '', available: async () => false }, covers, logger: { warn: (...args) => warnings.push(args.join(' ')) } })
+  t.after(() => books.dispose())
+  await books.load()
+  const first = await books.add('ann', { source: 'lib', id: 'pg-1342', format: 'epub' })
+  await settled(books, 'ann', first.entry)
+  const [kept] = readdirSync(join(dir, 'books', 'files')).map(name => join(dir, 'books', 'files', name))
+  chmodSync(kept, 0o555)
+  try {
+    const second = await books.add('ann', { source: 'lib', id: 'pg-1342', format: 'txt' })
+    await settled(books, 'ann', second.entry)
+    await new Promise(done => setTimeout(done, 50))
+  } finally {
+    chmodSync(kept, 0o755)
+  }
+  assert.ok(warnings.some(line => line.includes('cap')), warnings.join('\n'))
+})

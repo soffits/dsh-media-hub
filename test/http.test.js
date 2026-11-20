@@ -132,3 +132,9 @@ test('the page gets the words the locale files hold now, not what they held when
   writeFileSync(join(localeDir, 'en.json'), JSON.stringify({ meta: {}, ui: { hello: 'two' } }))
   assert.equal((await words()).en.hello, 'two')
 })
+
+test('an address with a broken escape is a bad request, not a crash', async (t) => {
+  const get = await serve(t, {})
+  const response = await get('%E0%A4')
+  assert.equal(response.status, 400)
+})

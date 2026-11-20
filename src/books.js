@@ -181,7 +181,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
             entry.cover ||= got.cover ?? null
           }
         }
-        return enforceCap()
+        return enforceCap().catch(error => logger.warn('books: could not keep the shelves under the cap: %s', error.message))
       }, (error) => {
         if (disposed) return
         logger.warn('books: %s:%s as %s failed: %s', request.source, request.id, request.format, error.message)

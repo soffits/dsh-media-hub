@@ -287,7 +287,12 @@ export function createRoomService(options) {
       } catch {
         return send(peer, { t: 'error', message: 'not JSON' })
       }
-      handle(peer, roomId, message)
+      if (typeof message !== 'object' || message === null) return send(peer, { t: 'error', message: 'not an object' })
+      try {
+        handle(peer, roomId, message)
+      } catch (error) {
+        logger.warn('room %s: a message failed: %s', roomId, error.message)
+      }
     })
     ws.on('close', () => {
       clearInterval(ping)

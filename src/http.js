@@ -218,10 +218,15 @@ export function createHandler({ connection, service, settings = () => ({ label: 
     const admitted = admitOwner(connection, req)
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? 'Sign in to DSH first.' : 'Forbidden.')
     const url = new URL(req.url ?? '/', 'http://media-hub.invalid')
-    const parts = url.pathname.slice(ROUTE.length + 1).split('/').map(decodeURIComponent)
     const hub = service()
     if (hub === undefined) return sendText(res, 503, 'The media hub is starting.')
     try {
+      let parts
+      try {
+        parts = url.pathname.slice(ROUTE.length + 1).split('/').map(decodeURIComponent)
+      } catch {
+        return sendText(res, 400, 'Bad address.')
+      }
       if (parts[0] === 'web' && parts.length === 2 && req.method === 'GET') {
         const file = webFile(parts[1])
         const body = file === undefined ? null : await readFile(file).catch(() => null)

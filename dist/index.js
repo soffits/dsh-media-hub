@@ -12330,10 +12330,15 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
     const admitted = admitOwner(connection, req);
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? "Sign in to DSH first." : "Forbidden.");
     const url = new URL(req.url ?? "/", "http://media-hub.invalid");
-    const parts = url.pathname.slice(ROUTE.length + 1).split("/").map(decodeURIComponent);
     const hub = service();
     if (hub === void 0) return sendText(res, 503, "The media hub is starting.");
     try {
+      let parts;
+      try {
+        parts = url.pathname.slice(ROUTE.length + 1).split("/").map(decodeURIComponent);
+      } catch {
+        return sendText(res, 400, "Bad address.");
+      }
       if (parts[0] === "web" && parts.length === 2 && req.method === "GET") {
         const file = webFile(parts[1]);
         const body2 = file === void 0 ? null : await readFile5(file).catch(() => null);
@@ -12522,13 +12527,20 @@ function nextOfRun(job, onDisk) {
 var sourceError3 = (code, message) => Object.assign(new Error(message), { code });
 function createDownloads({ stateDir, sources, have, hasSpace = async () => true, onFiles, onProgress = () => {
 }, onPartial = () => {
-}, logger, now = Date.now }) {
+}, logger, stopWaitMs = 1e4, now = Date.now }) {
   const file = join11(stateDir, "downloads.json");
   const jobs = /* @__PURE__ */ new Map();
   let running = null;
   let disposed = false;
   const saver = createJsonSaver(file, logger);
   let notifying = Promise.resolve();
+  async function letGo(busy) {
+    const end = Date.now() + stopWaitMs;
+    while (busy()) {
+      if (Date.now() > end) return logger.warn("a download did not stop when asked; going on without waiting for it");
+      await new Promise((done) => setTimeout(done, 50));
+    }
+  }
   function save() {
     return saver.save({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) });
   }
@@ -12681,12 +12693,12 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
       jobs.delete(dir);
       job.controller?.abort("cancel");
       save();
-      while (running === job) await new Promise((done) => setTimeout(done, 50));
+      await letGo(() => running === job);
     },
     async dispose() {
       disposed = true;
       running?.controller?.abort("stop");
-      while (running !== null) await new Promise((done) => setTimeout(done, 50));
+      await letGo(() => running !== null);
       await saver.settled();
     }
   };
@@ -12939,7 +12951,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
             entry.cover ||= got.cover ?? null;
           }
         }
-        return enforceCap();
+        return enforceCap().catch((error) => logger.warn("books: could not keep the shelves under the cap: %s", error.message));
       }, (error) => {
         if (disposed) return;
         logger.warn("books: %s:%s as %s failed: %s", request.source, request.id, request.format, error.message);
@@ -13645,7 +13657,12 @@ function createRoomService(options) {
       } catch {
         return send(peer, { t: "error", message: "not JSON" });
       }
-      handle(peer, roomId, message);
+      if (typeof message !== "object" || message === null) return send(peer, { t: "error", message: "not an object" });
+      try {
+        handle(peer, roomId, message);
+      } catch (error) {
+        logger.warn("room %s: a message failed: %s", roomId, error.message);
+      }
     });
     ws.on("close", () => {
       clearInterval(ping);
