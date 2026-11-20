@@ -1,5 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { createJsonSaver, readJson } from './json-file.js'
 
 const DAY_MS = 86_400_000
 const HOUR_MS = 3_600_000
@@ -31,18 +30,11 @@ export function createCopies({ file, changed, logger, maxAgeMs = DAY_MS, retryMs
   const failedAt = new Map()
   const waiting = []
   let running = 0
-  let saving = Promise.resolve()
-  const loaded = readFile(file, 'utf8')
-    .then((text) => { for (const [key, copy] of Object.entries(JSON.parse(text))) copies.set(key, copy) })
-    .catch((error) => { if (error.code !== 'ENOENT') logger.warn('the saved copies of Discover could not be read: %s', error.message) })
+  const saver = createJsonSaver(file, logger)
+  const loaded = readJson(file, { logger }).then(({ value }) => { for (const [key, copy] of Object.entries(value ?? {})) copies.set(key, copy) })
 
   function save() {
-    saving = saving.then(async () => {
-      await mkdir(dirname(file), { recursive: true })
-      await writeFile(`${file}.part`, JSON.stringify(Object.fromEntries(copies)))
-      await rename(`${file}.part`, file)
-    }).catch(error => logger.warn('the copies of Discover could not be saved: %s', error.message))
-    return saving
+    return saver.save(Object.fromEntries(copies))
   }
 
   function pump() {

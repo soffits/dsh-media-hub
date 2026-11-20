@@ -23,6 +23,7 @@
 import { mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { episodeNumber, isSourced, keyOf, noteFor, numbersOf, slotsOf, titleOf } from './episodes.js'
+import { createJsonSaver, readJson } from './json-file.js'
 import { isAudio, isMedia, matchSubtitles, naturalSort } from './library.js'
 import { dropPrepared, preparedBytes } from './prepare.js'
 import { safeRecap } from './presence.js'
@@ -85,26 +86,17 @@ export function createLibrary(options) {
   const metaFile = join(stateDir, 'shows.json')
   const cacheDir = join(stateDir, 'cache')
   let meta = {}
-  let saving = Promise.resolve()
+  const saver = createJsonSaver(metaFile, logger)
   const listeners = new Set()
   const changed = show => { for (const listener of listeners) listener(show) }
 
   async function load() {
-    try {
-      meta = JSON.parse(await readFile(metaFile, 'utf8')).shows ?? {}
-    } catch (error) {
-      if (error.code !== 'ENOENT') logger.warn('could not read %s: %s', metaFile, error.message)
-    }
+    meta = (await readJson(metaFile, { logger })).value?.shows ?? {}
   }
 
   function save() {
     options.changed?.()
-    const body = JSON.stringify({ shows: meta }, null, 1)
-    saving = saving.then(async () => {
-      await writeFile(`${metaFile}.part`, body)
-      await rename(`${metaFile}.part`, metaFile)
-    }).catch(error => logger.warn('could not save %s: %s', metaFile, error.message))
-    return saving
+    return saver.save({ shows: meta })
   }
 
   const record = path => meta[path] ?? {}
@@ -298,7 +290,7 @@ export function createLibrary(options) {
   return {
     load,
     /** Resolves once the notes written so far are on disk. */
-    flush: () => saving,
+    flush: () => saver.settled(),
     showPath,
     showOf,
     resumeFrom: async path => resumeFrom(path, slotsOf(record(path), (await episodeFiles(path)) ?? [])),

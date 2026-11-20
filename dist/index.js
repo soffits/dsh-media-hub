@@ -35,9 +35,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/ws/lib/constants.js
+// ../../node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/ws/lib/constants.js"(exports, module) {
+  "../../node_modules/ws/lib/constants.js"(exports, module) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -58,9 +58,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/ws/lib/buffer-util.js
+// ../../node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "node_modules/ws/lib/buffer-util.js"(exports, module) {
+  "../../node_modules/ws/lib/buffer-util.js"(exports, module) {
     "use strict";
     var { websocketMask, websocketUnmask } = __require("http");
     var { EMPTY_BUFFER } = require_constants();
@@ -143,9 +143,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// node_modules/ws/lib/limiter.js
+// ../../node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "node_modules/ws/lib/limiter.js"(exports, module) {
+  "../../node_modules/ws/lib/limiter.js"(exports, module) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -193,9 +193,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// node_modules/ws/lib/permessage-deflate.js
+// ../../node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "node_modules/ws/lib/permessage-deflate.js"(exports, module) {
+  "../../node_modules/ws/lib/permessage-deflate.js"(exports, module) {
     "use strict";
     var zlib = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -576,9 +576,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// node_modules/ws/lib/validation.js
+// ../../node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "node_modules/ws/lib/validation.js"(exports, module) {
+  "../../node_modules/ws/lib/validation.js"(exports, module) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants();
@@ -777,9 +777,9 @@ var require_validation = __commonJS({
   }
 });
 
-// node_modules/ws/lib/receiver.js
+// ../../node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "node_modules/ws/lib/receiver.js"(exports, module) {
+  "../../node_modules/ws/lib/receiver.js"(exports, module) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -1401,9 +1401,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// node_modules/ws/lib/sender.js
+// ../../node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "node_modules/ws/lib/sender.js"(exports, module) {
+  "../../node_modules/ws/lib/sender.js"(exports, module) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -1897,9 +1897,9 @@ var require_sender = __commonJS({
   }
 });
 
-// node_modules/ws/lib/event-target.js
+// ../../node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "node_modules/ws/lib/event-target.js"(exports, module) {
+  "../../node_modules/ws/lib/event-target.js"(exports, module) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -2126,9 +2126,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// node_modules/ws/lib/extension.js
+// ../../node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "node_modules/ws/lib/extension.js"(exports, module) {
+  "../../node_modules/ws/lib/extension.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function push2(dest, name2, elem) {
@@ -2279,9 +2279,9 @@ var require_extension = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket.js
+// ../../node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "node_modules/ws/lib/websocket.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var https = __require("https");
@@ -3215,9 +3215,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// node_modules/ws/lib/stream.js
+// ../../node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "node_modules/ws/lib/stream.js"(exports, module) {
+  "../../node_modules/ws/lib/stream.js"(exports, module) {
     "use strict";
     var WebSocket2 = require_websocket();
     var { Duplex } = __require("stream");
@@ -3313,9 +3313,9 @@ var require_stream = __commonJS({
   }
 });
 
-// node_modules/ws/lib/subprotocol.js
+// ../../node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "node_modules/ws/lib/subprotocol.js"(exports, module) {
+  "../../node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -3358,9 +3358,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket-server.js
+// ../../node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "node_modules/ws/lib/websocket-server.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var http2 = __require("http");
@@ -3762,9 +3762,9 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// node_modules/ms/index.js
+// ../../node_modules/ms/index.js
 var require_ms = __commonJS({
-  "node_modules/ms/index.js"(exports, module) {
+  "../../node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -3878,9 +3878,9 @@ var require_ms = __commonJS({
   }
 });
 
-// node_modules/debug/src/common.js
+// ../../node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "node_modules/debug/src/common.js"(exports, module) {
+  "../../node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug4.debug = createDebug4;
       createDebug4.default = createDebug4;
@@ -4055,9 +4055,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/debug/src/browser.js
+// ../../node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "node_modules/debug/src/browser.js"(exports, module) {
+  "../../node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs2;
     exports.save = save;
     exports.load = load;
@@ -4225,9 +4225,9 @@ var require_browser = __commonJS({
   }
 });
 
-// node_modules/debug/src/node.js
+// ../../node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "node_modules/debug/src/node.js"(exports, module) {
+  "../../node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -4399,9 +4399,9 @@ var require_node = __commonJS({
   }
 });
 
-// node_modules/debug/src/index.js
+// ../../node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "node_modules/debug/src/index.js"(exports, module) {
+  "../../node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -4410,9 +4410,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/smart-buffer/build/utils.js
+// ../../node_modules/smart-buffer/build/utils.js
 var require_utils = __commonJS({
-  "node_modules/smart-buffer/build/utils.js"(exports) {
+  "../../node_modules/smart-buffer/build/utils.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var buffer_1 = __require("buffer");
@@ -4479,9 +4479,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/smart-buffer/build/smartbuffer.js
+// ../../node_modules/smart-buffer/build/smartbuffer.js
 var require_smartbuffer = __commonJS({
-  "node_modules/smart-buffer/build/smartbuffer.js"(exports) {
+  "../../node_modules/smart-buffer/build/smartbuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var utils_1 = require_utils();
@@ -5637,9 +5637,9 @@ var require_smartbuffer = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/constants.js
+// ../../node_modules/socks/build/common/constants.js
 var require_constants2 = __commonJS({
-  "node_modules/socks/build/common/constants.js"(exports) {
+  "../../node_modules/socks/build/common/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SOCKS5_NO_ACCEPTABLE_AUTH = exports.SOCKS5_CUSTOM_AUTH_END = exports.SOCKS5_CUSTOM_AUTH_START = exports.SOCKS_INCOMING_PACKET_SIZES = exports.SocksClientState = exports.Socks5Response = exports.Socks5HostType = exports.Socks5Auth = exports.Socks4Response = exports.SocksCommand = exports.ERRORS = exports.DEFAULT_TIMEOUT = void 0;
@@ -5754,9 +5754,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/util.js
+// ../../node_modules/socks/build/common/util.js
 var require_util = __commonJS({
-  "node_modules/socks/build/common/util.js"(exports) {
+  "../../node_modules/socks/build/common/util.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SocksClientError = void 0;
@@ -5777,9 +5777,9 @@ var require_util = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/address-error.js
+// ../../node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "node_modules/ip-address/dist/address-error.js"(exports) {
+  "../../node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -5794,9 +5794,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/common.js
+// ../../node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "node_modules/ip-address/dist/common.js"(exports) {
+  "../../node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -5897,9 +5897,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v4/constants.js
+// ../../node_modules/ip-address/dist/v4/constants.js
 var require_constants3 = __commonJS({
-  "node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "../../node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -5938,9 +5938,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv4.js
+// ../../node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "node_modules/ip-address/dist/ipv4.js"(exports) {
+  "../../node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6507,9 +6507,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/constants.js
+// ../../node_modules/ip-address/dist/v6/constants.js
 var require_constants4 = __commonJS({
-  "node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "../../node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -6597,9 +6597,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/helpers.js
+// ../../node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "../../node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -6636,9 +6636,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/regular-expressions.js
+// ../../node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "../../node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6728,9 +6728,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv6.js
+// ../../node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "node_modules/ip-address/dist/ipv6.js"(exports) {
+  "../../node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8061,9 +8061,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ip-address.js
+// ../../node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "node_modules/ip-address/dist/ip-address.js"(exports) {
+  "../../node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8111,9 +8111,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/helpers.js
+// ../../node_modules/socks/build/common/helpers.js
 var require_helpers2 = __commonJS({
-  "node_modules/socks/build/common/helpers.js"(exports) {
+  "../../node_modules/socks/build/common/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateSocksClientOptions = validateSocksClientOptions;
@@ -8217,9 +8217,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/receivebuffer.js
+// ../../node_modules/socks/build/common/receivebuffer.js
 var require_receivebuffer = __commonJS({
-  "node_modules/socks/build/common/receivebuffer.js"(exports) {
+  "../../node_modules/socks/build/common/receivebuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ReceiveBuffer = void 0;
@@ -8265,9 +8265,9 @@ var require_receivebuffer = __commonJS({
   }
 });
 
-// node_modules/socks/build/client/socksclient.js
+// ../../node_modules/socks/build/client/socksclient.js
 var require_socksclient = __commonJS({
-  "node_modules/socks/build/client/socksclient.js"(exports) {
+  "../../node_modules/socks/build/client/socksclient.js"(exports) {
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
@@ -8944,9 +8944,9 @@ var require_socksclient = __commonJS({
   }
 });
 
-// node_modules/socks/build/index.js
+// ../../node_modules/socks/build/index.js
 var require_build = __commonJS({
-  "node_modules/socks/build/index.js"(exports) {
+  "../../node_modules/socks/build/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8972,7 +8972,7 @@ var require_build = __commonJS({
 // index.js
 import { join as join18, resolve as resolve7 } from "node:path";
 
-// node_modules/ws/wrapper.mjs
+// ../../node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
 var import_extension = __toESM(require_extension(), 1);
 var import_permessage_deflate = __toESM(require_permessage_deflate(), 1);
@@ -8987,7 +8987,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join as join9 } from "node:path";
 
-// node_modules/@deepseek-ai/cosmokit/lib/index.js
+// ../../node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
   return value === null || value === void 0;
 }
@@ -9212,7 +9212,7 @@ var Time;
   Time2.template = template;
 })(Time || (Time = {}));
 
-// node_modules/@deepseek-ai/schemastery/lib/index.mjs
+// ../../node_modules/@deepseek-ai/schemastery/lib/index.mjs
 var kSchema = /* @__PURE__ */ Symbol.for("schemastery");
 var kValidationError = /* @__PURE__ */ Symbol.for("ValidationError");
 globalThis.__schemastery_index__ ??= 0;
@@ -9883,13 +9883,13 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { pipeline } from "node:stream/promises";
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../node_modules/https-proxy-agent/dist/index.js
 var import_debug2 = __toESM(require_src(), 1);
 import * as net2 from "net";
 import * as tls from "tls";
 import assert from "assert";
 
-// node_modules/agent-base/dist/index.js
+// ../../node_modules/agent-base/dist/index.js
 import * as net from "net";
 import * as http from "http";
 import { Agent as HttpsAgent } from "https";
@@ -10006,10 +10006,10 @@ var Agent2 = class extends http.Agent {
   }
 };
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../node_modules/https-proxy-agent/dist/index.js
 import { URL as URL2 } from "url";
 
-// node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// ../../node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var import_debug = __toESM(require_src(), 1);
 var debug = (0, import_debug.default)("https-proxy-agent:parse-proxy-response");
 function parseProxyResponse(socket) {
@@ -10094,7 +10094,7 @@ function parseProxyResponse(socket) {
   });
 }
 
-// node_modules/proxy-agent-negotiate/dist/index.js
+// ../../node_modules/proxy-agent-negotiate/dist/index.js
 function createNegotiateAuth() {
   return async ({ response, scheme }) => {
     if (scheme.toLowerCase() !== "negotiate") {
@@ -10124,7 +10124,7 @@ function createNegotiateAuth() {
   };
 }
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../node_modules/https-proxy-agent/dist/index.js
 var debug2 = (0, import_debug2.default)("https-proxy-agent");
 var setServernameFromNonIpHost = (options) => {
   if (options.servername === void 0 && options.host && !net2.isIP(options.host)) {
@@ -10296,7 +10296,7 @@ function omit(obj, ...keys) {
   return ret;
 }
 
-// node_modules/socks-proxy-agent/dist/index.js
+// ../../node_modules/socks-proxy-agent/dist/index.js
 var import_socks = __toESM(require_build(), 1);
 var import_debug3 = __toESM(require_src(), 1);
 import * as dns from "dns";
@@ -12426,8 +12426,47 @@ import { statfs as statfs2, stat as stat10 } from "node:fs/promises";
 import { join as join17, resolve as resolve6 } from "node:path";
 
 // src/downloads.js
-import { readFile as readFile6, rename as rename3, writeFile as writeFile3 } from "node:fs/promises";
 import { join as join11 } from "node:path";
+
+// src/json-file.js
+import { mkdir as mkdir6, readFile as readFile6, rename as rename3, writeFile as writeFile3 } from "node:fs/promises";
+import { dirname as dirname5 } from "node:path";
+var isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+async function readJson2(file, { logger, valid = isObject, now = Date.now }) {
+  let problem;
+  try {
+    const value = JSON.parse(await readFile6(file, "utf8"));
+    if (valid(value)) return { value, damaged: false };
+    problem = "not the expected shape";
+  } catch (error) {
+    if (error.code === "ENOENT") return { value: void 0, damaged: false };
+    problem = error.message;
+  }
+  const aside = `${file}.bad-${now()}`;
+  await rename3(file, aside).then(
+    () => logger.warn("could not read %s (%s); moved it to %s and started empty", file, problem, aside),
+    (error) => logger.warn("could not read %s (%s) nor move it aside: %s", file, problem, error.message)
+  );
+  return { value: void 0, damaged: true };
+}
+var serialize = (value) => JSON.stringify(value, null, 1);
+async function writeWhole(file, body2) {
+  await mkdir6(dirname5(file), { recursive: true });
+  await writeFile3(`${file}.part`, body2);
+  await rename3(`${file}.part`, file);
+}
+var writeJson = (file, value) => writeWhole(file, serialize(value));
+function createJsonSaver(file, logger) {
+  let saving = Promise.resolve();
+  return {
+    save(value) {
+      const body2 = serialize(value);
+      saving = saving.then(() => writeWhole(file, body2)).catch((error) => logger.warn("could not save %s: %s", file, error.message));
+      return saving;
+    },
+    settled: () => saving
+  };
+}
 
 // src/window.js
 function windowOf(focus, total, { ahead, behind }) {
@@ -12488,15 +12527,10 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
   const jobs = /* @__PURE__ */ new Map();
   let running = null;
   let disposed = false;
-  let saving = Promise.resolve();
+  const saver = createJsonSaver(file, logger);
   let notifying = Promise.resolve();
   function save() {
-    const body2 = JSON.stringify({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) }, null, 1);
-    saving = saving.then(async () => {
-      await writeFile3(`${file}.part`, body2);
-      await rename3(`${file}.part`, file);
-    }).catch((error) => logger.warn("could not save downloads: %s", error.message));
-    return saving;
+    return saver.save({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) });
   }
   function notify(job) {
     notifying = notifying.then(() => onFiles(job)).catch((error) => logger.warn("after a download step: %s", error.message));
@@ -12568,12 +12602,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
   }
   return {
     async load() {
-      let data = { jobs: [] };
-      try {
-        data = JSON.parse(await readFile6(file, "utf8"));
-      } catch (error) {
-        if (error.code !== "ENOENT") logger.warn("could not read %s: %s", file, error.message);
-      }
+      const data = (await readJson2(file, { logger })).value ?? {};
       for (const job of data.jobs ?? []) if (Array.isArray(job.want)) jobs.set(job.dir, { ...job, status: job.status === "running" ? "queued" : job.status });
       pump();
     },
@@ -12658,7 +12687,7 @@ function createDownloads({ stateDir, sources, have, hasSpace = async () => true,
       disposed = true;
       running?.controller?.abort("stop");
       while (running !== null) await new Promise((done) => setTimeout(done, 50));
-      await saving;
+      await saver.settled();
     }
   };
 }
@@ -12675,6 +12704,7 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
     const out = /* @__PURE__ */ new Map();
     for (const path of await library.sourcedShows()) {
       const info = await library.cacheInfo(path);
+      if (info === null) continue;
       const set2 = /* @__PURE__ */ new Set();
       for (const focus of rooms.focusesOf(path)) {
         const { first, last } = windowOf(focus, info.total, size);
@@ -12722,6 +12752,7 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
     refreshActive: () => serial(async () => {
       for (const path of await library.sourcedShows()) {
         const info = await library.cacheInfo(path);
+        if (info === null) continue;
         if (info.pinned || rooms.focusesOf(path).length > 0) await refreshShow(path);
       }
       await enforceCap();
@@ -12751,7 +12782,7 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
 // src/books.js
 import { spawn as spawn4 } from "node:child_process";
 import { createHash as createHash4, randomUUID } from "node:crypto";
-import { mkdir as mkdir6, readFile as readFile7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat7, writeFile as writeFile4 } from "node:fs/promises";
+import { mkdir as mkdir7, readFile as readFile7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat7 } from "node:fs/promises";
 import { extname as extname6, join as join12 } from "node:path";
 
 // src/formats.js
@@ -12817,20 +12848,15 @@ function runConverter(command, input, output) {
 function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, changed = () => {
 }, now = Date.now }) {
   let state = { files: {}, shelves: {} };
-  let saving = Promise.resolve();
+  const stateFile = join12(dir, STATE_FILE);
+  const saver = createJsonSaver(stateFile, logger);
   const running = /* @__PURE__ */ new Map();
   const waiting = [];
   let active = 0;
   let disposed = false;
   const save = () => {
     changed();
-    saving = saving.then(async () => {
-      await mkdir6(dir, { recursive: true });
-      const temporary = join12(dir, `.${STATE_FILE}.${process.pid}.tmp`);
-      await writeFile4(temporary, JSON.stringify(state));
-      await rename4(temporary, join12(dir, STATE_FILE));
-    }).catch((error) => logger.warn("books: could not save the shelves: %s", error.message));
-    return saving;
+    return saver.save(state);
   };
   const shelf = (person) => state.shelves[person] ??= [];
   const holders = (key) => Object.values(state.shelves).some((entries) => entries.some((entry) => entry.file === key));
@@ -12872,7 +12898,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
     const native = (work.formats ?? []).some((entry) => entry.format === format) || (work.formats ?? []).length === 0;
     const scratch = join12(dir, "tmp", key);
     await rm6(scratch, { recursive: true, force: true });
-    await mkdir6(scratch, { recursive: true });
+    await mkdir7(scratch, { recursive: true });
     try {
       let name2;
       let converted = false;
@@ -12889,7 +12915,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
       }
       const target = join12(dir, "files", key);
       await rm6(target, { recursive: true, force: true });
-      await mkdir6(join12(dir, "files"), { recursive: true });
+      await mkdir7(join12(dir, "files"), { recursive: true });
       await rename4(scratch, target);
       const path = join12(target, name2);
       return { name: name2, bytes: (await stat7(path)).size, sha256: await sha256Of2(path), converted, title: work.title, author: work.author, cover: work.cover };
@@ -12934,12 +12960,8 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
   }
   return {
     async load() {
-      try {
-        const loaded = JSON.parse(await readFile7(join12(dir, STATE_FILE), "utf8"));
-        if (loaded && typeof loaded.files === "object" && typeof loaded.shelves === "object") state = loaded;
-      } catch (error) {
-        if (error.code !== "ENOENT") logger.warn("books: could not read the shelves: %s", error.message);
-      }
+      const { value } = await readJson2(stateFile, { logger, valid: (loaded) => typeof loaded?.files === "object" && loaded.files !== null && typeof loaded.shelves === "object" && loaded.shelves !== null });
+      if (value !== void 0) state = value;
       for (const [key, file] of Object.entries(state.files)) {
         if (file.state === "fetching") start(key, file);
         else if (file.state === "ready" && !await stat7(join12(dir, "files", key, file.name ?? "")).then((info) => info.isFile(), () => false)) state.files[key] = { ...file, state: "removed", name: null };
@@ -12947,10 +12969,17 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
       await rm6(join12(dir, "tmp"), { recursive: true, force: true });
       await this.sweep();
     },
-    /** Folders under files/ that no record names (a crash between a rename and a save) are deleted. */
+    /**
+     * A folder under files/ that no record names and that is newer than the saved shelves is a fetch a crash cut off
+     * before its save: deleted. An older one stays: its record was lost with a damaged shelves file, set aside to restore.
+     */
     async sweep() {
+      const savedAt = await stat7(stateFile).then((info) => info.mtimeMs, () => null);
+      if (savedAt === null) return;
       for (const name2 of await readdir5(join12(dir, "files")).catch(() => [])) {
-        if (state.files[name2] === void 0) await rm6(join12(dir, "files", name2), { recursive: true, force: true });
+        if (state.files[name2] !== void 0) continue;
+        const folder = join12(dir, "files", name2);
+        if (await stat7(folder).then((info) => info.mtimeMs > savedAt, () => false)) await rm6(folder, { recursive: true, force: true });
       }
     },
     async list(person) {
@@ -13022,14 +13051,14 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
       disposed = true;
       waiting.length = 0;
       for (const controller of running.values()) controller.abort();
-      await saving;
+      await saver.settled();
     }
   };
 }
 
 // src/covers.js
 import { createHash as createHash5 } from "node:crypto";
-import { mkdir as mkdir7, open as open3, readdir as readdir6, rename as rename5, rm as rm7, stat as stat8, utimes } from "node:fs/promises";
+import { mkdir as mkdir8, open as open3, readdir as readdir6, rename as rename5, rm as rm7, stat as stat8, utimes } from "node:fs/promises";
 import { join as join13 } from "node:path";
 var KEY = /^[0-9a-f]{32}$/;
 var FAILED_FOR_MS = 5 * 6e4;
@@ -13107,7 +13136,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
     }
   }
   async function make(key, entry) {
-    await mkdir7(dir, { recursive: true });
+    await mkdir8(dir, { recursive: true });
     const partial = join13(dir, `.${key}.part`);
     try {
       await makers[entry.by](entry, partial);
@@ -13192,8 +13221,8 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
 
 // src/hub.js
 import { randomBytes as randomBytes2 } from "node:crypto";
-import { mkdir as mkdir8, readFile as readFile8, rename as rename6, writeFile as writeFile5 } from "node:fs/promises";
-import { dirname as dirname5, isAbsolute as isAbsolute3, join as join14, resolve as resolve4 } from "node:path";
+import { mkdir as mkdir9 } from "node:fs/promises";
+import { dirname as dirname6, isAbsolute as isAbsolute3, join as join14, resolve as resolve4 } from "node:path";
 
 // src/sync.js
 var DRIFT = Object.freeze({
@@ -13461,15 +13490,10 @@ function createRoomService(options) {
   const sweepTimer = setInterval(() => sweep(), SWEEP_MS);
   const progressTimer = setInterval(() => progress(), PROGRESS_MS);
   async function load() {
-    await mkdir8(stateDir, { recursive: true });
-    for (const root of libraryRoots) await mkdir8(root, { recursive: true }).catch(() => {
+    await mkdir9(stateDir, { recursive: true });
+    for (const root of libraryRoots) await mkdir9(root, { recursive: true }).catch(() => {
     });
-    let data = { rooms: [] };
-    try {
-      data = JSON.parse(await readFile8(file, "utf8"));
-    } catch (error) {
-      if (error.code !== "ENOENT") logger.warn("could not read %s: %s", file, error.message);
-    }
+    const data = (await readJson2(file, { logger })).value ?? {};
     for (const { holds, ...room } of data.rooms ?? []) rooms.set(room.id, { ...hold({ gate: null, gates: 0, startedAt: null, ...room }, now()), cooldown: {}, nextReady: null, emptySince: room.emptySince ?? (room.opened ? now() : null) });
     sweep();
     for (const room of [...rooms.values()]) await reopen(room);
@@ -13483,9 +13507,7 @@ function createRoomService(options) {
     }, SAVE_DELAY_MS);
   }
   async function flush() {
-    const body2 = JSON.stringify({ rooms: [...rooms.values()] }, null, 1);
-    await writeFile5(`${file}.part`, body2);
-    await rename6(`${file}.part`, file);
+    await writeJson(file, { rooms: [...rooms.values()] });
   }
   function commit(room) {
     rooms.set(room.id, { ...room, touchedAt: now() });
@@ -13707,7 +13729,7 @@ function createRoomService(options) {
     return { ...room, items: room.items.map((entry, n) => n === room.index ? { ...entry, status: "preparing", error: null } : entry) };
   }
   async function reopen(room) {
-    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname5(item.file)) === null;
+    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname6(item.file)) === null;
     const items = [];
     for (const item of room.items) {
       if (!await unfinished(item)) items.push(item);
@@ -13941,7 +13963,7 @@ function createRoomService(options) {
 }
 
 // src/watchlog.js
-import { appendFile, readFile as readFile9 } from "node:fs/promises";
+import { appendFile, readFile as readFile8 } from "node:fs/promises";
 var LOG_NAME = "watch-log.jsonl";
 var isWatching = (type) => /^(?:room|viewer|episode)\./.test(type) || type === "position";
 function isNearEnd(position, duration) {
@@ -13960,7 +13982,7 @@ function createWatchLog({ file, now = Date.now, logger }) {
     await tail;
     let text3 = "";
     try {
-      text3 = await readFile9(file, "utf8");
+      text3 = await readFile8(file, "utf8");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -14070,8 +14092,8 @@ function createJournal({ log, library, now = Date.now }) {
 }
 
 // src/shows.js
-import { mkdir as mkdir9, readFile as readFile10, readdir as readdir7, rename as rename7, rm as rm8, stat as stat9, statfs, writeFile as writeFile6 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname6, extname as extname7, join as join15, resolve as resolve5 } from "node:path";
+import { mkdir as mkdir10, readFile as readFile9, readdir as readdir7, rename as rename6, rm as rm8, stat as stat9, statfs, writeFile as writeFile4 } from "node:fs/promises";
+import { basename as basename5, dirname as dirname7, extname as extname7, join as join15, resolve as resolve5 } from "node:path";
 
 // src/presence.js
 var RATINGS = Object.freeze(["loved", "fine", "not-for-me", "unfinished"]);
@@ -14201,26 +14223,17 @@ function createLibrary(options) {
   const metaFile = join15(stateDir, "shows.json");
   const cacheDir = join15(stateDir, "cache");
   let meta = {};
-  let saving = Promise.resolve();
+  const saver = createJsonSaver(metaFile, logger);
   const listeners = /* @__PURE__ */ new Set();
   const changed = (show) => {
     for (const listener of listeners) listener(show);
   };
   async function load() {
-    try {
-      meta = JSON.parse(await readFile10(metaFile, "utf8")).shows ?? {};
-    } catch (error) {
-      if (error.code !== "ENOENT") logger.warn("could not read %s: %s", metaFile, error.message);
-    }
+    meta = (await readJson2(metaFile, { logger })).value?.shows ?? {};
   }
   function save() {
     options.changed?.();
-    const body2 = JSON.stringify({ shows: meta }, null, 1);
-    saving = saving.then(async () => {
-      await writeFile6(`${metaFile}.part`, body2);
-      await rename7(`${metaFile}.part`, metaFile);
-    }).catch((error) => logger.warn("could not save %s: %s", metaFile, error.message));
-    return saving;
+    return saver.save({ shows: meta });
   }
   const record = (path) => meta[path] ?? {};
   function update(path, patch) {
@@ -14230,8 +14243,9 @@ function createLibrary(options) {
   function showPath(path) {
     if (typeof path !== "string") return null;
     const target = resolve5(path);
-    return roots.includes(dirname6(target)) && !basename5(target).startsWith(".") ? target : null;
+    return roots.includes(dirname7(target)) && !basename5(target).startsWith(".") ? target : null;
   }
+  const sourcedPaths = () => Object.keys(meta).filter((path) => isSourced(meta[path]) && showPath(path) === path);
   function requireShow(path) {
     const target = showPath(path);
     if (target === null) throw libraryError("not_found", "not a show in the library");
@@ -14239,7 +14253,7 @@ function createLibrary(options) {
   }
   function showOf(episodePath) {
     if (typeof episodePath !== "string") return null;
-    return showPath(episodePath) ?? showPath(dirname6(episodePath));
+    return showPath(episodePath) ?? showPath(dirname7(episodePath));
   }
   async function episodeFiles(path) {
     const info = await stat9(path).catch(() => null);
@@ -14270,13 +14284,14 @@ function createLibrary(options) {
   }
   async function forgetSum(show, file) {
     const sums = join15(show, SUMS);
-    const text3 = await readFile10(sums, "utf8").catch(() => null);
-    if (text3 !== null) await writeFile6(sums, text3.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
+    const text3 = await readFile9(sums, "utf8").catch(() => null);
+    if (text3 !== null) await writeFile4(sums, text3.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
   }
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename5(path), ...fields });
+  const autoDeletes = (path) => options.autoDeleteDays > 0 && dirname7(path) === roots[0];
   function deletesAt(path) {
     const { countdownFrom, keep } = record(path);
-    if (!countdownFrom || keep || !(options.autoDeleteDays > 0)) return null;
+    if (!countdownFrom || keep || !autoDeletes(path)) return null;
     return countdownFrom + options.autoDeleteDays * DAY_MS;
   }
   function watchOf(episodePath) {
@@ -14356,6 +14371,7 @@ function createLibrary(options) {
       newSeason: entry.newSeason ?? null,
       newEpisodes: entry.newEpisodes ?? null,
       group: entry.group ?? null,
+      autoDeletes: autoDeletes(path),
       deletesAt: deletesAt(path),
       resume: resume2,
       finished,
@@ -14372,7 +14388,7 @@ function createLibrary(options) {
   return {
     load,
     /** Resolves once the notes written so far are on disk. */
-    flush: () => saving,
+    flush: () => saver.settled(),
     showPath,
     showOf,
     resumeFrom: async (path) => resumeFrom(path, slotsOf(record(path), await episodeFiles(path) ?? [])),
@@ -14429,7 +14445,7 @@ function createLibrary(options) {
     },
     /** Paths of the shows that came from a source. */
     async sourcedShows() {
-      return Object.keys(meta).filter((path) => isSourced(meta[path]));
+      return sourcedPaths();
     },
     /** Forget that these episodes were deleted by hand. */
     async unskip(path, numbers) {
@@ -14459,9 +14475,9 @@ function createLibrary(options) {
     /** Every cached episode of the shows the cap counts (sourced, not pinned), with its bytes (the prepared copy included) and when it was last watched or fetched. */
     async cacheEntries() {
       const out = [];
-      for (const path of Object.keys(meta)) {
+      for (const path of sourcedPaths()) {
         const entry = meta[path];
-        if (!isSourced(entry) || entry.pinned === true) continue;
+        if (entry.pinned === true) continue;
         for (const file of await episodeFiles(path) ?? []) {
           const n = episodeNumber(file.name);
           if (n === null) continue;
@@ -14542,7 +14558,7 @@ function createLibrary(options) {
     },
     /** Note a show coming from a source, before its files arrive. */
     async adopt(path, source, { pinned = false } = {}) {
-      await mkdir9(path, { recursive: true });
+      await mkdir10(path, { recursive: true });
       update(path, { source, addedAt: record(path).addedAt ?? now(), ...pinned ? { pinned: true } : {} });
     },
     async remove(path, { by = null, reason = "by hand" } = {}) {
@@ -14575,10 +14591,10 @@ function createLibrary(options) {
       if (download(target)?.active) throw libraryError("in_use", "this show is still downloading");
       const isFile = (await stat9(target)).isFile();
       const clean = cleanName(name2);
-      const next = join15(dirname6(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
+      const next = join15(dirname7(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
       if (next === target) return { path: target };
       if (await stat9(next).then(() => true, () => false)) throw libraryError("exists", "a show with that name is already in the library");
-      await rename7(target, next);
+      await rename6(target, next);
       if (meta[target] !== void 0) {
         meta[next] = meta[target];
         delete meta[target];
@@ -14598,6 +14614,7 @@ function createLibrary(options) {
     async countdown(path, { by = null } = {}) {
       const target = requireShow(path);
       if (!(options.autoDeleteDays > 0)) throw libraryError("invalid", "automatic deleting is off");
+      if (!autoDeletes(target)) throw libraryError("invalid", "shows outside the hub's own library are never deleted on their own");
       const restart = deletesAt(target) !== null;
       update(target, { keep: false, countdownFrom: now() });
       note(restart ? "library.countdownRestarted" : "library.countdownStarted", target, { by, deletesAt: new Date(deletesAt(target)).toISOString() });
@@ -14634,7 +14651,7 @@ function createLibrary(options) {
       const allDone = complete && keys.every((key) => done.has(key));
       const newFinish = (lastDone || allDone) && (!entry.watchedAt || now() - entry.watchedAt > REFINISH_MS);
       update(show, { finished: [...finished], ...newFinish ? { watchedAt: now(), countdownFrom: now() } : {} });
-      if (newFinish && !entry.keep && options.autoDeleteDays > 0) note("library.countdownStarted", show, { by: null, reason: "watched to the end", deletesAt: new Date(deletesAt(show)).toISOString() });
+      if (newFinish && !entry.keep && autoDeletes(show)) note("library.countdownStarted", show, { by: null, reason: "watched to the end", deletesAt: new Date(deletesAt(show)).toISOString() });
       changed(show);
     },
     /** Delete watched shows whose time has come, unless kept, open in a room or downloading. */
@@ -14655,7 +14672,7 @@ function createLibrary(options) {
 }
 
 // src/remarks.js
-import { mkdir as mkdir10, readFile as readFile11, rename as rename8, writeFile as writeFile7 } from "node:fs/promises";
+import { readFile as readFile10 } from "node:fs/promises";
 import { join as join16 } from "node:path";
 var HOUR_MS = 36e5;
 var DAY_MS2 = 24 * HOUR_MS;
@@ -14664,16 +14681,14 @@ function createRemarks({ source, logger, now = Date.now, danmakuMaxAgeMs = DAY_M
   const flying = /* @__PURE__ */ new Map();
   async function read(file) {
     try {
-      const copy = JSON.parse(await readFile11(file, "utf8"));
+      const copy = JSON.parse(await readFile10(file, "utf8"));
       return Number.isFinite(copy?.at) ? copy : null;
     } catch {
       return null;
     }
   }
   async function keep(file, value) {
-    await mkdir10(join16(file, ".."), { recursive: true });
-    await writeFile7(`${file}.part`, JSON.stringify(value));
-    await rename8(`${file}.part`, file);
+    await writeJson(file, value);
   }
   function fetchInto(file, ask) {
     if (!flying.has(file)) {
@@ -14906,8 +14921,6 @@ function createChanges({ intervalMs = 300 } = {}) {
 }
 
 // src/copies.js
-import { mkdir as mkdir11, readFile as readFile12, rename as rename9, writeFile as writeFile8 } from "node:fs/promises";
-import { dirname as dirname7 } from "node:path";
 var DAY_MS4 = 864e5;
 var HOUR_MS2 = 36e5;
 function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOUR_MS2, parallel = 4, now = Date.now }) {
@@ -14916,19 +14929,12 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
   const failedAt = /* @__PURE__ */ new Map();
   const waiting = [];
   let running = 0;
-  let saving = Promise.resolve();
-  const loaded = readFile12(file, "utf8").then((text3) => {
-    for (const [key, copy] of Object.entries(JSON.parse(text3))) copies.set(key, copy);
-  }).catch((error) => {
-    if (error.code !== "ENOENT") logger.warn("the saved copies of Discover could not be read: %s", error.message);
+  const saver = createJsonSaver(file, logger);
+  const loaded = readJson2(file, { logger }).then(({ value }) => {
+    for (const [key, copy] of Object.entries(value ?? {})) copies.set(key, copy);
   });
   function save() {
-    saving = saving.then(async () => {
-      await mkdir11(dirname7(file), { recursive: true });
-      await writeFile8(`${file}.part`, JSON.stringify(Object.fromEntries(copies)));
-      await rename9(`${file}.part`, file);
-    }).catch((error) => logger.warn("the copies of Discover could not be saved: %s", error.message));
-    return saving;
+    return saver.save(Object.fromEntries(copies));
   }
   function pump() {
     while (running < parallel && waiting.length > 0) {
@@ -15158,8 +15164,7 @@ function createMediaHub(options) {
     recommender: { command: options.recommender?.command ?? [], env: options.recommender?.env ?? {}, cwd: stateDir, hasSource: (id) => sources.has(id) }
   });
   const sweepTimer = setInterval(() => {
-    library.sweep().catch(() => {
-    });
+    library.sweep().catch((error) => logger.warn("library sweep: %s", error.message));
     cache.enforce().catch(() => {
     });
   }, HOUR_MS4);
@@ -15255,8 +15260,9 @@ ${work.id}`).digest("hex").slice(0, 8);
       await books.load();
       await rooms.load();
       await downloads.load();
-      await library.sweep();
-      await cache.refreshActive();
+      await library.sweep().catch((error) => logger.warn("library sweep: %s", error.message));
+      await cache.refreshActive().catch(() => {
+      });
       follows.start();
     },
     // ---------------------------------------------------------- rooms
@@ -15723,8 +15729,7 @@ function apply(ctx, config) {
       return service.pruneCache(config.cacheDays);
     }).catch((error) => logger.warn("could not start rooms: %s", error.message));
     const prune = setInterval(() => {
-      service.pruneCache(config.cacheDays).catch(() => {
-      });
+      service.pruneCache(config.cacheDays).catch((error) => logger.warn("pruning the cache: %s", error.message));
     }, DAY_MS6);
     const identity = () => ctx.get("requestIdentity");
     const fetchRoutes = [

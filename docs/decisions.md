@@ -66,6 +66,7 @@
 - **A source's command runs in `<stateDir>/<source id>`.** A tool's own defaults may put state files in the working folder (fanqie-cli did, before its launcher passed the paths); a plugin must not depend on that for where files land.
 - **Fanqie dramas (HEVC, 1080×1920 portrait) are transcoded to H.264 at 1080 lines (608×1080)**: about 10 s per 80 s episode on two threads, half the size of a full-resolution transcode, and a portrait picture shows at most screen height on a landscape screen anyway. The episode a room is on is prepared first, then the next ones (below).
 - **A frame is the picture of anything without a cover**: a show's poster is a still of its first episode 3 s in, a room's preview a still a tenth into the episode playing, both made with ffmpeg the first time a browser asks for them and cached by file, size and modification time.
+- **State files are read through `src/json-file.js`.** One that can't be parsed (or isn't an object) is renamed to `<file>.bad-<time>` before anything saves, so a bad byte costs a hand restore, not the shelves, rooms or notes; the books sweep deletes only unnamed folders newer than the saved shelves, so books whose records went with a damaged file stay.
 
 ## Network
 

@@ -13,8 +13,9 @@
  * A viewer that reconnects says hello again and follows the next state.
  */
 import { randomBytes } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { readJson, writeJson } from './json-file.js'
 import { SKIP_AFTER_MS, advance, advanceOf, applyOp, clockOf, createRoom, hold, positionAt, settle, updateItems } from './room.js'
 import { scanSource } from './library.js'
 import { convertSubtitle, prepareEpisode, pruneCache } from './prepare.js'
@@ -108,12 +109,7 @@ export function createRoomService(options) {
   async function load() {
     await mkdir(stateDir, { recursive: true })
     for (const root of libraryRoots) await mkdir(root, { recursive: true }).catch(() => {})
-    let data = { rooms: [] }
-    try {
-      data = JSON.parse(await readFile(file, 'utf8'))
-    } catch (error) {
-      if (error.code !== 'ENOENT') logger.warn('could not read %s: %s', file, error.message)
-    }
+    const data = (await readJson(file, { logger })).value ?? {}
     // Nobody is connected right after a start; viewers who were reconnect within seconds and start together again.
     for (const { holds, ...room } of data.rooms ?? []) rooms.set(room.id, { ...hold({ gate: null, gates: 0, startedAt: null, ...room }, now()), cooldown: {}, nextReady: null, emptySince: room.emptySince ?? (room.opened ? now() : null) })
     sweep()
@@ -130,9 +126,7 @@ export function createRoomService(options) {
   }
 
   async function flush() {
-    const body = JSON.stringify({ rooms: [...rooms.values()] }, null, 1)
-    await writeFile(`${file}.part`, body)
-    await rename(`${file}.part`, file)
+    await writeJson(file, { rooms: [...rooms.values()] })
   }
 
   /** Store a changed room, tell its viewers, save. */

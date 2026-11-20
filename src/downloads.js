@@ -13,8 +13,8 @@
  * them) is not fetched on. A show with a room open goes before a show without one, and may
  * interrupt it; the interrupted job resumes afterwards.
  */
-import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { createJsonSaver, readJson } from './json-file.js'
 import { nextRun } from './window.js'
 
 const ACTIVE = new Set(['queued', 'running'])
@@ -48,16 +48,11 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
   const jobs = new Map()
   let running = null
   let disposed = false
-  let saving = Promise.resolve()
+  const saver = createJsonSaver(file, logger)
   let notifying = Promise.resolve()
 
   function save() {
-    const body = JSON.stringify({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) }, null, 1)
-    saving = saving.then(async () => {
-      await writeFile(`${file}.part`, body)
-      await rename(`${file}.part`, file)
-    }).catch(error => logger.warn('could not save downloads: %s', error.message))
-    return saving
+    return saver.save({ jobs: [...jobs.values()].map(({ controller, current, at, ...job }) => job) })
   }
 
   function notify(job) {
@@ -133,12 +128,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
 
   return {
     async load() {
-      let data = { jobs: [] }
-      try {
-        data = JSON.parse(await readFile(file, 'utf8'))
-      } catch (error) {
-        if (error.code !== 'ENOENT') logger.warn('could not read %s: %s', file, error.message)
-      }
+      const data = (await readJson(file, { logger })).value ?? {}
       // A job without a want list is from before the rolling cache (the whole show): the cache plans the show again when someone needs it.
       for (const job of data.jobs ?? []) if (Array.isArray(job.want)) jobs.set(job.dir, { ...job, status: job.status === 'running' ? 'queued' : job.status })
       pump()
@@ -232,7 +222,7 @@ export function createDownloads({ stateDir, sources, have, hasSpace = async () =
       disposed = true
       running?.controller?.abort('stop')
       while (running !== null) await new Promise(done => setTimeout(done, 50))
-      await saving
+      await saver.settled()
     },
   }
 }
