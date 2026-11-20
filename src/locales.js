@@ -1,33 +1,10 @@
-/** The page's words, read from `locale/<tag>.json`: every file there is a language, so adding one needs no code. */
-import { readdir, readFile } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+/** The page's words, read from `locale/<tag>.json` by the shared kit: every file there is a language, so adding one needs no code. */
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { BASE, TAG } from './i18n.js'
+import { readLocales } from '@soffits/dsh-host-kit'
 
 /** The plugin's locale folder, beside src/ and dist/ alike. */
 export const LOCALE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../locale')
 
-/**
- * `{ <tag>: { <key>: text } }` from each `<tag>.json` in `dir` (its `ui` table; `meta` is DSH's plugin
- * title and description). A file that is not a tag, not JSON or has no `ui` table is skipped and logged.
- */
-export async function readLocales(dir, logger) {
-  const names = (await readdir(dir).catch(() => [])).filter(name => name.endsWith('.json')).sort()
-  const locales = {}
-  for (const name of names) {
-    const tag = name.slice(0, -'.json'.length)
-    if (!TAG.test(tag)) {
-      logger?.warn('locale/%s: the name is not a language tag; skipped', name)
-      continue
-    }
-    try {
-      const { ui } = JSON.parse(await readFile(join(dir, name), 'utf8'))
-      if (ui === null || typeof ui !== 'object' || Array.isArray(ui)) throw new Error('no "ui" table')
-      locales[tag] = Object.fromEntries(Object.entries(ui).filter(([, text]) => typeof text === 'string'))
-    } catch (error) {
-      logger?.warn('locale/%s: %s; skipped', name, error.message)
-    }
-  }
-  if (locales[BASE] === undefined) logger?.warn('locale/%s.json is missing; every other language falls back to it', BASE)
-  return locales
-}
+/** `{ <tag>: { <key>: text } }`; files that can't be used are skipped and reported to `logger`. */
+export const readWords = (dir, logger) => readLocales(dir, { warn: message => logger?.warn(message) })

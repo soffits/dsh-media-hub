@@ -40,7 +40,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { PREFIX } from './delivery.js'
 import { parseFilters } from './filters.js'
-import { LOCALE_DIR, readLocales } from './locales.js'
+import { LOCALE_DIR, readWords } from './locales.js'
 import { VENDORED } from './vendored.js'
 
 export const ROUTE = `/${PREFIX}`
@@ -226,7 +226,7 @@ export const API = Object.freeze([
   ['POST', 'library/cancel', async ({ hub, body }) => hub.cancelDownload((await body()).path)],
   ['POST', 'follow', async ({ hub, body }) => hub.followWork(pick(await body(), ['source', 'id', 'follow']))],
   ['GET', 'settings', ({ settings }) => settings()],
-  ['GET', 'locales', ({ localeDir, logger }) => readLocales(localeDir, logger)],
+  ['GET', 'locales', ({ localeDir, logger }) => readWords(localeDir, logger)],
   ['GET', 'sources', async ({ hub }) => ({ sources: await hub.sources() })],
   ['GET', 'trending', ({ hub, query }) => hub.trending(query('source'), query('kind'))],
   ['GET', 'search', ({ hub, query }) => hub.search(query('source'), query('q'), query('kind') || undefined, Math.max(0, Number.parseInt(query('offset'), 10) || 0), parseFilters(query))],

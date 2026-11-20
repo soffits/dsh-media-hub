@@ -41,7 +41,7 @@ const wordsOf = (locales, key) => Object.fromEntries(Object.entries(locales).fil
 
 /**
  * @param {{ points: () => object | undefined, night: { from: string, to: string }, locales: () => Promise<object>, now?: () => number }} options
- *   points: the points plugin's service right now, if installed; locales: the hub's words (src/locales.js)
+ *   points: the points plugin's service right now, if installed; locales: the hub's words (locale/<tag>.json)
  */
 export function createExtras({ points, night, locales, now = Date.now }) {
   /** The extra as the points plugin's item: its key, default price, terms and words in every language. */
