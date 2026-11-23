@@ -3,8 +3,8 @@
  * or iPad's home screen can't use one: iOS shows the file full screen with no way back. There a book has two
  * states the person sees and controls:
  *
- *   not on this device  ->  "Download to device", with its progress
- *   on this device      ->  "Save to other apps" (the share sheet) and "Open in Safari", as icon buttons
+ *   not on this device  ->  a download icon, then a spinner with the percentage
+ *   on this device      ->  a share icon (the share sheet) and a compass (Safari)
  *
  * The copy is kept in the page's Cache Storage, so it is still there when the app is opened again (iOS may
  * clear it after weeks unused; the state then reads "not on this device" again, which is true). Because the
@@ -13,7 +13,7 @@
  * shared files; "Open in Safari" (iOS 17's `x-safari-https:` link) opens the book in Safari itself, whose
  * download view offers every app that opens the file and has its own way back. Safari keeps its own sign-in.
  */
-import { failureText, fill, h, Icon, ProgressBar, React, Spinner } from './ui.js'
+import { failureText, fill, h, Icon, IconButton, Pending, React } from './ui.js'
 
 const CACHE = 'media-hub-books'
 
@@ -87,15 +87,14 @@ export function useDeviceCopy(entry, link) {
   return copies.get(entry.entry) ?? { step: 'checking' }
 }
 
-/** What a ready shelf entry offers for this device. */
+/** What a ready shelf entry offers for this device, as icons: download when it isn't here, share and Safari when it is. */
 export function DeviceCopy({ t, entry, link }) {
-  const format = entry.format.toUpperCase()
-  const downloadLabel = h(React.Fragment, null, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format }))
-  if (!installedOnIos()) return h('a', { className: 'vsync-btn vsync-primary', href: link, download: entry.name ?? '' }, downloadLabel)
-  return h(InstalledCopy, { t, entry, link, downloadLabel })
+  const name = fill(t('book.save'), { format: entry.format.toUpperCase() })
+  if (!installedOnIos()) return h(IconButton, { label: name, icon: Icon.Download, primary: true, href: link, download: entry.name ?? '' })
+  return h(InstalledCopy, { t, entry, link, name })
 }
 
-function InstalledCopy({ t, entry, link, downloadLabel }) {
+function InstalledCopy({ t, entry, link, name }) {
   const copy = useDeviceCopy(entry, link)
   const [shareError, setShareError] = React.useState(null)
   const share = () => {
@@ -104,21 +103,17 @@ function InstalledCopy({ t, entry, link, downloadLabel }) {
   }
   switch (copy.step) {
     case 'checking':
-      return h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner))
+      return h(Pending, { label: name })
     case 'downloading':
-      return h('span', { className: 'vsync-pending', role: 'status' },
-        h(Spinner),
-        copy.fraction === null ? t('book.toDevice') : fill(t('book.toDevicePercent'), { n: Math.round(copy.fraction * 100) }),
-        h(ProgressBar, { progress: { fraction: copy.fraction } }))
+      return h(Pending, { label: t('book.toDevice'), figure: copy.fraction === null ? null : `${Math.round(copy.fraction * 100)}%` })
     case 'here':
       return h(React.Fragment, null,
-        h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onDevice')),
-        h('button', { type: 'button', className: 'vsync-btn vsync-primary vsync-iconBtn', title: t('book.shareTo'), 'aria-label': t('book.shareTo'), onClick: share }, h(Icon.Share, { size: 18 })),
-        h('a', { className: 'vsync-btn vsync-iconBtn', title: t('book.openInSafari'), 'aria-label': t('book.openInSafari'), href: `x-safari-${new URL(link, document.baseURI).href}` }, h(Icon.Compass, { size: 18 })),
+        h(IconButton, { label: t('book.shareTo'), icon: Icon.Share, primary: true, onClick: share }),
+        h(IconButton, { label: t('book.openInSafari'), icon: Icon.Compass, href: `x-safari-${new URL(link, document.baseURI).href}` }),
         shareError && h('span', { className: 'vsync-error', role: 'alert' }, shareError))
     default:
       return h(React.Fragment, null,
-        h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => download(t, entry, link) }, downloadLabel),
+        h(IconButton, { label: name, icon: Icon.Download, primary: true, onClick: () => download(t, entry, link) }),
         copy.step === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, copy.message))
   }
 }

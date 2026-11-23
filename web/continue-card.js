@@ -120,7 +120,7 @@ export function ContinueCard({ t, subject, presence, sources, onOpen, onChanged 
         room
           ? h(Btn, { onClick: copy, icon: h(P.IconLinkOutlineRegular, { size: 16 }) }, t(copied ? 'room.copied' : 'room.copy'))
           : show && h(Btn, { disabled: busy, onClick: together, icon: h(P.IconUsersOutlineRegular, { size: 16 }) }, t('room.watchTogether')),
-        canChat() && h(Btn, { onClick: () => chatAbout(about), icon: h(P.IconNewChatOutlineRegular, { size: 16 }) }, t('chat.ask'))),
+        canChat() && h(Btn, { onClick: () => chatAbout(about), title: t('chat.about'), 'aria-label': t('chat.about'), icon: h(P.IconNewChatOutlineRegular, { size: 16 }) })),
       error && h('p', { className: 'vsync-error', role: 'alert' }, error),
       show?.steps && h(K.Suggested, {
         actions: show.steps,

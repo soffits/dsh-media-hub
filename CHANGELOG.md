@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.1
+
+- Book actions are icons again, each named in its tooltip: *Ask* (a speech bubble, everywhere, the Continue card included), *Add to shelf* (+), *Download to device* (an arrow), and on an iPhone's home-screen app *Save to other apps* (share) and *Open in Safari* (a compass). Work in progress is a spinner (with the percentage while a book comes to the device), and the text badges 0.16.0 added are gone: a book's icons already say where it is.
+- Titles are shown in full and wrap, instead of being cut to a few characters when the actions took the room.
+- Shorter shelf notes: a cleared file and a failed download each say so in one line, with a retry icon.
+
 ## 0.16.0
 
 - Two words for two places: *Add to shelf* downloads a book onto your shelf in the hub; *Download to device* puts it on this phone or computer. Every book in My books says where it stands on the shelf: downloading, *✓ On your shelf*, or *Download failed* with the reason and *Download to shelf again*.

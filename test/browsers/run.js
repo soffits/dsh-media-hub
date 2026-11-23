@@ -910,7 +910,7 @@ async function iosSaveFlows({ b, origin }) {
   })
   const events = () => b.page.evaluate(() => window.__events)
   const shared = 'share:Pride and Prejudice.txt:Pride and Prejudice\nJane Austen\n'
-  const shelf = b.page.locator('.vsync-show').filter({ hasText: 'Pride and Prejudice' })
+  const shelf = b.page.locator('.vsync-show').filter({ has: b.page.locator('.vsync-badge', { hasText: 'Book' }) })
   await b.page.setViewportSize({ width: 390, height: 844 })
   const open = async () => {
     await b.page.goto(`${origin}/?vs-tab=library`)
@@ -921,9 +921,17 @@ async function iosSaveFlows({ b, origin }) {
   await open()
   const at = b.page.url()
   await shelf.getByRole('button', { name: 'Download to device (TXT)' }).click()
-  await shelf.getByText('✓ On this device').waitFor({ timeout: 10_000 })
+  await shelf.getByRole('button', { name: 'Save to other apps' }).waitFor({ timeout: 10_000 })
   assert.deepEqual(await events(), ['tap', 'fetch'])
-  await shot(b.page, 'books-on-device-phone')
+  if (screenshots) {
+    // How a long title lays out next to the actions, on a phone and on a wider screen.
+    const long = '变成软糯魔女？不对是钢筋大运！一部名字很长很长的小说'
+    await shelf.locator('.vsync-rowTitle').evaluate((node, text) => { node.textContent = text }, long)
+    await shot(b.page, 'books-on-device-phone')
+    await b.page.setViewportSize({ width: 820, height: 600 })
+    await shot(b.page, 'books-on-device-wide')
+    await b.page.setViewportSize({ width: 390, height: 844 })
+  }
 
   // On this device: Save to other apps opens the share sheet from the tap itself.
   await shelf.getByRole('button', { name: 'Save to other apps' }).click()
@@ -935,7 +943,7 @@ async function iosSaveFlows({ b, origin }) {
 
   // The copy outlasts a reload, and the share sheet still opens without a fetch.
   await open()
-  await shelf.getByText('✓ On this device').waitFor({ timeout: 10_000 })
+  await shelf.getByRole('button', { name: 'Save to other apps' }).waitFor({ timeout: 10_000 })
   await shelf.getByRole('button', { name: 'Save to other apps' }).click()
   await until('the kept copy reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
   assert.deepEqual(await events(), ['tap', shared], 'a kept copy is shared without fetching it again')
