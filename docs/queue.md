@@ -36,3 +36,5 @@
 - `src/prepare.js` assumes `nice` is on PATH.
 
 - CI: `npm test` on Node 22 once hung past 10 min on main (run 45160605947, v0.15.5 merge) after passing on the PR; a rerun passed. Likely a test that leaves a handle open; find it if it happens again (rare).
+- Tests leave temp folders behind: `npm test` leaves `media-hub-test-*` under the temp dir (over a thousand had piled up), and the browser suite leaves its WebKit profile (`media-hub-webkit-*`). Remove them when a run ends. *likely, cosmetic*
+- The browser suite has no check that a plugin update swapped into an open page brings the new page files (the build-named address): it would need a second plugin version loaded into the running throwaway DSH. *rare*
