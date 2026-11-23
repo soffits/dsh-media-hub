@@ -29,6 +29,7 @@
     "book.preparing": "正在准备文件…",
     "book.tapToSave": "准备好了，点这里保存 {format}",
     "book.cannotShare": "这个文件没法从网页应用里分享，请在 Safari 里打开页面保存。",
+    "book.openInSafari": "用 Safari 打开（可选任意 app）",
     "shelf.removed": "为了省空间已删掉文件，随时可以再下载。",
     "shelf.again": "重新下载",
     "shelf.delete": "删除",

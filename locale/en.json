@@ -29,6 +29,7 @@
     "book.preparing": "Preparing the file…",
     "book.tapToSave": "Ready: tap to save {format}",
     "book.cannotShare": "This file can't be shared from the app here. Open the page in Safari to save it.",
+    "book.openInSafari": "Open in Safari (any app)",
     "shelf.removed": "Removed to save space; download it again any time.",
     "shelf.again": "Download again",
     "shelf.delete": "Delete",

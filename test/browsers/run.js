@@ -919,6 +919,9 @@ async function iosSaveFlows({ b, origin }) {
   await until('the shelf book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
   assert.deepEqual(await events(), ['tap', 'fetch', 'tap', shared], 'the sharing tap fetched nothing')
   assert.equal(b.page.url(), at, 'the installed page did not navigate to the file')
+  // The second action hands the file to Safari itself, whose download view offers every app that opens it.
+  const safari = await shelf.getByRole('link', { name: 'Open in Safari (any app)' }).getAttribute('href')
+  assert.match(safari, /^x-safari-http:\/\/127\.0\.0\.1:\d+\/api\/media-hub\/shelf\/file\?entry=/)
 
   // A book just downloaded: prepared before Save shows, so one tap opens the share sheet.
   await b.page.goto(`${origin}/?vs-tab=discover&vs-source=all&vs-kind=ebook`)

@@ -29,6 +29,7 @@
     "book.preparing": "Préparation du fichier…",
     "book.tapToSave": "Prêt : touchez pour enregistrer en {format}",
     "book.cannotShare": "Ce fichier ne peut pas être partagé depuis l'app. Ouvrez la page dans Safari pour l'enregistrer.",
+    "book.openInSafari": "Ouvrir dans Safari (toutes les apps)",
     "shelf.removed": "Retiré pour libérer de l’espace ; vous pouvez le retélécharger à tout moment.",
     "shelf.again": "Retélécharger",
     "shelf.delete": "Supprimer",

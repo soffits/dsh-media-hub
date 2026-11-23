@@ -93,7 +93,9 @@ export const fileLink = entry => `${shelfUrl('/file').href}?entry=${encodeURICom
  * There the file is fetched into the page first and handed to the share sheet (Save to Files, Books, other
  * apps), and the page never leaves. The share sheet opens only within a moment of a tap, so the tap that
  * opens it never waits on the network: a book just downloaded is prepared at once, and any other book is
- * prepared by a first tap that turns the button into a ready one.
+ * prepared by a first tap that turns the button into a ready one. The share sheet lists only apps that take
+ * shared files, so a second action opens the file in Safari itself (iOS 17's `x-safari-https:` link), whose
+ * download view offers every app that opens the file and has its own way back; Safari keeps its own sign-in.
  */
 const installedOnIos = () => {
   const nav = globalThis.navigator
@@ -120,8 +122,12 @@ export function SaveLink({ t, entry, primary = true, prepareNow = false }) {
   const className = `vsync-btn${primary ? ' vsync-primary' : ''}`
   const label = h(React.Fragment, null, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format: entry.format.toUpperCase() }))
   if (!installedOnIos()) return h('a', { className, href: fileLink(entry), download: entry.name ?? '' }, label)
-  return h(ShareSave, { t, entry, className, label, prepareNow })
+  return h(React.Fragment, null,
+    h(ShareSave, { t, entry, className, label, prepareNow }),
+    h('a', { className: 'vsync-btn', href: inSafari(fileLink(entry)) }, t('book.openInSafari')))
 }
+
+const inSafari = link => `x-safari-${new URL(link, document.baseURI).href}`
 
 function ShareSave({ t, entry, className, label, prepareNow }) {
   // idle: not fetched yet · preparing · ready: one tap opens the share sheet · error
