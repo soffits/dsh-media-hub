@@ -35,9 +35,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../node_modules/ws/lib/constants.js
+// node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "../../node_modules/ws/lib/constants.js"(exports, module) {
+  "node_modules/ws/lib/constants.js"(exports, module) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -58,9 +58,9 @@ var require_constants = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/buffer-util.js
+// node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "../../node_modules/ws/lib/buffer-util.js"(exports, module) {
+  "node_modules/ws/lib/buffer-util.js"(exports, module) {
     "use strict";
     var { websocketMask, websocketUnmask } = __require("http");
     var { EMPTY_BUFFER } = require_constants();
@@ -143,9 +143,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/limiter.js
+// node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "../../node_modules/ws/lib/limiter.js"(exports, module) {
+  "node_modules/ws/lib/limiter.js"(exports, module) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -193,9 +193,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/permessage-deflate.js
+// node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "../../node_modules/ws/lib/permessage-deflate.js"(exports, module) {
+  "node_modules/ws/lib/permessage-deflate.js"(exports, module) {
     "use strict";
     var zlib = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -576,9 +576,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/validation.js
+// node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "../../node_modules/ws/lib/validation.js"(exports, module) {
+  "node_modules/ws/lib/validation.js"(exports, module) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants();
@@ -777,9 +777,9 @@ var require_validation = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/receiver.js
+// node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "../../node_modules/ws/lib/receiver.js"(exports, module) {
+  "node_modules/ws/lib/receiver.js"(exports, module) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -1401,9 +1401,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/sender.js
+// node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "../../node_modules/ws/lib/sender.js"(exports, module) {
+  "node_modules/ws/lib/sender.js"(exports, module) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -1897,9 +1897,9 @@ var require_sender = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/event-target.js
+// node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "../../node_modules/ws/lib/event-target.js"(exports, module) {
+  "node_modules/ws/lib/event-target.js"(exports, module) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -2126,9 +2126,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/extension.js
+// node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "../../node_modules/ws/lib/extension.js"(exports, module) {
+  "node_modules/ws/lib/extension.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function push2(dest, name2, elem) {
@@ -2279,9 +2279,9 @@ var require_extension = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/websocket.js
+// node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "../../node_modules/ws/lib/websocket.js"(exports, module) {
+  "node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var https = __require("https");
@@ -3215,9 +3215,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/stream.js
+// node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "../../node_modules/ws/lib/stream.js"(exports, module) {
+  "node_modules/ws/lib/stream.js"(exports, module) {
     "use strict";
     var WebSocket2 = require_websocket();
     var { Duplex } = __require("stream");
@@ -3313,9 +3313,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/subprotocol.js
+// node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "../../node_modules/ws/lib/subprotocol.js"(exports, module) {
+  "node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -3358,9 +3358,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// ../../node_modules/ws/lib/websocket-server.js
+// node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "../../node_modules/ws/lib/websocket-server.js"(exports, module) {
+  "node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var http2 = __require("http");
@@ -3762,9 +3762,9 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// ../../node_modules/ms/index.js
+// node_modules/ms/index.js
 var require_ms = __commonJS({
-  "../../node_modules/ms/index.js"(exports, module) {
+  "node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -3878,9 +3878,9 @@ var require_ms = __commonJS({
   }
 });
 
-// ../../node_modules/debug/src/common.js
+// node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "../../node_modules/debug/src/common.js"(exports, module) {
+  "node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug4.debug = createDebug4;
       createDebug4.default = createDebug4;
@@ -4055,9 +4055,9 @@ var require_common = __commonJS({
   }
 });
 
-// ../../node_modules/debug/src/browser.js
+// node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "../../node_modules/debug/src/browser.js"(exports, module) {
+  "node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs2;
     exports.save = save;
     exports.load = load;
@@ -4225,9 +4225,9 @@ var require_browser = __commonJS({
   }
 });
 
-// ../../node_modules/debug/src/node.js
+// node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "../../node_modules/debug/src/node.js"(exports, module) {
+  "node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -4399,9 +4399,9 @@ var require_node = __commonJS({
   }
 });
 
-// ../../node_modules/debug/src/index.js
+// node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "../../node_modules/debug/src/index.js"(exports, module) {
+  "node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -4410,9 +4410,9 @@ var require_src = __commonJS({
   }
 });
 
-// ../../node_modules/smart-buffer/build/utils.js
+// node_modules/smart-buffer/build/utils.js
 var require_utils = __commonJS({
-  "../../node_modules/smart-buffer/build/utils.js"(exports) {
+  "node_modules/smart-buffer/build/utils.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var buffer_1 = __require("buffer");
@@ -4479,9 +4479,9 @@ var require_utils = __commonJS({
   }
 });
 
-// ../../node_modules/smart-buffer/build/smartbuffer.js
+// node_modules/smart-buffer/build/smartbuffer.js
 var require_smartbuffer = __commonJS({
-  "../../node_modules/smart-buffer/build/smartbuffer.js"(exports) {
+  "node_modules/smart-buffer/build/smartbuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var utils_1 = require_utils();
@@ -5637,9 +5637,9 @@ var require_smartbuffer = __commonJS({
   }
 });
 
-// ../../node_modules/socks/build/common/constants.js
+// node_modules/socks/build/common/constants.js
 var require_constants2 = __commonJS({
-  "../../node_modules/socks/build/common/constants.js"(exports) {
+  "node_modules/socks/build/common/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SOCKS5_NO_ACCEPTABLE_AUTH = exports.SOCKS5_CUSTOM_AUTH_END = exports.SOCKS5_CUSTOM_AUTH_START = exports.SOCKS_INCOMING_PACKET_SIZES = exports.SocksClientState = exports.Socks5Response = exports.Socks5HostType = exports.Socks5Auth = exports.Socks4Response = exports.SocksCommand = exports.ERRORS = exports.DEFAULT_TIMEOUT = void 0;
@@ -5754,9 +5754,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// ../../node_modules/socks/build/common/util.js
+// node_modules/socks/build/common/util.js
 var require_util = __commonJS({
-  "../../node_modules/socks/build/common/util.js"(exports) {
+  "node_modules/socks/build/common/util.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SocksClientError = void 0;
@@ -5777,9 +5777,9 @@ var require_util = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/address-error.js
+// node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "../../node_modules/ip-address/dist/address-error.js"(exports) {
+  "node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -5794,9 +5794,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/common.js
+// node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "../../node_modules/ip-address/dist/common.js"(exports) {
+  "node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -5897,9 +5897,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/v4/constants.js
+// node_modules/ip-address/dist/v4/constants.js
 var require_constants3 = __commonJS({
-  "../../node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -5938,9 +5938,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/ipv4.js
+// node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "../../node_modules/ip-address/dist/ipv4.js"(exports) {
+  "node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6507,9 +6507,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/v6/constants.js
+// node_modules/ip-address/dist/v6/constants.js
 var require_constants4 = __commonJS({
-  "../../node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -6597,9 +6597,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/v6/helpers.js
+// node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "../../node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -6636,9 +6636,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/v6/regular-expressions.js
+// node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "../../node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6728,9 +6728,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/ipv6.js
+// node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "../../node_modules/ip-address/dist/ipv6.js"(exports) {
+  "node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8061,9 +8061,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// ../../node_modules/ip-address/dist/ip-address.js
+// node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "../../node_modules/ip-address/dist/ip-address.js"(exports) {
+  "node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8111,9 +8111,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// ../../node_modules/socks/build/common/helpers.js
+// node_modules/socks/build/common/helpers.js
 var require_helpers2 = __commonJS({
-  "../../node_modules/socks/build/common/helpers.js"(exports) {
+  "node_modules/socks/build/common/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateSocksClientOptions = validateSocksClientOptions;
@@ -8217,9 +8217,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// ../../node_modules/socks/build/common/receivebuffer.js
+// node_modules/socks/build/common/receivebuffer.js
 var require_receivebuffer = __commonJS({
-  "../../node_modules/socks/build/common/receivebuffer.js"(exports) {
+  "node_modules/socks/build/common/receivebuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ReceiveBuffer = void 0;
@@ -8265,9 +8265,9 @@ var require_receivebuffer = __commonJS({
   }
 });
 
-// ../../node_modules/socks/build/client/socksclient.js
+// node_modules/socks/build/client/socksclient.js
 var require_socksclient = __commonJS({
-  "../../node_modules/socks/build/client/socksclient.js"(exports) {
+  "node_modules/socks/build/client/socksclient.js"(exports) {
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
@@ -8944,9 +8944,9 @@ var require_socksclient = __commonJS({
   }
 });
 
-// ../../node_modules/socks/build/index.js
+// node_modules/socks/build/index.js
 var require_build = __commonJS({
-  "../../node_modules/socks/build/index.js"(exports) {
+  "node_modules/socks/build/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8972,7 +8972,7 @@ var require_build = __commonJS({
 // index.js
 import { join as join18, resolve as resolve8 } from "node:path";
 
-// ../../node_modules/@soffits/dsh-host-kit/src/locales.js
+// node_modules/@soffits/dsh-host-kit/src/locales.js
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 var BASE = "en";
@@ -8998,7 +8998,7 @@ async function readLocales(dir, { warn = () => {
   return locales;
 }
 
-// ../../node_modules/@soffits/dsh-host-kit/src/notices.js
+// node_modules/@soffits/dsh-host-kit/src/notices.js
 function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
   const listeners = /* @__PURE__ */ new Set();
   let pending = [];
@@ -9050,7 +9050,7 @@ function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
   };
 }
 
-// ../../node_modules/@soffits/dsh-host-kit/src/event-streams.js
+// node_modules/@soffits/dsh-host-kit/src/event-streams.js
 function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
   const open4 = /* @__PURE__ */ new Set();
   function respond(request, start) {
@@ -9122,7 +9122,7 @@ function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
   };
 }
 
-// ../../node_modules/ws/wrapper.mjs
+// node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
 var import_extension = __toESM(require_extension(), 1);
 var import_permessage_deflate = __toESM(require_permessage_deflate(), 1);
@@ -9137,7 +9137,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join as join10 } from "node:path";
 
-// ../../node_modules/@deepseek-ai/cosmokit/lib/index.js
+// node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
   return value === null || value === void 0;
 }
@@ -9362,7 +9362,7 @@ var Time;
   Time2.template = template;
 })(Time || (Time = {}));
 
-// ../../node_modules/@deepseek-ai/schemastery/lib/index.mjs
+// node_modules/@deepseek-ai/schemastery/lib/index.mjs
 var kSchema = /* @__PURE__ */ Symbol.for("schemastery");
 var kValidationError = /* @__PURE__ */ Symbol.for("ValidationError");
 globalThis.__schemastery_index__ ??= 0;
@@ -10038,13 +10038,13 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { pipeline } from "node:stream/promises";
 
-// ../../node_modules/https-proxy-agent/dist/index.js
+// node_modules/https-proxy-agent/dist/index.js
 var import_debug2 = __toESM(require_src(), 1);
 import * as net2 from "net";
 import * as tls from "tls";
 import assert from "assert";
 
-// ../../node_modules/agent-base/dist/index.js
+// node_modules/agent-base/dist/index.js
 import * as net from "net";
 import * as http from "http";
 import { Agent as HttpsAgent } from "https";
@@ -10161,10 +10161,10 @@ var Agent2 = class extends http.Agent {
   }
 };
 
-// ../../node_modules/https-proxy-agent/dist/index.js
+// node_modules/https-proxy-agent/dist/index.js
 import { URL as URL2 } from "url";
 
-// ../../node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var import_debug = __toESM(require_src(), 1);
 var debug = (0, import_debug.default)("https-proxy-agent:parse-proxy-response");
 function parseProxyResponse(socket) {
@@ -10249,7 +10249,7 @@ function parseProxyResponse(socket) {
   });
 }
 
-// ../../node_modules/proxy-agent-negotiate/dist/index.js
+// node_modules/proxy-agent-negotiate/dist/index.js
 function createNegotiateAuth() {
   return async ({ response, scheme }) => {
     if (scheme.toLowerCase() !== "negotiate") {
@@ -10279,7 +10279,7 @@ function createNegotiateAuth() {
   };
 }
 
-// ../../node_modules/https-proxy-agent/dist/index.js
+// node_modules/https-proxy-agent/dist/index.js
 var debug2 = (0, import_debug2.default)("https-proxy-agent");
 var setServernameFromNonIpHost = (options) => {
   if (options.servername === void 0 && options.host && !net2.isIP(options.host)) {
@@ -10451,7 +10451,7 @@ function omit(obj, ...keys) {
   return ret;
 }
 
-// ../../node_modules/socks-proxy-agent/dist/index.js
+// node_modules/socks-proxy-agent/dist/index.js
 var import_socks = __toESM(require_build(), 1);
 var import_debug3 = __toESM(require_src(), 1);
 import * as dns from "dns";
