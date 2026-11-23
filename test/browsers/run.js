@@ -586,8 +586,24 @@ async function bookFlows({ a, b, origin }) {
   await shelf.locator('.vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
   assert.deepEqual(await shelf.locator('.vsync-rowTitle').allTextContents(), ['Pride and Prejudice'])
   assert.match(await shelf.locator('.vsync-rowMeta').textContent(), /Jane Austen.*TXT/)
+  // The second browser acts as a page installed to the home screen: Save hands the file to the share sheet and the page stays.
+  await b.context.addInitScript(() => {
+    const realMatch = window.matchMedia.bind(window)
+    window.matchMedia = query => (query === '(display-mode: standalone)' ? { matches: true, media: query, addEventListener() {}, removeEventListener() {} } : realMatch(query))
+    window.__shared = []
+    navigator.share = async ({ files }) => { window.__shared.push(...await Promise.all(files.map(async one => ({ name: one.name, text: await one.text() })))) }
+    navigator.canShare = () => true
+  })
   await b.page.goto(`${origin}/?vs-tab=library`)
   await b.page.locator('.vsync-shelf .vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
+  const before = b.page.url()
+  await b.page.locator('.vsync-shelf').getByRole('button', { name: 'Save TXT' }).click()
+  await until('the book reaches the share sheet', async () => {
+    const shared = await b.page.evaluate(() => window.__shared)
+    return { ok: shared.length === 1, shared }
+  }, 10_000)
+  assert.deepEqual(await b.page.evaluate(() => window.__shared), [{ name: 'Pride and Prejudice.txt', text: 'Pride and Prejudice\nJane Austen\n' }])
+  assert.equal(b.page.url(), before, 'the installed page did not navigate to the file')
   await shot(page, 'books-shelf')
   if (screenshots) {
     await page.setViewportSize({ width: 390, height: 844 })
