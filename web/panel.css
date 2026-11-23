@@ -35,7 +35,6 @@
 .vsync-btnLarge{height:36px;padding:0 14px;font-size:14px;border-radius:var(--dsw-radius-md)}
 .vsync-primary{background:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-on-color,#fff);box-shadow:none}
 @media (hover:hover){.vsync-primary:hover:not(:disabled){background:var(--dsw-alias-state-business-primary);opacity:.9}}
-.vsync-ready,.vsync-ready.vsync-primary{background:var(--dsw-alias-state-success-primary);color:var(--dsw-alias-label-on-color,#fff);border-color:transparent}
 .vsync-icon{box-sizing:border-box;flex:none;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
 @media (hover:hover){.vsync-icon:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .vsync-icon:active{background:var(--dsw-alias-interactive-bg-active)}
@@ -395,3 +394,4 @@
 .vsync-commentName{color:var(--dsw-alias-label-secondary);font-weight:500}
 .vsync-commentText{margin:4px 0 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;white-space:pre-wrap;overflow-wrap:anywhere}
 .vsync-commentStats{display:flex;gap:12px;margin-top:4px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.vsync-iconBtn,.vsync-actions .vsync-iconBtn.vsync-iconBtn{flex:none;order:0;width:36px;padding:0}

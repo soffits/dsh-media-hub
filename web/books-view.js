@@ -1,19 +1,18 @@
 /**
  * Books: the filter row of a book search, a book result as a card (pick a
- * format, download it onto your shelf, then save it to this device), and My
+ * format, add it to your shelf, then download it to this device), and My
  * books, the signed-in person's shelf in the Library tab.
  *
  * Downloads go through the shelf (src/shelf-routes.js, under DSH's /api,
  * where the person is known): the Host fetches the file through its source,
  * converts it when the format asked for is not one the source has, and keeps
- * it on that person's shelf. Saving to the device is a plain link the person
- * taps, so phones treat it as a download they started (Safari offers Apple
- * Books for an epub).
+ * it on that person's shelf. Getting it onto this device is web/device-copy.js.
  */
 import { Cover } from './details.js'
+import { DeviceCopy, removeDeviceCopy, useDeviceCopy } from './device-copy.js'
 import { offeredFormats } from './formats.js'
 import { LibraryCard, LibraryCover } from './library-card.js'
-import { Changes, Confirm, Icon, Menu, Spinner, bytes, canChat, chatAbout, failureText, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
+import { Changes, Confirm, Icon, Menu, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
 
 
 export const FORMATS = ['', 'epub', 'pdf', 'txt', 'azw3', 'mobi']
@@ -87,73 +86,6 @@ function useEntry(entryId) {
 
 export const fileLink = entry => `${shelfUrl('/file').href}?entry=${encodeURIComponent(entry.entry)}`
 
-/**
- * Saving a book to the device. A browser gets a plain attachment link. A page installed to an iPhone's or
- * iPad's home screen can't use one: iOS shows the file full screen with no way back, even from a new window.
- * There the file is fetched into the page first and handed to the share sheet (Save to Files, Books, other
- * apps), and the page never leaves. The share sheet opens only within a moment of a tap, so the tap that
- * opens it never waits on the network: a book just downloaded is prepared at once, and any other book is
- * prepared by a first tap that turns the button into a ready one. The share sheet lists only apps that take
- * shared files, so a second action opens the file in Safari itself (iOS 17's `x-safari-https:` link), whose
- * download view offers every app that opens the file and has its own way back; Safari keeps its own sign-in.
- */
-const installedOnIos = () => {
-  const nav = globalThis.navigator
-  const ios = /iPhone|iPad|iPod/.test(nav?.userAgent ?? '') || (nav?.platform === 'MacIntel' && nav?.maxTouchPoints > 1)
-  const installed = globalThis.matchMedia?.('(display-mode: standalone)').matches === true || nav?.standalone === true
-  return ios && installed && typeof nav.share === 'function'
-}
-
-/** Files prepared for sharing, by shelf entry, kept while the page is open so a book is fetched once. */
-const prepared = new Map()
-
-async function prepareFile(t, entry) {
-  const response = await fetch(fileLink(entry), { credentials: 'same-origin', cache: 'no-store' })
-  if (!response.ok) throw new Error(failureText(null, response.status))
-  const blob = await response.blob()
-  const file = new File([blob], entry.name || `book.${entry.format}`, { type: blob.type || 'application/octet-stream' })
-  if (navigator.canShare?.({ files: [file] }) === false) throw new Error(t('book.cannotShare'))
-  prepared.set(entry.entry, file)
-  return file
-}
-
-/** The save action of a ready shelf entry; `prepareNow` fetches it for sharing straight away (a book just downloaded). */
-export function SaveLink({ t, entry, primary = true, prepareNow = false }) {
-  const className = `vsync-btn${primary ? ' vsync-primary' : ''}`
-  const label = h(React.Fragment, null, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format: entry.format.toUpperCase() }))
-  if (!installedOnIos()) return h('a', { className, href: fileLink(entry), download: entry.name ?? '' }, label)
-  return h(React.Fragment, null,
-    h(ShareSave, { t, entry, className, label, prepareNow }),
-    h('a', { className: 'vsync-btn', href: inSafari(fileLink(entry)) }, t('book.openInSafari')))
-}
-
-const inSafari = link => `x-safari-${new URL(link, document.baseURI).href}`
-
-function ShareSave({ t, entry, className, label, prepareNow }) {
-  // idle: not fetched yet · preparing · ready: one tap opens the share sheet · error
-  const [state, setState] = React.useState(() => ({ step: prepared.has(entry.entry) ? 'ready' : 'idle' }))
-  const prepare = () => {
-    setState({ step: 'preparing' })
-    prepareFile(t, entry).then(
-      () => setState({ step: 'ready', announce: !prepareNow }),
-      error => setState({ step: 'error', message: error?.message ?? String(error) }))
-  }
-  React.useEffect(() => { if (prepareNow && state.step === 'idle') prepare() }, [prepareNow, entry.entry])
-  const share = () => {
-    // Called straight from the tap: nothing is awaited before share(), or iOS refuses to open the sheet.
-    navigator.share({ files: [prepared.get(entry.entry)] }).then(
-      () => setState({ step: 'ready' }),
-      error => setState(error?.name === 'AbortError' ? { step: 'ready' } : { step: 'error', message: error?.message ?? String(error), retry: 'share' }))
-  }
-  if (state.step === 'preparing') return h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.preparing'))
-  const ready = state.step === 'ready' || state.retry === 'share'
-  return h(React.Fragment, null,
-    ready && state.announce
-      ? h('button', { type: 'button', className: `${className} vsync-ready`, onClick: share }, h(Icon.Check, { size: 14 }), fill(t('book.tapToSave'), { format: entry.format.toUpperCase() }))
-      : h('button', { type: 'button', className, onClick: ready ? share : prepare }, label),
-    state.step === 'error' && h('span', { className: 'vsync-error', role: 'alert' }, state.message))
-}
-
 /** One book search result: facts, the formats it comes in, and a download in the one picked. */
 export function BookCard({ t, source, result }) {
   const [convert, setConvert] = React.useState(false)
@@ -175,7 +107,7 @@ export function BookCard({ t, source, result }) {
   if (request.step === 'adding' || (request.step === 'added' && (entry === null || entry.state === 'fetching'))) {
     status = h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t(offered.find(one => one.format === chosen)?.converted ? 'book.converting' : 'book.fetching'))
   } else if (entry?.state === 'ready') {
-    status = h(React.Fragment, null, h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')), h(SaveLink, { t, entry, prepareNow: true }))
+    status = h(React.Fragment, null, h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')), h(DeviceCopy, { t, entry, link: fileLink(entry) }))
   } else if (entry?.state === 'failed' || request.step === 'error') {
     status = h('span', { className: 'vsync-error', role: 'alert' }, entry?.error ?? request.message)
   }
@@ -219,8 +151,11 @@ export function useShelf() {
 /** One book of the shelf, as a library card like any other item: to save again, fetch again or delete. */
 export function ShelfEntry({ t, entry, onAct }) {
   const [confirming, setConfirming] = React.useState(false)
+  const link = fileLink(entry)
+  const copy = useDeviceCopy(entry, link)
   const act = async (path) => {
     setConfirming(false)
+    if (path === '/remove') await removeDeviceCopy(entry, link)
     await onAct(path, entry)
   }
   const actions = confirming
@@ -231,8 +166,11 @@ export function ShelfEntry({ t, entry, onAct }) {
       (entry.state === 'failed' || entry.state === 'removed') && h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => act('/retry') }, t('shelf.again')),
       entry.state === 'ready' && h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')),
       entry.state === 'failed' && h('span', { className: 'vsync-badge vsync-badgeFailed' }, t('shelf.failed')),
-      entry.state === 'ready' && h(SaveLink, { t, entry }),
-      h(Menu, { label: t('library.more'), items: [{ label: t('shelf.delete'), danger: true, onSelect: () => setConfirming(true) }] }))
+      entry.state === 'ready' && h(DeviceCopy, { t, entry, link }),
+      h(Menu, { label: t('library.more'), items: [
+        copy.step === 'here' && { label: t('book.removeFromDevice'), onSelect: () => removeDeviceCopy(entry, link) },
+        { label: t('shelf.delete'), danger: true, onSelect: () => setConfirming(true) },
+      ].filter(Boolean) }))
   return h(LibraryCard, {
     cover: h(LibraryCover, { pictures: [entry.cover], icon: h(Icon.Book, { size: 18 }) }),
     title: h('span', { className: 'vsync-rowTitle' }, entry.title || entry.id),

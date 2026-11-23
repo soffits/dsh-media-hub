@@ -567,7 +567,7 @@ async function bookFlows({ a, b, origin }) {
   // Download the txt: it lands on the shelf, then Save hands the file over as an attachment.
   await pride.locator('select.vsync-pick').selectOption('txt')
   await pride.getByRole('button', { name: 'Add to shelf' }).click()
-  const save = pride.getByRole('link', { name: 'Save to device (TXT)' })
+  const save = pride.getByRole('link', { name: 'Download to device (TXT)' })
   await save.waitFor({ timeout: 20_000 })
   const href = await save.getAttribute('href')
   const file = await a.context.request.get(new URL(href, origin).href)
@@ -878,10 +878,10 @@ async function hubFlows({ a, b, origin, home, show }) {
 }
 
 /**
- * The second browser acts as the page installed to an iPhone's home screen. There Save never navigates: the
- * file is prepared in the page and handed to the share sheet, and the tap that opens the sheet never waits on
- * a fetch (iOS refuses the sheet once the tap's moment has passed). A shelf entry takes a first tap that
- * prepares it and turns the button into a ready one; a book just downloaded is prepared at once.
+ * The second browser acts as the page installed to an iPhone's home screen. A shelf book there is either not
+ * on this device (Download to device, with progress) or on it (Save to other apps, Open in Safari), and that
+ * state survives a reload. The page never navigates to the file, and the tap that opens the share sheet never
+ * waits on a fetch (iOS refuses the sheet once the tap's moment has passed).
  */
 async function iosSaveFlows({ b, origin }) {
   await b.context.addInitScript(() => {
@@ -905,42 +905,42 @@ async function iosSaveFlows({ b, origin }) {
   })
   const events = () => b.page.evaluate(() => window.__events)
   const shared = 'share:Pride and Prejudice.txt:Pride and Prejudice\nJane Austen\n'
-
-  // A shelf entry: the first tap prepares the file, the second opens the share sheet; the page never moves.
-  await b.page.goto(`${origin}/?vs-tab=library`)
   const shelf = b.page.locator('.vsync-shelf')
-  await shelf.locator('.vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
+  await b.page.setViewportSize({ width: 390, height: 844 })
+  const open = async () => {
+    await b.page.goto(`${origin}/?vs-tab=library`)
+    await shelf.locator('.vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
+  }
+
+  // Not on this device: one action, Download to device.
+  await open()
   const at = b.page.url()
-  await shelf.getByRole('button', { name: 'Save to device (TXT)' }).click()
-  const ready = shelf.getByRole('button', { name: 'Ready: tap to save (TXT)' })
-  await ready.waitFor({ timeout: 10_000 })
-  assert.deepEqual(await events(), ['tap', 'fetch'], 'the first tap only prepares the file')
-  await ready.click()
-  await until('the shelf book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
+  await shelf.getByRole('button', { name: 'Download to device (TXT)' }).click()
+  await shelf.getByText('✓ On this device').waitFor({ timeout: 10_000 })
+  assert.deepEqual(await events(), ['tap', 'fetch'])
+  await shot(b.page, 'books-on-device-phone')
+
+  // On this device: Save to other apps opens the share sheet from the tap itself.
+  await shelf.getByRole('button', { name: 'Save to other apps' }).click()
+  await until('the book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
   assert.deepEqual(await events(), ['tap', 'fetch', 'tap', shared], 'the sharing tap fetched nothing')
   assert.equal(b.page.url(), at, 'the installed page did not navigate to the file')
-  // The second action hands the file to Safari itself, whose download view offers every app that opens it.
-  const safari = await shelf.getByRole('link', { name: 'Open in Safari (any app)' }).getAttribute('href')
+  const safari = await shelf.getByRole('link', { name: 'Open in Safari' }).getAttribute('href')
   assert.match(safari, /^x-safari-http:\/\/127\.0\.0\.1:\d+\/api\/media-hub\/shelf\/file\?entry=/)
 
-  // A book just downloaded: prepared before Save shows, so one tap opens the share sheet.
-  await b.page.goto(`${origin}/?vs-tab=discover&vs-source=all&vs-kind=ebook`)
-  await b.page.locator('.vsync-searchField').waitFor({ timeout: 20_000 })
-  await dismissDialogs(b.page)
-  await b.page.evaluate(() => { window.__events.length = 0 })
-  await b.page.locator('.vsync-searchField').fill('pride')
-  await b.page.locator('.vsync-search button[type=submit]').click()
-  const pride = b.page.locator('.vsync-results > .vsync-book').filter({ hasText: 'Pride and Prejudice' })
-  await pride.waitFor({ timeout: 20_000 })
-  await pride.locator('select.vsync-pick').selectOption('txt')
-  await pride.getByRole('button', { name: 'Add to shelf' }).click()
-  const save = pride.getByRole('button', { name: 'Save to device (TXT)' })
-  await save.waitFor({ timeout: 20_000 })
-  await until('the new book is prepared', async () => ({ ok: (await events()).includes('fetch'), events: await events() }), 10_000)
-  await save.click()
-  await until('the new book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
-  assert.equal((await events()).at(-2), 'tap', 'the one tap opened the share sheet without a fetch')
-  await shot(b.page, 'books-save-ios')
+  // The copy outlasts a reload, and the share sheet still opens without a fetch.
+  await open()
+  await shelf.getByText('✓ On this device').waitFor({ timeout: 10_000 })
+  await shelf.getByRole('button', { name: 'Save to other apps' }).click()
+  await until('the kept copy reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
+  assert.deepEqual(await events(), ['tap', shared], 'a kept copy is shared without fetching it again')
+
+  // Remove from this device: back to Download to device.
+  await shelf.getByRole('button', { name: 'More' }).click()
+  await b.page.getByRole('menuitem', { name: 'Remove from this device' }).click()
+  await shelf.getByRole('button', { name: 'Download to device (TXT)' }).waitFor({ timeout: 10_000 })
+  await shot(b.page, 'books-not-on-device-phone')
+  await b.page.setViewportSize({ width: 1440, height: 900 })
 }
 
 async function main() {
