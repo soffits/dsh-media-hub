@@ -12516,7 +12516,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         const file = webFile(parts[1]);
         const body2 = file === void 0 ? null : await readFile5(file).catch(() => null);
         if (body2 === null) return sendText(res, 404, "Not found.");
-        res.writeHead(200, { ...SECURITY_HEADERS, "content-type": WEB_TYPES[extname5(file)], "content-length": body2.length }).end(body2);
+        res.writeHead(200, { ...SECURITY_HEADERS, "cache-control": "no-cache", "content-type": WEB_TYPES[extname5(file)], "content-length": body2.length }).end(body2);
         return;
       }
       if (parts[0] === "covers" && parts.length === 2 && req.method === "GET") {

@@ -13,7 +13,7 @@
 import { Cover } from './details.js'
 import { offeredFormats } from './formats.js'
 import { LibraryCard, LibraryCover } from './library-card.js'
-import { Changes, Confirm, Icon, Menu, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
+import { Changes, Confirm, Icon, Menu, Spinner, bytes, canChat, chatAbout, failureText, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
 
 
 export const FORMATS = ['', 'epub', 'pdf', 'txt', 'azw3', 'mobi']
@@ -88,14 +88,53 @@ function useEntry(entryId) {
 export const fileLink = entry => `${shelfUrl('/file').href}?entry=${encodeURIComponent(entry.entry)}`
 
 /**
- * A page installed to the home screen has no back button, and iOS shows a file opened in its own window
- * full screen with no way out, so there the file opens outside the app (a Safari sheet with Done).
+ * A page installed to the home screen has no back button, and iOS shows any file it opens full screen
+ * with no way out, even from a new window. So there the file is fetched into the page and handed to the
+ * share sheet (Save to Files, Books), and the page never leaves; the browser keeps the plain link.
  */
 const installedApp = () => globalThis.matchMedia?.('(display-mode: standalone)').matches === true || globalThis.navigator?.standalone === true
 
+const saveLabel = (t, entry) => h(React.Fragment, null, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format: entry.format.toUpperCase() }))
+
 export function SaveLink({ t, entry, primary = true }) {
-  const outside = installedApp() ? { target: '_blank', rel: 'noopener' } : {}
-  return h('a', { className: `vsync-btn${primary ? ' vsync-primary' : ''}`, href: fileLink(entry), download: entry.name ?? '', ...outside }, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format: entry.format.toUpperCase() }))
+  const className = `vsync-btn${primary ? ' vsync-primary' : ''}`
+  if (!installedApp() || typeof globalThis.navigator?.share !== 'function') {
+    return h('a', { className, href: fileLink(entry), download: entry.name ?? '' }, saveLabel(t, entry))
+  }
+  return h(ShareFile, { t, entry, className })
+}
+
+/** Fetches the file, then shares it; a second tap shares it when the fetch took longer than the tap's permission lasts. */
+function ShareFile({ t, entry, className }) {
+  const [state, setState] = React.useState({ step: 'idle' })
+  const share = async file => {
+    try {
+      await navigator.share({ files: [file] })
+      setState({ step: 'idle' })
+    } catch (error) {
+      if (error?.name === 'AbortError') return setState({ step: 'idle' })
+      if (error?.name === 'NotAllowedError') return setState({ step: 'ready', file })
+      setState({ step: 'error', message: error?.message ?? String(error) })
+    }
+  }
+  const save = async () => {
+    if (state.step === 'ready') return share(state.file)
+    setState({ step: 'fetching' })
+    try {
+      const response = await fetch(fileLink(entry), { credentials: 'same-origin' })
+      if (!response.ok) throw new Error(failureText(null, response.status))
+      const blob = await response.blob()
+      const file = new File([blob], entry.name || `book.${entry.format}`, { type: blob.type || 'application/octet-stream' })
+      if (navigator.canShare?.({ files: [file] }) === false) throw new Error(t('book.cannotShare'))
+      return share(file)
+    } catch (error) {
+      return setState({ step: 'error', message: error?.message ?? String(error) })
+    }
+  }
+  if (state.step === 'fetching') return h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching'))
+  return h(React.Fragment, null,
+    h('button', { type: 'button', className, onClick: save }, saveLabel(t, entry)),
+    state.step === 'error' && h('span', { className: 'vsync-error', role: 'alert' }, state.message))
 }
 
 /** One book search result: facts, the formats it comes in, and a download in the one picked. */

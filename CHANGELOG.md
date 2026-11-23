@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.6
+
+- On a page installed to the home screen, *Save* now hands the book to the share sheet (Save to Files, Books) and the page stays where it was. 0.15.5's new window still left iPhones stuck on the file.
+- The page's own scripts are revalidated on every load, so a phone picks up a new version without a cleared cache.
+
 ## 0.15.5
 
 - Saving a book from the page installed to an iPhone's home screen no longer strands you on the file with no way back: the file opens in a Safari sheet with a Done button.

@@ -36,3 +36,4 @@
 - `src/prepare.js` assumes `nice` is on PATH.
 
 - CI: `npm test` on Node 22 once hung past 10 min on main (run 45160605947, v0.15.5 merge) after passing on the PR; a rerun passed. Likely a test that leaves a handle open; find it if it happens again (rare).
+- `npm run test:browsers` is broken on main: after clicking Media the page stays blank and `.vsync-nav` never shows (no console error); the 0.15.6 share-sheet check in it has not run yet. *likely*

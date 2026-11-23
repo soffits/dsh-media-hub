@@ -26,6 +26,7 @@
     "book.converted": "converti",
     "book.onShelf": "Dans votre bibliothèque",
     "book.save": "Enregistrer en {format}",
+    "book.cannotShare": "Ce téléphone ne peut pas enregistrer ce type de fichier depuis l'app ; ouvrez la page dans Safari pour l'enregistrer.",
     "shelf.removed": "Retiré pour libérer de l’espace ; vous pouvez le retélécharger à tout moment.",
     "shelf.again": "Retélécharger",
     "shelf.delete": "Supprimer",

@@ -277,7 +277,7 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         const file = webFile(parts[1])
         const body = file === undefined ? null : await readFile(file).catch(() => null)
         if (body === null) return sendText(res, 404, 'Not found.')
-        res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': WEB_TYPES[extname(file)], 'content-length': body.length }).end(body)
+        res.writeHead(200, { ...SECURITY_HEADERS, 'cache-control': 'no-cache', 'content-type': WEB_TYPES[extname(file)], 'content-length': body.length }).end(body)
         return
       }
       if (parts[0] === 'covers' && parts.length === 2 && req.method === 'GET') {
