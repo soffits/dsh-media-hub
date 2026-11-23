@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.3
+
+- In the iPhone home-screen app, *Open in Safari* (the compass) is there from the start instead of only after *Download to device*: Safari fetches the book itself and never used the copy in the page, so the first download was wasted on that route.
+- Why *Save to other apps* doesn't list Books or most reader apps, for the record: iOS gives a web page's shared file to the share sheet as plain data, not as a file, so only apps that take any data show up (Save to Files, AirDrop, messengers). Books and readers are reached through *Open in Safari*, or through Save to Files.
+
 ## 0.16.2
 
 - An update no longer leaves an open page half old: the page's files are loaded from an address named after their build, so the page that gets the new words gets the new code and styles with them. Before, a page left open across an update kept its old code and showed the new version's words in it (a bare `chat.ask`, old buttons).

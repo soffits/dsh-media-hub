@@ -894,7 +894,8 @@ const IPHONE_SIDEWAYS = { width: 814, height: 572 }
 
 /**
  * The page installed to an iPhone's home screen. A shelf book there is either not on this device (Download to
- * device, with progress) or on it (Save to other apps, Open in Safari), and that state survives a reload. The
+ * device, with progress) or on it (Save to other apps), and that state survives a reload; Open in Safari is
+ * there either way. The
  * page never navigates to the file, and the tap that opens the share sheet never waits on a fetch (iOS refuses
  * the sheet once the tap's moment has passed).
  */
@@ -951,9 +952,11 @@ async function iosSaveFlows({ signIn, origin }) {
     await laidOut('upright', true)
   }
 
-  // Not on this device: one action, Download to device.
+  // Not on this device yet: Download to device, and Safari, which fetches the book itself and needs no copy here.
   await open()
   const at = page.url()
+  const inSafari = await shelf.getByRole('link', { name: 'Open in Safari' }).getAttribute('href')
+  assert.match(inSafari, /^x-safari-http:\/\/127\.0\.0\.1:\d+\/api\/media-hub\/shelf\/file\?entry=/)
   await shots('books-not-on-device')
   await shelf.getByRole('button', { name: 'Download to device (TXT)' }).click()
   await shelf.getByRole('button', { name: 'Save to other apps' }).waitFor({ timeout: 10_000 })
@@ -965,8 +968,7 @@ async function iosSaveFlows({ signIn, origin }) {
   await until('the book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
   assert.deepEqual(await events(), ['tap', 'fetch', 'tap', shared], 'the sharing tap fetched nothing')
   assert.equal(page.url(), at, 'the installed page did not navigate to the file')
-  const inSafari = await shelf.getByRole('link', { name: 'Open in Safari' }).getAttribute('href')
-  assert.match(inSafari, /^x-safari-http:\/\/127\.0\.0\.1:\d+\/api\/media-hub\/shelf\/file\?entry=/)
+  assert.equal(await shelf.getByRole('link', { name: 'Open in Safari' }).getAttribute('href'), inSafari)
 
   // The copy outlasts a reload, and the share sheet still opens without a fetch.
   await open()
