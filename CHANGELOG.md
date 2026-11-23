@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.7
+
+- In the home-screen app, a book just downloaded is fetched into the page right away, so one tap on *Save* opens the share sheet. When a tap has to fetch the file first (an older book on the shelf), the button turns into *Ready, tap to save* instead of silently waiting for a second tap.
+
 ## 0.15.6
 
 - On a page installed to the home screen, *Save* now hands the book to the share sheet (Save to Files, Books) and the page stays where it was. 0.15.5's new window still left iPhones stuck on the file.

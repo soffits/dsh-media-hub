@@ -96,44 +96,65 @@ const installedApp = () => globalThis.matchMedia?.('(display-mode: standalone)')
 
 const saveLabel = (t, entry) => h(React.Fragment, null, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format: entry.format.toUpperCase() }))
 
-export function SaveLink({ t, entry, primary = true }) {
+export function SaveLink({ t, entry, primary = true, early = false }) {
   const className = `vsync-btn${primary ? ' vsync-primary' : ''}`
   if (!installedApp() || typeof globalThis.navigator?.share !== 'function') {
     return h('a', { className, href: fileLink(entry), download: entry.name ?? '' }, saveLabel(t, entry))
   }
-  return h(ShareFile, { t, entry, className })
+  return h(ShareFile, { t, entry, className, early })
 }
 
-/** Fetches the file, then shares it; a second tap shares it when the fetch took longer than the tap's permission lasts. */
-function ShareFile({ t, entry, className }) {
-  const [state, setState] = React.useState({ step: 'idle' })
-  const share = async file => {
+/** Files already fetched into the page, by shelf entry, so a tap can open the share sheet at once. */
+const fetched = new Map()
+
+async function fetchFile(t, entry) {
+  const response = await fetch(fileLink(entry), { credentials: 'same-origin' })
+  if (!response.ok) throw new Error(failureText(null, response.status))
+  const blob = await response.blob()
+  const file = new File([blob], entry.name || `book.${entry.format}`, { type: blob.type || 'application/octet-stream' })
+  if (navigator.canShare?.({ files: [file] }) === false) throw new Error(t('book.cannotShare'))
+  fetched.set(entry.entry, file)
+  return file
+}
+
+/**
+ * The share sheet opens only within a moment of the tap, which a fetch outlasts. So the file is fetched
+ * first (right away for a book just downloaded, `early`), and the tap shares it; when the tap had to fetch
+ * it, the button says the file is ready for one more tap.
+ */
+function ShareFile({ t, entry, className, early }) {
+  const [state, setState] = React.useState(() => (fetched.has(entry.entry) ? { step: 'ready' } : { step: 'idle' }))
+  const get = async () => {
+    setState({ step: 'fetching' })
+    try {
+      await fetchFile(t, entry)
+      setState({ step: 'ready', tapAgain: true })
+      return true
+    } catch (error) {
+      setState({ step: 'error', message: error?.message ?? String(error) })
+      return false
+    }
+  }
+  React.useEffect(() => { if (early && state.step === 'idle') get() }, [early, entry.entry])
+  const share = async () => {
+    const file = fetched.get(entry.entry)
     try {
       await navigator.share({ files: [file] })
-      setState({ step: 'idle' })
+      setState({ step: 'ready' })
     } catch (error) {
-      if (error?.name === 'AbortError') return setState({ step: 'idle' })
-      if (error?.name === 'NotAllowedError') return setState({ step: 'ready', file })
+      if (error?.name === 'AbortError') return setState({ step: 'ready' })
+      if (error?.name === 'NotAllowedError') return setState({ step: 'ready', tapAgain: true })
       setState({ step: 'error', message: error?.message ?? String(error) })
     }
   }
   const save = async () => {
-    if (state.step === 'ready') return share(state.file)
-    setState({ step: 'fetching' })
-    try {
-      const response = await fetch(fileLink(entry), { credentials: 'same-origin' })
-      if (!response.ok) throw new Error(failureText(null, response.status))
-      const blob = await response.blob()
-      const file = new File([blob], entry.name || `book.${entry.format}`, { type: blob.type || 'application/octet-stream' })
-      if (navigator.canShare?.({ files: [file] }) === false) throw new Error(t('book.cannotShare'))
-      return share(file)
-    } catch (error) {
-      return setState({ step: 'error', message: error?.message ?? String(error) })
-    }
+    if (fetched.has(entry.entry)) return share()
+    if (await get()) return share()
   }
-  if (state.step === 'fetching') return h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching'))
+  if (state.step === 'fetching') return h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.preparing'))
   return h(React.Fragment, null,
-    h('button', { type: 'button', className, onClick: save }, saveLabel(t, entry)),
+    h('button', { type: 'button', className, onClick: save },
+      state.tapAgain ? h(React.Fragment, null, h(Icon.Check, { size: 14 }), fill(t('book.tapToSave'), { format: entry.format.toUpperCase() })) : saveLabel(t, entry)),
     state.step === 'error' && h('span', { className: 'vsync-error', role: 'alert' }, state.message))
 }
 
@@ -158,7 +179,7 @@ export function BookCard({ t, source, result }) {
   if (request.step === 'adding' || (request.step === 'added' && (entry === null || entry.state === 'fetching'))) {
     status = h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t(offered.find(one => one.format === chosen)?.converted ? 'book.converting' : 'book.fetching'))
   } else if (entry?.state === 'ready') {
-    status = h(React.Fragment, null, h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')), h(SaveLink, { t, entry }))
+    status = h(React.Fragment, null, h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')), h(SaveLink, { t, entry, early: true }))
   } else if (entry?.state === 'failed' || request.step === 'error') {
     status = h('span', { className: 'vsync-error', role: 'alert' }, entry?.error ?? request.message)
   }

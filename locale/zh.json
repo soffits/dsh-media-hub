@@ -26,6 +26,8 @@
     "book.converted": "转换",
     "book.onShelf": "已在书架",
     "book.save": "保存 {format}",
+    "book.preparing": "正在准备文件…",
+    "book.tapToSave": "好了，点一下保存 {format}",
     "book.cannotShare": "这台手机没法从网页应用里保存这种文件，请在 Safari 里打开页面保存。",
     "shelf.removed": "为了省空间已删掉文件，随时可以再下载。",
     "shelf.again": "重新下载",

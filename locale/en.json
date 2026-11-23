@@ -26,6 +26,8 @@
     "book.converted": "converted",
     "book.onShelf": "On your shelf",
     "book.save": "Save {format}",
+    "book.preparing": "Getting the file…",
+    "book.tapToSave": "Ready, tap to save {format}",
     "book.cannotShare": "This phone can't save this kind of file from the app; open the page in Safari to save it.",
     "shelf.removed": "Removed to save space; download it again any time.",
     "shelf.again": "Download again",
