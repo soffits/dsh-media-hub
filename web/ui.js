@@ -49,6 +49,9 @@ export function failureText(error, status) {
   return words === null ? `HTTP ${status}` : fill(words('error.status'), { status })
 }
 
+/** What a request that never got an answer (no network, a dropped connection) says to the viewer. */
+export const networkText = error => (words === null ? error.message : words('error.network'))
+
 /** One JSON request; failures come back as { error, code, reason } with `error` in the viewer's words. */
 async function request(url, init = {}) {
   try {
@@ -57,7 +60,7 @@ async function request(url, init = {}) {
     if (!response.ok) return { error: failureText(data.error, response.status), code: data.error?.code, reason: data.error?.reason ?? null, ...(data.error?.points ? { points: data.error.points } : {}) }
     return data
   } catch (error) {
-    return { error: words === null ? error.message : words('error.network') }
+    return { error: networkText(error) }
   }
 }
 
@@ -253,11 +256,14 @@ export const Icon = {
 /** A small turning ring, for something that is loading. */
 export const Spinner = () => h('span', { className: 'vsync-spinner', 'aria-hidden': true })
 
-/** An action shown as its icon alone; its name is the tooltip and what screen readers read. */
+/**
+ * An action shown as its icon alone, in the one icon style of the page (the same as the "more" button beside it);
+ * its name is the tooltip and what screen readers read. `primary` only tints it as the row's main action.
+ */
 export const IconButton = ({ label, icon, primary = false, onClick, href, download }) => h(href ? 'a' : 'button', {
   ...(href ? { href, download } : { type: 'button', onClick }),
-  className: `vsync-btn vsync-iconBtn${primary ? ' vsync-primary' : ''}`, title: label, 'aria-label': label,
-}, h(icon, { size: 18 }))
+  className: `vsync-icon${primary ? ' vsync-iconMain' : ''}`, title: label, 'aria-label': label,
+}, h(icon))
 
 /** Work in progress as a spinner, with an optional short figure (a percentage); its name is the tooltip. */
 export const Pending = ({ label, figure = null }) => h('span', { className: 'vsync-pending', role: 'status', title: label, 'aria-label': label }, h(Spinner), figure)

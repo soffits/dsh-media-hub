@@ -27,7 +27,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { chromium } from 'playwright-core'
+import { chromium, webkit } from 'playwright-core'
 import { createWatchLog } from '../../src/watchlog.js'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -103,8 +103,8 @@ function makeEpisodes(home) {
 }
 
 /** A signed-in browser: its own context with DSH's cookie. */
-async function viewer(browser, signIn, origin, name) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+async function viewer(browser, signIn, origin, name, device = {}) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...device })
   // The name the sign-in plugin (dsh-oidc) would report for this browser.
   await context.route('**/_dsh-oidc/session', route => route.fulfill({ json: { name } }))
   const page = await context.newPage()
@@ -544,7 +544,7 @@ async function tabFlows({ a, origin }) {
  * chosen format onto the shelf, saving it to the device (an attachment with its type and name), the shelf in the
  * Library tab (shared by everyone here: this DSH has no sign-in plugin, so it has one owner), and deleting it.
  */
-async function bookFlows({ a, b, origin }) {
+async function bookFlows({ a, b, signIn, origin }) {
   const page = a.page
   await page.goto(`${origin}/?vs-tab=discover&vs-source=all&vs-kind=ebook`)
   await page.locator('.vsync-filters').waitFor({ timeout: 20_000 })
@@ -590,7 +590,7 @@ async function bookFlows({ a, b, origin }) {
   await shelf.first().waitFor({ timeout: 20_000 })
   assert.deepEqual(await shelf.locator('.vsync-rowTitle').allTextContents(), ['Pride and Prejudice'])
   assert.match(await shelf.locator('.vsync-rowMeta').textContent(), /Jane Austen.*TXT/)
-  await iosSaveFlows({ b, origin })
+  await iosSaveFlows({ signIn, origin })
   await shot(page, 'books-shelf')
   if (screenshots) {
     await page.setViewportSize({ width: 390, height: 844 })
@@ -882,15 +882,29 @@ async function hubFlows({ a, b, origin, home, show }) {
   log('library: episode and show deleted')
 }
 
+/** An iPhone held upright and on its side: touch, no hover, three device pixels per CSS pixel. */
+const IPHONE = {
+  viewport: { width: 390, height: 844 },
+  hasTouch: true,
+  isMobile: true,
+  deviceScaleFactor: 3,
+  userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+}
+const IPHONE_SIDEWAYS = { width: 814, height: 572 }
+
 /**
- * The second browser acts as the page installed to an iPhone's home screen. A shelf book there is either not
- * on this device (Download to device, with progress) or on it (Save to other apps, Open in Safari), and that
- * state survives a reload. The page never navigates to the file, and the tap that opens the share sheet never
- * waits on a fetch (iOS refuses the sheet once the tap's moment has passed).
+ * The page installed to an iPhone's home screen. A shelf book there is either not on this device (Download to
+ * device, with progress) or on it (Save to other apps, Open in Safari), and that state survives a reload. The
+ * page never navigates to the file, and the tap that opens the share sheet never waits on a fetch (iOS refuses
+ * the sheet once the tap's moment has passed).
  */
-async function iosSaveFlows({ b, origin }) {
-  await b.context.addInitScript(() => {
-    Object.defineProperty(navigator, 'userAgent', { get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' })
+async function iosSaveFlows({ signIn, origin }) {
+  // WebKit, the engine every iPhone browser runs: its fetch, streams, Cache Storage and share rules are the ones that count here.
+  // With a profile on disk, as an installed app has: Cache Storage of a throwaway WebKit session is dropped at every navigation.
+  const safari = await webkit.launchPersistentContext(mkdtempSync(join(tmpdir(), 'media-hub-webkit-')), IPHONE)
+  const phone = await viewer({ newContext: async () => safari }, signIn, origin, 'Carol')
+  const page = phone.page
+  await phone.context.addInitScript(() => {
     const realMatch = window.matchMedia.bind(window)
     window.matchMedia = query => (query === '(display-mode: standalone)' ? { matches: true, media: query, addEventListener() {}, removeEventListener() {} } : realMatch(query))
     window.__events = []
@@ -908,38 +922,51 @@ async function iosSaveFlows({ b, origin }) {
       events.push(...await Promise.all(files.map(async one => `share:${one.name}:${await one.text()}`)))
     }
   })
-  const events = () => b.page.evaluate(() => window.__events)
+  const events = () => page.evaluate(() => window.__events)
   const shared = 'share:Pride and Prejudice.txt:Pride and Prejudice\nJane Austen\n'
-  const shelf = b.page.locator('.vsync-show').filter({ has: b.page.locator('.vsync-badge', { hasText: 'Book' }) })
-  await b.page.setViewportSize({ width: 390, height: 844 })
+  const shelf = page.locator('.vsync-show').filter({ hasText: /Pride and Prejudice|变成软糯魔女/ })
   const open = async () => {
-    await b.page.goto(`${origin}/?vs-tab=library`)
+    await page.goto(`${origin}/?vs-tab=library`)
     await shelf.first().waitFor({ timeout: 20_000 })
+    await dismissDialogs(page)
+  }
+  // The layout follows the panel's own width: phone-narrow upright, wider on its side, and phone-narrow again
+  // on its side with a side bar open (the panel squeezed to phone width in a wide window).
+  const within = () => page.locator('.vsync-page').getAttribute('data-within')
+  const laidOut = async (label, narrow) => until(`the ${label} layout`, async () => ({ ok: (await within()).split(' ').includes('640') === narrow, within: await within() }), 5000)
+  const squeeze = width => page.evaluate((px) => { document.querySelector('.vsync-page').style.maxWidth = px === null ? '' : `${px}px` }, width)
+  // Each way, with a title long enough to show how it shares the row with the actions.
+  const shots = async (name) => {
+    if (screenshots) await shelf.locator('.vsync-rowTitle').evaluate((node) => { node.textContent = '变成软糯魔女？不对是钢筋大运！一部名字很长很长的小说' })
+    await laidOut('upright', true)
+    await shot(page, `${name}-phone`)
+    await page.setViewportSize(IPHONE_SIDEWAYS)
+    await laidOut('sideways', false)
+    await shot(page, `${name}-phone-sideways`)
+    await squeeze(442)
+    await laidOut('sideways beside a side bar', true)
+    await shot(page, `${name}-phone-sideways-sidebar`)
+    await squeeze(null)
+    await page.setViewportSize(IPHONE.viewport)
+    await laidOut('upright', true)
   }
 
   // Not on this device: one action, Download to device.
   await open()
-  const at = b.page.url()
+  const at = page.url()
+  await shots('books-not-on-device')
   await shelf.getByRole('button', { name: 'Download to device (TXT)' }).click()
   await shelf.getByRole('button', { name: 'Save to other apps' }).waitFor({ timeout: 10_000 })
   assert.deepEqual(await events(), ['tap', 'fetch'])
-  if (screenshots) {
-    // How a long title lays out next to the actions, on a phone and on a wider screen.
-    const long = '变成软糯魔女？不对是钢筋大运！一部名字很长很长的小说'
-    await shelf.locator('.vsync-rowTitle').evaluate((node, text) => { node.textContent = text }, long)
-    await shot(b.page, 'books-on-device-phone')
-    await b.page.setViewportSize({ width: 820, height: 600 })
-    await shot(b.page, 'books-on-device-wide')
-    await b.page.setViewportSize({ width: 390, height: 844 })
-  }
+  await shots('books-on-device')
 
   // On this device: Save to other apps opens the share sheet from the tap itself.
   await shelf.getByRole('button', { name: 'Save to other apps' }).click()
   await until('the book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
   assert.deepEqual(await events(), ['tap', 'fetch', 'tap', shared], 'the sharing tap fetched nothing')
-  assert.equal(b.page.url(), at, 'the installed page did not navigate to the file')
-  const safari = await shelf.getByRole('link', { name: 'Open in Safari' }).getAttribute('href')
-  assert.match(safari, /^x-safari-http:\/\/127\.0\.0\.1:\d+\/api\/media-hub\/shelf\/file\?entry=/)
+  assert.equal(page.url(), at, 'the installed page did not navigate to the file')
+  const inSafari = await shelf.getByRole('link', { name: 'Open in Safari' }).getAttribute('href')
+  assert.match(inSafari, /^x-safari-http:\/\/127\.0\.0\.1:\d+\/api\/media-hub\/shelf\/file\?entry=/)
 
   // The copy outlasts a reload, and the share sheet still opens without a fetch.
   await open()
@@ -950,10 +977,32 @@ async function iosSaveFlows({ b, origin }) {
 
   // Remove from this device: back to Download to device.
   await shelf.getByRole('button', { name: 'More' }).click()
-  await b.page.getByRole('menuitem', { name: 'Remove from this device' }).click()
+  await page.getByRole('menuitem', { name: 'Remove from this device' }).click()
   await shelf.getByRole('button', { name: 'Download to device (TXT)' }).waitFor({ timeout: 10_000 })
-  await shot(b.page, 'books-not-on-device-phone')
-  await b.page.setViewportSize({ width: 1440, height: 900 })
+
+  // From a Discover card: added to the shelf, brought to the device, shared.
+  await page.goto(`${origin}/?vs-tab=discover&vs-source=all&vs-kind=ebook`)
+  await page.locator('.vsync-searchField').waitFor({ timeout: 20_000 })
+  await dismissDialogs(page)
+  await page.locator('.vsync-searchField').fill('moby')
+  await page.locator('.vsync-search button[type=submit]').click()
+  const moby = page.locator('.vsync-results > .vsync-book').filter({ hasText: 'Moby Dick' })
+  await moby.locator('select.vsync-pick').selectOption('txt')
+  await moby.getByRole('button', { name: 'Add to shelf', exact: true }).click()
+  await moby.getByRole('button', { name: 'Download to device (TXT)' }).click({ timeout: 30_000 })
+  await moby.getByRole('button', { name: 'Save to other apps' }).waitFor({ timeout: 30_000 })
+  await page.evaluate(() => { window.__events.length = 0 })
+  await moby.getByRole('button', { name: 'Save to other apps' }).click()
+  await until('the book reaches the share sheet from its Discover card', async () => ({ ok: (await events()).some(event => event.startsWith('share:Moby Dick.txt:Moby Dick')), events: await events() }), 10_000)
+  await shot(page, 'books-discover-on-device-phone')
+  await open()
+  const mobyOnShelf = page.locator('.vsync-show').filter({ hasText: 'Moby Dick' })
+  await mobyOnShelf.getByRole('button', { name: 'More' }).click()
+  await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
+  await mobyOnShelf.locator('.vsync-confirm').getByRole('button', { name: 'Delete' }).click()
+  await until('the large book is off the shelf', async () => ({ ok: await mobyOnShelf.count() === 0 }), 10_000)
+  assert.deepEqual(phone.crashes, [])
+  await safari.close()
 }
 
 async function main() {
@@ -974,7 +1023,7 @@ async function main() {
     await a.page.getByText('Media', { exact: true }).first().click()
     await a.page.waitForSelector('.vsync-pageTabs', { timeout: 15_000 })
     await tabFlows({ a, origin })
-    await bookFlows({ a, b, origin })
+    await bookFlows({ a, b, signIn: dsh.url, origin })
     await languageFlows({ browser, signIn: dsh.url, origin })
     await shot(a.page, 'home')
     const created = await a.page.evaluate(async (path) => {

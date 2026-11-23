@@ -2289,7 +2289,7 @@ var require_websocket = __commonJS({
     var net4 = __require("net");
     var querystring = __require("querystring");
     var tls3 = __require("tls");
-    var { randomBytes: randomBytes3, createHash: createHash8 } = __require("crypto");
+    var { randomBytes: randomBytes3, createHash: createHash9 } = __require("crypto");
     var { Duplex, Readable: Readable3 } = __require("stream");
     var { URL: URL4 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -2980,7 +2980,7 @@ var require_websocket = __commonJS({
           abortHandshake(websocket, socket, "Invalid Upgrade header");
           return;
         }
-        const digest = createHash8("sha1").update(key + GUID).digest("base64");
+        const digest = createHash9("sha1").update(key + GUID).digest("base64");
         if (res.headers["sec-websocket-accept"] !== digest) {
           abortHandshake(websocket, socket, "Invalid Sec-WebSocket-Accept header");
           return;
@@ -3365,7 +3365,7 @@ var require_websocket_server = __commonJS({
     var EventEmitter = __require("events");
     var http2 = __require("http");
     var { Duplex } = __require("stream");
-    var { createHash: createHash8 } = __require("crypto");
+    var { createHash: createHash9 } = __require("crypto");
     var extension2 = require_extension();
     var PerMessageDeflate2 = require_permessage_deflate();
     var subprotocol2 = require_subprotocol();
@@ -3675,7 +3675,7 @@ var require_websocket_server = __commonJS({
           );
         }
         if (this._state > RUNNING) return abortHandshake(socket, 503);
-        const digest = createHash8("sha1").update(key + GUID).digest("base64");
+        const digest = createHash9("sha1").update(key + GUID).digest("base64");
         const headers = [
           "HTTP/1.1 101 Switching Protocols",
           "Upgrade: websocket",
@@ -12269,7 +12269,8 @@ var Config = Schema.object({
 });
 
 // src/http.js
-import { createReadStream as createReadStream2, existsSync as existsSync2 } from "node:fs";
+import { createHash as createHash4 } from "node:crypto";
+import { createReadStream as createReadStream2, existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";
 import { readFile as readFile5, stat as stat6 } from "node:fs/promises";
 import { dirname as dirname4, extname as extname5, isAbsolute as isAbsolute2, relative, resolve as resolve3, sep } from "node:path";
 import { createRequire } from "node:module";
@@ -12370,6 +12371,12 @@ function webFile(name2) {
   if (Object.hasOwn(VENDORED, name2)) return vendoredFile(name2);
   if (MODULES[name2] !== void 0) return MODULES[name2];
   return /^[a-z0-9-]+\.(js|css)$/.test(name2) ? resolve3(WEB_DIR, name2) : void 0;
+}
+function webBuild() {
+  const hash = createHash4("sha256");
+  const files = [...readdirSync(WEB_DIR).sort().map((name2) => resolve3(WEB_DIR, name2)), ...Object.values(MODULES)];
+  for (const file of files) hash.update(file.slice(dirname4(WEB_DIR).length)).update(readFileSync(file));
+  return hash.digest("hex").slice(0, 12);
 }
 function admitOwner(connection, request) {
   const admission = connection.admit(request);
@@ -12481,7 +12488,7 @@ var API = Object.freeze([
   ["POST", "library/seen", async ({ hub, body: body2 }) => hub.dismissNews((await body2()).path)],
   ["POST", "library/cancel", async ({ hub, body: body2 }) => hub.cancelDownload((await body2()).path)],
   ["POST", "follow", async ({ hub, body: body2 }) => hub.followWork(pick3(await body2(), ["source", "id", "follow"]))],
-  ["GET", "settings", ({ settings }) => settings()],
+  ["GET", "settings", ({ settings, build }) => ({ ...settings(), build })],
   ["GET", "locales", ({ localeDir, logger }) => readWords(localeDir, logger)],
   ["GET", "sources", async ({ hub }) => ({ sources: await hub.sources() })],
   ["GET", "trending", ({ hub, query }) => hub.trending(query("source"), query("kind"))],
@@ -12499,6 +12506,7 @@ var STATUS = Object.freeze({ points: 402, invalid: 400, empty: 400, not_found: 4
 var statusOf = (error) => error?.status ?? STATUS[error?.code] ?? 500;
 var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, ...error?.points ? { points: error.points } : {}, message: error?.message ?? String(error) } });
 function createHandler({ connection, service, settings = () => ({ label: "", presence: {} }), localeDir = LOCALE_DIR, logger }) {
+  const build = webBuild();
   return async (req, res) => {
     const admitted = admitOwner(connection, req);
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? "Sign in to DSH first." : "Forbidden.");
@@ -12512,8 +12520,8 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
       } catch {
         return sendText(res, 400, "Bad address.");
       }
-      if (parts[0] === "web" && parts.length === 2 && req.method === "GET") {
-        const file = webFile(parts[1]);
+      if (parts[0] === "web" && parts.length === 3 && req.method === "GET") {
+        const file = webFile(parts[2]);
         const body2 = file === void 0 ? null : await readFile5(file).catch(() => null);
         if (body2 === null) return sendText(res, 404, "Not found.");
         res.writeHead(200, { ...SECURITY_HEADERS, "cache-control": "no-cache", "content-type": WEB_TYPES[extname5(file)], "content-length": body2.length }).end(body2);
@@ -12542,7 +12550,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         const found = matchApi(req.method, parts.slice(1));
         if (found !== null) {
           const query = (name2) => url.searchParams.get(name2) ?? "";
-          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, localeDir, logger }));
+          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, build, localeDir, logger }));
         }
       }
       return sendText(res, 404, "Not found.");
@@ -12563,7 +12571,7 @@ Content-Length: 0\r
 
 // src/media.js
 import { spawn as spawn5 } from "node:child_process";
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash7 } from "node:crypto";
 import { statfs as statfs2, stat as stat10 } from "node:fs/promises";
 import { join as join17, resolve as resolve6 } from "node:path";
 
@@ -12929,7 +12937,7 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
 
 // src/books.js
 import { spawn as spawn4 } from "node:child_process";
-import { createHash as createHash4, randomUUID } from "node:crypto";
+import { createHash as createHash5, randomUUID } from "node:crypto";
 import { mkdir as mkdir7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat7 } from "node:fs/promises";
 import { extname as extname6, join as join12 } from "node:path";
 
@@ -12958,7 +12966,7 @@ var MAX_ENTRIES = 2e3;
 var CONVERT_TIMEOUT_MS = 10 * 6e4;
 var CONCURRENCY = 2;
 var ENTRY = /^[0-9a-f-]{36}$/;
-var fileKey = (source, id, format) => createHash4("sha256").update(`${source}
+var fileKey = (source, id, format) => createHash5("sha256").update(`${source}
 ${id}
 ${format}`).digest("hex").slice(0, 24);
 function attachment(name2) {
@@ -13201,7 +13209,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
 }
 
 // src/covers.js
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash6 } from "node:crypto";
 import { mkdir as mkdir8, open as open3, readdir as readdir6, rename as rename5, rm as rm7, stat as stat8, utimes } from "node:fs/promises";
 import { join as join13 } from "node:path";
 
@@ -13236,7 +13244,7 @@ function imageType(head) {
   if (head.length >= 12 && head.subarray(0, 4).toString("latin1") === "RIFF" && head.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
   return null;
 }
-var keyOf2 = (...parts) => createHash5("sha256").update(parts.join("\n")).digest("hex").slice(0, 32);
+var keyOf2 = (...parts) => createHash6("sha256").update(parts.join("\n")).digest("hex").slice(0, 32);
 var coverKey = (sourceId, url) => keyOf2(sourceId, url);
 async function grabFrame(input, output, at, { ffmpeg }) {
   const frame = ["-map", "0:V:0", "-frames:v", "1", "-vf", `scale=-2:${FRAME_HEIGHT}`, "-q:v", "5", "-f", "image2", "-c:v", "mjpeg", output];
@@ -15338,7 +15346,7 @@ ${work.id}`) || foldersFor(sourceId, work).some((path) => logged.has(path)));
   }
   function foldersFor(sourceId, work) {
     const name2 = cleanName(work.title ?? "");
-    const mark = createHash6("sha256").update(`${sourceId}
+    const mark = createHash7("sha256").update(`${sourceId}
 ${work.id}`).digest("hex").slice(0, 8);
     return [name2, `${name2} (${mark})`].map((candidate) => join17(libraryRoots[0], candidate));
   }
@@ -15599,12 +15607,12 @@ ${work.id}`).digest("hex").slice(0, 8);
 }
 
 // src/people.js
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 var OWNER = "owner";
 function personOf(identityService) {
   const identity = typeof identityService?.current === "function" ? identityService.current() : null;
   if (identity === null || typeof identity?.id !== "string" || identity.id === "") return { key: OWNER, id: "", name: "", verified: false };
-  const key = createHash7("sha256").update(`${identity.issuer ?? ""}
+  const key = createHash8("sha256").update(`${identity.issuer ?? ""}
 ${identity.id}`).digest("hex").slice(0, 20);
   return { key, id: identity.id, name: typeof identity.name === "string" ? identity.name.slice(0, 80) : "", verified: true };
 }

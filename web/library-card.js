@@ -1,5 +1,6 @@
 /**
- * The one card every library item is shown in, whatever it is: a cover, a title with its type, a line of facts, a
+ * The one card every library item is shown in, whatever it is: a cover at its left edge, a title with its type
+ * (and the chevron of an item that opens out), a line of facts, a
  * muted line, tags, what to show beside them, the actions, and room below for what opens out (episodes, details).
  * Shows and books differ only in what they put in these places.
  */
@@ -27,12 +28,10 @@ export function LibraryCover({ pictures, icon }) {
 export function LibraryCard({ cover, title, badge, lead, rest = [], tags = [], aside = null, actions, expand = null, below = null }) {
   return h('li', { className: 'vsync-show' },
     h('div', { className: 'vsync-row' },
-      expand
-        ? h('button', { type: 'button', className: 'vsync-expand', 'aria-expanded': String(expand.open), 'aria-label': expand.label, onClick: expand.onToggle }, h(Icon.Chevron, { open: expand.open }))
-        : h('span', { className: 'vsync-expand', 'aria-hidden': true }),
       cover,
       h('span', { className: 'vsync-rowText' },
-        h('span', { className: 'vsync-cardHead' }, title, h('span', { className: 'vsync-badge' }, badge)),
+        h('span', { className: 'vsync-cardHead' }, title, h('span', { className: 'vsync-badge' }, badge),
+          expand && h('button', { type: 'button', className: 'vsync-expand', 'aria-expanded': String(expand.open), 'aria-label': expand.label, title: expand.label, onClick: expand.onToggle }, h(Icon.Chevron, { open: expand.open }))),
         h('span', { className: 'vsync-rowMeta vsync-rowLead' }, lead.map((part, n) => h('span', { key: n }, part))),
         rest.length > 0 && h('span', { className: 'vsync-rowMeta vsync-rowMuted' }, rest.map((part, n) => h('span', { key: n }, part))),
         tags.length > 0 && h('span', { className: 'vsync-tags' }, tags.map(tag => h('span', { key: tag, className: 'vsync-tag' }, tag))),

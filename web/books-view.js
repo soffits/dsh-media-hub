@@ -61,7 +61,7 @@ export function startChat(t, book, sourceLabel) {
 
 /** "Ask": a new conversation about the item, as an icon; its name is the tooltip and what screen readers read. */
 export function ChatButton({ t, onClick }) {
-  return canChat() && h('button', { type: 'button', className: 'vsync-btn vsync-ask vsync-iconBtn', title: t('chat.about'), 'aria-label': t('chat.about'), onClick }, h(Icon.Chat, { size: 18 }))
+  return canChat() && h('button', { type: 'button', className: 'vsync-icon vsync-ask', title: t('chat.about'), 'aria-label': t('chat.about'), onClick }, h(Icon.Chat))
 }
 
 /** Waits until the shelf entry is no longer being fetched. */

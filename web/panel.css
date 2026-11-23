@@ -1,9 +1,11 @@
-/* Video Sync page styles. Only the host theme tokens (--dsw-*), except the player's stage. */
+/* Video Sync page styles. Only the host theme tokens (--dsw-*), except the player's stage.
+   Width rules follow the panel, not the window: `.vsync-page[data-within~="640"]` means the panel is at most
+   640px wide (client.js keeps the attribute), written inside :where() so a rule weighs what it did as a media query. */
 .vsync-page{width:100%;min-width:0;height:100%;min-height:0;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);font-size:14px;line-height:1.6;display:flex;flex-direction:column;overflow:hidden}
 .vsync-crash{padding:24px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .vsync-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable;--dsh-scrollbar-width:9px;--dsh-scrollbar-thumb-border:2px}
-.vsync-content{max-width:960px;margin:0 auto;padding:0 clamp(24px,4vw,48px) 48px}
-@media (width<=767px){.vsync-content{padding-inline:20px}}
+.vsync-content{max-width:960px;margin:0 auto;padding:0 clamp(24px,4%,48px) 48px}
+:where(.vsync-page[data-within~="767"]){.vsync-content{padding-inline:20px}}
 .vsync-heading{padding-top:28px;margin-bottom:24px}
 [data-platform=darwin] .vsync-heading{padding-top:calc(28px + var(--dsh-frame-top-clearance,0px))}
 .vsync-heading h1{margin:0;font-size:20px;font-weight:500;line-height:28px}
@@ -39,6 +41,8 @@
 @media (hover:hover){.vsync-icon:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .vsync-icon:active{background:var(--dsw-alias-interactive-bg-active)}
 .vsync-icon svg{width:16px;height:16px}
+.vsync-iconMain{color:var(--dsw-alias-state-business-primary)}
+a.vsync-icon{text-decoration:none}
 .vsync-bar{flex:none;display:flex;align-items:center;gap:8px;height:44px;padding:0 12px 0 8px;border-bottom:.5px solid var(--dsw-alias-border-l3)}
 [data-platform=darwin] .vsync-bar{margin-top:var(--dsh-frame-top-clearance,0px)}
 .vsync-barTitle{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;white-space:nowrap;overflow:hidden}
@@ -88,7 +92,7 @@
 .vsync-episode[aria-current=true] .vsync-episodeNo{color:inherit}
 .vsync-episodeTitle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vsync-episodeState{flex:none;color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:400}
-@media (width<=900px){.vsync-body{flex-direction:column}.vsync-player{flex:none}.vsync-stageWrap{flex:none;aspect-ratio:16/9}.vsync-episodes{width:auto;flex:1;border-left:0;border-top:.5px solid var(--dsw-alias-border-l4)}.vsync-members .vsync-memberName{display:none}}
+:where(.vsync-page[data-within~="900"]){.vsync-body{flex-direction:column}.vsync-player{flex:none}.vsync-stageWrap{flex:none;aspect-ratio:16/9}.vsync-episodes{width:auto;flex:1;border-left:0;border-top:.5px solid var(--dsw-alias-border-l4)}.vsync-members .vsync-memberName{display:none}}
 /* Search */
 .vsync-search{position:relative;display:flex;gap:8px;align-items:center;margin-bottom:10px}
 .vsync-searchIcon{position:absolute;left:12px;top:10px;width:16px;height:16px;color:var(--dsw-alias-label-tertiary);pointer-events:none}
@@ -148,13 +152,13 @@
 .vsync-show{list-style:none}
 .vsync-show,.vsync-card{background:color-mix(in srgb,var(--dsw-alias-interactive-bg-hover) 45%,transparent)}
 .vsync-show{box-sizing:border-box;padding:2px;border-radius:12px;box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l3)}
-.vsync-expand{flex:none;width:20px;height:28px;margin-right:-6px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.vsync-expand{flex:none;align-self:center;width:24px;height:24px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
 .vsync-expand svg{width:12px;height:12px}
 .vsync-poster{flex:none;box-sizing:border-box;width:64px;height:36px;border-radius:6px;object-fit:cover;background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-interactive-bg-hover))}
 .vsync-posterEmpty{display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-caption)}
 .vsync-titleButton{display:block;max-width:100%;padding:0;border:none;background:transparent;color:inherit;font:inherit;font-weight:500;text-align:left;cursor:pointer}
 .vsync-inline{height:28px;font-weight:500;width:100%;max-width:420px}
-.vsync-subrows{list-style:none;margin:0 0 6px;padding:0 0 0 98px;display:flex;flex-direction:column;gap:1px}
+.vsync-subrows{list-style:none;margin:0 0 6px;padding:0 0 0 80px;display:flex;flex-direction:column;gap:1px}
 .vsync-subrow{display:flex;align-items:center;gap:6px;min-height:30px;padding-right:8px;border-radius:10px}
 @media (hover:hover){.vsync-subrow:hover{background:var(--dsw-alias-interactive-bg-hover)}}
 .vsync-subrowMain{flex:1;min-width:0;display:flex;align-items:baseline;gap:10px;padding:5px 8px;border:none;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer}
@@ -162,7 +166,7 @@
 .vsync-subrow:hover .vsync-subrowDelete,.vsync-subrowDelete:focus-visible{opacity:1}
 @media (hover:none){.vsync-subrowDelete{opacity:1}}
 .vsync-icon:disabled{cursor:not-allowed;opacity:.35}
-@media (width<=767px){.vsync-cover{width:64px;height:86px}.vsync-cardFoot .vsync-actions{flex-wrap:wrap}.vsync-subrows{padding-left:24px}.vsync-poster{width:48px;height:27px}.vsync-confirmText{white-space:normal}.vsync-row{flex-wrap:wrap}.vsync-row>.vsync-actions,.vsync-row>.vsync-confirm{margin-left:auto}}
+:where(.vsync-page[data-within~="767"]){.vsync-cover{width:64px;height:86px}.vsync-cardFoot .vsync-actions{flex-wrap:wrap}.vsync-subrows{padding-left:8px}.vsync-poster{width:48px;height:27px}.vsync-confirmText{white-space:normal}.vsync-row{flex-wrap:wrap}.vsync-row>.vsync-actions,.vsync-row>.vsync-confirm{margin-left:auto}}
 /* Watched marks */
 .vsync-episodeMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .vsync-episode{align-items:center}
@@ -199,10 +203,10 @@
 .vsync-segIcon{display:inline-flex}
 .vsync-picker .vsync-tabs{margin-bottom:0}
 .vsync-emptyActions{margin-top:16px;display:inline-flex;gap:8px}
-@media (width<=767px){.vsync-segment{display:flex}.vsync-seg{flex:1 0 auto}}
+:where(.vsync-page[data-within~="767"]){.vsync-segment{display:flex}.vsync-seg{flex:1 0 auto}}
 /* Library details, room preview, avatars, room side tabs */
 .vsync-posterCover{width:36px;height:48px;object-fit:cover;border-radius:6px}
-.vsync-poster.vsync-libCover{width:48px;height:64px;object-fit:cover;border-radius:6px}
+.vsync-poster.vsync-libCover{width:60px;height:80px;object-fit:cover;border-radius:6px}
 .vsync-posterEmpty.vsync-libCover{background:var(--dsw-alias-interactive-bg-hover)}
 .vsync-showDetails{padding:4px 8px 12px 48px}
 .vsync-detailsToggle{align-self:flex-start}
@@ -239,7 +243,7 @@
 .vsync-rowTitle,.vsync-tag{overflow-wrap:anywhere}
 @media (pointer:coarse){.vsync-icon{width:40px;height:40px}.vsync-btn{min-height:36px}.vsync-chip,.vsync-tab{height:32px}.vsync-seg{height:36px}}
 /* Phones */
-@media (width<=640px){
+:where(.vsync-page[data-within~="640"]){
   .vsync-note{display:none}
   .vsync-heading{padding-top:14px;margin-bottom:6px}
   .vsync-heading h1{font-size:17px;line-height:24px}
@@ -252,9 +256,14 @@
   .vsync-row>.vsync-actions,.vsync-row>.vsync-confirm{flex:1 1 100%;margin-left:0}
   .vsync-row>.vsync-actions .vsync-btn{flex:1;height:36px}
   .vsync-row>.vsync-actions .vsync-ask{flex:0 0 40px;padding:0}
+  /* A row whose actions are icons only keeps them beside its text; a row of buttons goes under it. */
+  .vsync-row>.vsync-actions:not(:has(.vsync-btn)){flex:none;margin-left:auto;gap:0}
+  .vsync-row>.vsync-actions:not(:has(.vsync-btn)) .vsync-icon{width:36px}
+  /* A long title keeps the row's width; its type drops under it. */
+  .vsync-row .vsync-cardHead{flex-wrap:wrap;column-gap:8px}
   .vsync-posterCover{width:56px;height:75px}
   .vsync-poster{width:96px;height:54px}
-  .vsync-poster.vsync-libCover{width:56px;height:75px}
+  .vsync-poster.vsync-libCover{width:64px;height:86px}
   .vsync-preview{width:96px;height:54px}
   .vsync-showDetails{padding:4px 0 12px}
   .vsync-card{display:grid;grid-template-columns:72px minmax(0,1fr);column-gap:12px;align-items:start}
@@ -272,7 +281,7 @@
 .vsync-sort{margin:0 0 8px}
 .vsync-chip[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);box-shadow:inset 0 0 0 var(--dsh-hairline-width,.5px) var(--dsw-alias-border-l2)}
 .vsync-more{align-self:center;margin:4px auto 12px}
-@media (width<=640px){.vsync-more{width:100%;height:40px}}
+:where(.vsync-page[data-within~="640"]){.vsync-more{width:100%;height:40px}}
 .vsync-filters{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:4px 0 12px}
 .vsync-filter{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .vsync-filter .vsync-field{flex:none;height:32px;padding:0 10px;font-size:13px;border-radius:10px}
@@ -283,17 +292,17 @@
 .vsync-book .vsync-actions{flex-wrap:wrap;justify-content:flex-end}
 .vsync-book a.vsync-btn{text-decoration:none}
 .vsync-shelf{margin-top:24px}
-@media (width<=767px){.vsync-filter{flex:1 1 40%}.vsync-filter .vsync-field,.vsync-year{width:100%}.vsync-book .vsync-actions{justify-content:flex-start}}
+:where(.vsync-page[data-within~="767"]){.vsync-filter{flex:1 1 40%}.vsync-filter .vsync-field,.vsync-year{width:100%}.vsync-book .vsync-actions{justify-content:flex-start}}
 @media (pointer:coarse){.vsync-filter .vsync-field,.vsync-pick{font-size:16px}}
 /* Covers fill the card's height, cropped from the top; on phones they stay small and fixed (below). */
-@media (width>640px){
+:where(.vsync-page:not([data-within~="640"])){
   .vsync-card{align-items:stretch}
   .vsync-card>.vsync-cover{height:auto;min-height:112px;align-self:stretch;object-position:top}
   .vsync-card>.vsync-coverSmall{min-height:54px}
 }
 .vsync-filterToggle{display:none}
 .vsync-ask svg{flex:none}
-@media (width<=640px){
+:where(.vsync-page[data-within~="640"]){
   .vsync-card .vsync-cover{width:64px;height:86px;align-self:start}
   .vsync-card .vsync-coverSmall{width:48px;height:64px}
   .vsync-card:has(>.vsync-coverSmall){grid-template-columns:48px minmax(0,1fr)}
@@ -304,11 +313,12 @@
   .vsync-card .vsync-cardFoot{flex-direction:row;flex-wrap:wrap;align-items:center}
   .vsync-card .vsync-cardFoot .vsync-actions{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px}
   .vsync-card .vsync-cardFoot .vsync-actions>*{flex:1 1 auto}
+  .vsync-card .vsync-cardFoot .vsync-actions>.vsync-icon{flex:none}
   /* Ask is an icon in the card's corner, so the row under the title keeps the download and its format together in any language. */
   .vsync-card{position:relative}
   .vsync-card .vsync-cardHead{padding-right:40px}
   .vsync-card .vsync-cardFoot .vsync-actions .vsync-ask{position:absolute;top:6px;right:6px;width:40px;padding:0;border:0;box-shadow:none;background:none}
-  .vsync-card .vsync-cardFoot .vsync-actions .vsync-pick{flex:0 1 84px;min-width:64px;max-width:none}
+  .vsync-card .vsync-cardFoot .vsync-actions .vsync-pick{flex:0 1 auto;min-width:64px;max-width:none}
   /* A book has one action (download in a format): it sits beside the cover, under the title and the info line, so the
      small cover leaves no gap. A show's several actions take the full width under the cover. */
   .vsync-book .vsync-cardBody>.vsync-cardFoot{grid-column:2;margin-top:6px}
@@ -357,7 +367,7 @@
 .vsync-feedPick{list-style:none;display:flex;flex-direction:column;gap:4px}
 .vsync-feedPick .vsync-pickWhy{margin:0 4px}
 .vsync-feedSection .vsync-more{display:flex;margin-top:0}
-@media (width<=640px){.vsync-cc{flex-direction:column;gap:14px}.vsync-ccPoster{width:112px;height:150px}.vsync-ccStrip .uk-segmentsLabelled{flex-wrap:wrap;row-gap:4px}.vsync-ccStrip .uk-segments{flex-basis:100%}}
+:where(.vsync-page[data-within~="640"]){.vsync-cc{flex-direction:column;gap:14px}.vsync-ccPoster{width:112px;height:150px}.vsync-ccStrip .uk-segmentsLabelled{flex-wrap:wrap;row-gap:4px}.vsync-ccStrip .uk-segments{flex-basis:100%}}
 /* Interface chrome is not selectable and pictures don't drag; titles, recaps and reasons stay selectable. */
 .vsync-pageTabs,.vsync-ccActions,.vsync-rateAnswers,.vsync-ccLive,.vsync-sectionMeta,.vsync-sectionHead h2,.vsync-actions,.vsync-tabCount,.vsync-ccStrip,.vsync-rateHead .uk-tile{user-select:none;-webkit-user-select:none}
 .vsync-page img{-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
@@ -369,7 +379,7 @@
 .vsync-danmakuToggle[aria-checked=false]{color:var(--dsw-alias-label-tertiary)}
 .vsync-popover{position:absolute;right:0;bottom:calc(100% + 6px);z-index:30;box-sizing:border-box;width:min(320px,calc(100vw - 24px));display:flex;flex-direction:column;gap:14px;padding:14px;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-1,var(--dsw-alias-bg-base));color:var(--dsw-alias-label-primary);box-shadow:var(--dsw-shadow-lv3)}
 .vsync-playerBar .vsync-popover{max-height:min(480px,calc(100dvh - 160px));overflow-y:auto}
-@media (width<=900px){.vsync-playerBar .vsync-popover{top:calc(100% + 6px);bottom:auto}}
+:where(.vsync-page[data-within~="900"]){.vsync-playerBar .vsync-popover{top:calc(100% + 6px);bottom:auto}}
 .vsync-player:fullscreen .vsync-playerBar .vsync-popover,.vsync-player[data-covering=true] .vsync-playerBar .vsync-popover{top:auto;bottom:calc(100% + 6px)}
 .vsync-setting{display:flex;flex-direction:column;gap:6px}
 .vsync-settingLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
@@ -378,7 +388,7 @@
 .vsync-danmaku{position:absolute;top:0;left:0;right:0;z-index:1;overflow:hidden;pointer-events:none;color:#fff;font-size:20px;font-weight:600;line-height:1.3;text-shadow:0 0 2px rgba(0,0,0,.9),0 1px 2px rgba(0,0,0,.6)}
 .vsync-danmaku[data-size=small]{font-size:15px}
 .vsync-danmaku[data-size=large]{font-size:26px}
-@media (width<=640px){.vsync-danmaku{font-size:15px}.vsync-danmaku[data-size=small]{font-size:12px}.vsync-danmaku[data-size=large]{font-size:19px}}
+:where(.vsync-page[data-within~="640"]){.vsync-danmaku{font-size:15px}.vsync-danmaku[data-size=small]{font-size:12px}.vsync-danmaku[data-size=large]{font-size:19px}}
 .vsync-player:fullscreen,.vsync-player[data-covering=true]{width:100%;height:100%}
 .vsync-player[data-covering=true]{position:fixed;inset:0;z-index:1000;height:100dvh}
 .vsync-player:fullscreen .vsync-stageWrap,.vsync-player[data-covering=true] .vsync-stageWrap{flex:1;aspect-ratio:auto}
@@ -391,4 +401,3 @@
 .vsync-commentName{color:var(--dsw-alias-label-secondary);font-weight:500}
 .vsync-commentText{margin:4px 0 0;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;white-space:pre-wrap;overflow-wrap:anywhere}
 .vsync-commentStats{display:flex;gap:12px;margin-top:4px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
-.vsync-iconBtn,.vsync-actions .vsync-iconBtn.vsync-iconBtn{flex:none;order:0;width:36px;padding:0}

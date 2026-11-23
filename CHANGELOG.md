@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.2
+
+- An update no longer leaves an open page half old: the page's files are loaded from an address named after their build, so the page that gets the new words gets the new code and styles with them. Before, a page left open across an update kept its old code and showed the new version's words in it (a bare `chat.ask`, old buttons).
+- The layout follows the width of the media panel, not of the window. With a side bar open, or on a phone held sideways, the panel is as narrow as a phone while the window is wide; it then got the wide layout, with buttons running off the edge and titles cut to a few characters.
+- Library cards: the cover sits at the card's left edge and is larger, for shows and books alike; a show's chevron moved behind its title. A book's actions are small icons beside its title, in the same style as the "more" button, instead of a row of their own.
+- Bringing a book to the device carries on after a dropped connection from the bytes already there, as a browser's own download does, and says so in the page's words when it still fails (it showed the browser's bare "Load failed").
+
 ## 0.16.1
 
 - Book actions are icons again, each named in its tooltip: *Ask* (a speech bubble, everywhere, the Continue card included), *Add to shelf* (+), *Download to device* (an arrow), and on an iPhone's home-screen app *Save to other apps* (share) and *Open in Safari* (a compass). Work in progress is a spinner (with the percentage while a book comes to the device), and the text badges 0.16.0 added are gone: a book's icons already say where it is.
