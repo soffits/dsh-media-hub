@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.5
+
+- Saving a book from the page installed to an iPhone's home screen no longer strands you on the file with no way back: the file opens in a Safari sheet with a Done button.
+
 ## 0.15.4
 
 - An open page's change stream now ends when the plugin is unloaded or updated, so the page reconnects to the new version; before, it stayed open and heard nothing more until reloaded.
