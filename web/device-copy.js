@@ -1,17 +1,20 @@
 /**
- * A book's copy on this device. In a browser that is a plain download link. A page installed to an iPhone's
- * or iPad's home screen can't use one: iOS shows the file full screen with no way back. There a book has two
- * states the person sees and controls:
+ * A book on this device. In a browser that is a plain download link. A page installed to an iPhone's or iPad's
+ * home screen can't use one: iOS shows the file full screen with no way back. There a book has two ways out:
  *
- *   not on this device  ->  a download icon, then a spinner with the percentage
- *   on this device      ->  a share icon (the share sheet) and a compass (Safari)
+ *   to the share sheet   the file is first brought into the page (a download icon, then a spinner with the
+ *                        percentage), kept in Cache Storage so it is still there when the app is opened again,
+ *                        and then a share icon hands it over. Because the file is already here, that tap opens
+ *                        the sheet at once: iOS opens it only within a moment of a tap, so nothing may be awaited
+ *                        in between.
+ *   to Safari            a compass, there from the start: iOS 17's `x-safari-https:` link opens the book in Safari
+ *                        itself, whose download view offers every app that opens the file and has its own way back.
  *
- * The copy is kept in the page's Cache Storage, so it is still there when the app is opened again (iOS may
- * clear it after weeks unused; the state then reads "not on this device" again, which is true). Because the
- * file is already here, the tap on "Save to other apps" opens the share sheet at once: iOS opens it only
- * within a moment of a tap, so nothing may be awaited in between. The share sheet lists only apps that take
- * shared files; "Open in Safari" (iOS 17's `x-safari-https:` link) opens the book in Safari itself, whose
- * download view offers every app that opens the file and has its own way back. Safari keeps its own sign-in.
+ * Both exist because neither does it all. WebKit hands a web page's shared file to the share sheet as a data
+ * placeholder, not as a file (WKShareSheet's item provider for shares that come from web content), so the sheet
+ * lists what takes any data (Save to Files, AirDrop, messengers) and leaves out what wants a file: Books and
+ * most reader apps, whatever the file's type and name. Safari downloads the book itself, since one app can't read
+ * another's storage, the page's copy included, and keeps its own sign-in.
  * The download carries on after a dropped connection (web/resumable.js).
  */
 import { fetchResumable } from './resumable.js'
@@ -81,7 +84,7 @@ export function useDeviceCopy(entry, link) {
   return copies.get(entry.entry) ?? { step: 'checking' }
 }
 
-/** What a ready shelf entry offers for this device, as icons: download when it isn't here, share and Safari when it is. */
+/** What a ready shelf entry offers for this device, as icons. */
 export function DeviceCopy({ t, entry, link }) {
   const name = fill(t('book.save'), { format: entry.format.toUpperCase() })
   if (!installedOnIos()) return h(IconButton, { label: name, icon: Icon.Download, primary: true, href: link, download: entry.name ?? '' })
@@ -95,19 +98,14 @@ function InstalledCopy({ t, entry, link, name }) {
     setShareError(null)
     navigator.share({ files: [copy.file] }).catch(error => { if (error?.name !== 'AbortError') setShareError(error?.message ?? String(error)) })
   }
-  switch (copy.step) {
-    case 'checking':
-      return h(Pending, { label: name })
-    case 'downloading':
-      return h(Pending, { label: t('book.toDevice'), figure: copy.fraction === null ? null : `${Math.round(copy.fraction * 100)}%` })
-    case 'here':
-      return h(React.Fragment, null,
-        h(IconButton, { label: t('book.shareTo'), icon: Icon.Share, primary: true, onClick: share }),
-        h(IconButton, { label: t('book.openInSafari'), icon: Icon.Compass, href: `x-safari-${new URL(link, document.baseURI).href}` }),
-        shareError && h('span', { className: 'vsync-error', role: 'alert' }, shareError))
-    default:
-      return h(React.Fragment, null,
-        h(IconButton, { label: name, icon: Icon.Download, primary: true, onClick: () => download(t, entry, link) }),
-        copy.step === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, copy.message))
-  }
+  const toShareSheet = {
+    checking: () => h(Pending, { label: name }),
+    downloading: () => h(Pending, { label: t('book.toDevice'), figure: copy.fraction === null ? null : `${Math.round(copy.fraction * 100)}%` }),
+    here: () => h(IconButton, { label: t('book.shareTo'), icon: Icon.Share, primary: true, onClick: share }),
+  }[copy.step] ?? (() => h(IconButton, { label: name, icon: Icon.Download, primary: true, onClick: () => download(t, entry, link) }))
+  const failure = copy.step === 'failed' ? copy.message : shareError
+  return h(React.Fragment, null,
+    toShareSheet(),
+    h(IconButton, { label: t('book.openInSafari'), icon: Icon.Compass, href: `x-safari-${new URL(link, document.baseURI).href}` }),
+    failure && h('span', { className: 'vsync-error', role: 'alert' }, failure))
 }
