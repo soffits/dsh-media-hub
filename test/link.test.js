@@ -18,7 +18,7 @@ const CAPTIONED = 'https://www.youtube.com/watch?v=captioned'
 const ERRORS = JSON.parse(readFileSync(new URL('./fixtures/yt-dlp/errors.json', import.meta.url), 'utf8'))
 
 function link(t, { proxies = createProxies([]), cookies = createCookies([]), maxHeight = 720, logger = quietLogger } = {}) {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const log = join(dir, 'calls.jsonl')
   process.env.FAKE_YTDLP_LOG = log
   t.after(() => { for (const name of ['FAKE_YTDLP_LOG', 'FAKE_YTDLP_FAIL', 'FAKE_YTDLP_ERROR', 'FAKE_YTDLP_COOKIES']) delete process.env[name] })
@@ -76,7 +76,7 @@ test('a proxy that does not answer is the reason, whatever yt-dlp printed', asyn
   const { source } = link(t, { proxies })
   process.env.FAKE_YTDLP_ERROR = 'proxyRefused'
   await assert.rejects(source.info(VIDEO), { code: 'source_failed', reason: 'proxy_down' })
-  const unreadable = createProxies([{ url: 'socks5h://127.0.0.1:1', hostsFile: join(tempDir(t), 'missing.txt') }])
+  const unreadable = createProxies([{ url: 'socks5h://127.0.0.1:1', hostsFile: join(tempDir(), 'missing.txt') }])
   await assert.rejects(link(t, { proxies: unreadable }).source.info(VIDEO), { reason: 'proxy_down' }, 'a hosts file that cannot be read fails closed')
 })
 
@@ -112,7 +112,7 @@ test('a range of episodes lands as numbered files, each looked up once, and an e
 })
 
 test('a site\'s account is read from a private copy of its cookies, with its User-Agent, and the copy is gone afterwards', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const own = join(dir, 'own.txt')
   const shared = join(dir, 'shared.txt')
   writeFileSync(own, '# Netscape HTTP Cookie File\nown\n')
@@ -183,6 +183,6 @@ test('the thumbnail is fetched through the route of its page', async (t) => {
   const asked = []
   const proxies = { route: async () => '', download: async (url, file, options) => { asked.push({ url, page: options.page }) } }
   const { source } = link(t, { proxies })
-  await source.cover('https://i.ytimg.example/1.jpg', join(tempDir(t), 'x'), { page: VIDEO })
+  await source.cover('https://i.ytimg.example/1.jpg', join(tempDir(), 'x'), { page: VIDEO })
   assert.deepEqual(asked, [{ url: 'https://i.ytimg.example/1.jpg', page: VIDEO }])
 })

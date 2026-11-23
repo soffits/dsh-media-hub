@@ -85,7 +85,7 @@ test('a hosts file is read again when it changes, and while it can\'t be read no
 
 test('a download follows redirects and stops at the size limit and at errors', async (t) => {
   const port = await webServer(t)
-  const dir = tempDir(t)
+  const dir = tempDir()
   const proxies = createProxies([])
   const options = { maxBytes: 1000, timeoutMs: 5000 }
   await proxies.download(`http://127.0.0.1:${port}/moved`, join(dir, 'a'), options)
@@ -98,7 +98,7 @@ test('a download follows redirects and stops at the size limit and at errors', a
 test('a routed download goes through the proxy, names resolved there, and fails when the proxy is down', async (t) => {
   const port = await webServer(t)
   const socks = await socksProxy(t)
-  const dir = tempDir(t)
+  const dir = tempDir()
   const options = { maxBytes: 1000, timeoutMs: 5000 }
   const proxies = createProxies([{ url: socks.url, hosts: ['pictures.invalid', 'video.example'] }])
   await proxies.download(`http://pictures.invalid:${port}/pic`, join(dir, 'a'), options)

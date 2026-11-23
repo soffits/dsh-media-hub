@@ -19,7 +19,7 @@ test('subtitles match their video by name, with an optional label', () => {
 })
 
 test('a folder becomes ordered episodes with their subtitles', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   for (const name of ['2.mp4', '10.mp4', '1.mp4', '1.srt', 'cover.jpg']) writeFileSync(join(dir, name), '')
   mkdirSync(join(dir, 'nested'))
   const episodes = await scanSource(dir)
@@ -55,7 +55,7 @@ test('the plan says what a browser needs', () => {
 })
 
 test('fast start is read from the file layout', { skip: !hasFfmpeg && 'needs ffmpeg' }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   makeVideo(join(dir, 'fast.mp4'), { faststart: true })
   makeVideo(join(dir, 'slow.mp4'), { faststart: false })
   assert.equal(await isFastStart(join(dir, 'fast.mp4')), true)
@@ -63,7 +63,7 @@ test('fast start is read from the file layout', { skip: !hasFfmpeg && 'needs ffm
 })
 
 test('episodes are prepared: remuxed when needed, subtitles converted, results cached', { skip: !hasFfmpeg && 'needs ffmpeg' }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const cacheDir = join(dir, 'cache')
   makeVideo(join(dir, 'ep.mp4'), { faststart: false })
   writeFileSync(join(dir, 'ep.srt'), '1\n00:00:00,000 --> 00:00:01,000\nHi\n')
@@ -80,7 +80,7 @@ test('episodes are prepared: remuxed when needed, subtitles converted, results c
 })
 
 test('videos in codecs browsers cannot play become H.264 HLS, told as playable once it can be, and reused', { skip: !hasFfmpeg && 'needs ffmpeg' }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   makeVideo(join(dir, 'old.avi'), { codec: 'mpeg4', seconds: 20 })
   const [episode] = await scanSource(join(dir, 'old.avi'))
   const told = []

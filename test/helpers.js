@@ -6,10 +6,17 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+/**
+ * Temporary folders, removed when the test file's process ends: after every test's own `t.after` (a hub's dispose
+ * still saves its state files), which node:test runs in the order they were added, after the folder was made.
+ */
+const tempDirs = []
+process.once('exit', () => { for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true }) })
+
 /** A temporary folder removed after the test file. */
-export function tempDir(t) {
+export function tempDir() {
   const dir = mkdtempSync(join(tmpdir(), 'media-hub-test-'))
-  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  tempDirs.push(dir)
   return dir
 }
 

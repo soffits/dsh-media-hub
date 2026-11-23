@@ -32,7 +32,7 @@ function show(dir, name = 'Show', episodes = 1) {
 
 
 test('two viewers see each other and follow each other\'s operations', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const service = makeService(dir)
   await service.load()
   t.after(() => service.dispose())
@@ -79,7 +79,7 @@ test('two viewers see each other and follow each other\'s operations', { skip: !
 })
 
 test('a viewer that disconnects while the room waits for it is no longer waited for', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const service = makeService(dir)
   await service.load()
   t.after(() => service.dispose())
@@ -101,7 +101,7 @@ test('a viewer that disconnects while the room waits for it is no longer waited 
 })
 
 test('rooms survive a restart of the service; closed rooms end their sockets', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const first = makeService(dir)
   await first.load()
   const { room } = await first.createRoom({ path: show(dir), title: 'Movie night' })
@@ -124,7 +124,7 @@ test('rooms survive a restart of the service; closed rooms end their sockets', {
 })
 
 test('the panel may only open what is in the library; the tool may open any path', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const service = makeService(dir)
   await service.load()
   t.after(() => service.dispose())
@@ -135,7 +135,7 @@ test('the panel may only open what is in the library; the tool may open any path
 })
 
 test('R2 delivery refuses local rooms until it is built', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const service = makeService(dir, { delivery: createDelivery({ mode: 'r2' }) })
   await service.load()
   t.after(() => service.dispose())
@@ -143,7 +143,7 @@ test('R2 delivery refuses local rooms until it is built', async (t) => {
 })
 
 test('a local room prepares its episodes and serves them when ready', { skip: !hasFfmpeg && 'needs ffmpeg' }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const show = join(dir, 'library', 'Show')
   mkdirSync(show, { recursive: true })
   makeVideo(join(show, '02.mp4'), { faststart: false })
@@ -162,7 +162,7 @@ test('a local room prepares its episodes and serves them when ready', { skip: !h
 })
 
 test('rooms close by themselves: 30 minutes after the last viewer left, or a day after creation when never opened', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   let clock = 1_000_000
   const service = makeService(dir, { now: () => clock })
   await service.load()
@@ -201,7 +201,7 @@ test('rooms close by themselves: 30 minutes after the last viewer left, or a day
 })
 
 test('a room is one person\'s until they open it to others, where it stands', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const service = makeService(dir)
   await service.load()
   t.after(() => service.dispose())
@@ -220,7 +220,7 @@ test('a room is one person\'s until they open it to others, where it stands', { 
 })
 
 test('a frame that is JSON but not an object is answered with an error, and the room goes on', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const service = makeService(dir)
   await service.load()
   t.after(() => service.dispose())

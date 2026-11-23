@@ -24,7 +24,7 @@ async function until(what, check, timeoutMs = 5000) {
 }
 
 function fakeSource(t, log, delayMs = 5) {
-  return createCommandSource({ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], env: { FAKE_SOURCE_LOG: log, FAKE_SOURCE_EPISODES: '6', FAKE_SOURCE_DELAY_MS: String(delayMs) } }, { logger: quietLogger, cwd: join(tempDir(t), 'work') })
+  return createCommandSource({ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], env: { FAKE_SOURCE_LOG: log, FAKE_SOURCE_EPISODES: '6', FAKE_SOURCE_DELAY_MS: String(delayMs) } }, { logger: quietLogger, cwd: join(tempDir(), 'work') })
 }
 
 const logOf = log => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : [])
@@ -51,7 +51,7 @@ test('comments answers keep who wrote what and when, and where the next page sta
 })
 
 test('the command source asks for danmaku, comments and a quality only where its kinds offer them', async (t) => {
-  const log = join(tempDir(t), 'log')
+  const log = join(tempDir(), 'log')
   const source = fakeSource(t, log)
   assert.deepEqual((await source.info(ID)).qualities, [AUTO, '1080', '720'])
   assert.deepEqual(await source.danmaku(ID, 2, 'drama'), [{ time: 1.5, text: '来了', likes: 0 }, { time: 3, text: '第2集 好看', likes: 2 }])
@@ -60,8 +60,8 @@ test('the command source asks for danmaku, comments and a quality only where its
   assert.deepEqual((await source.comments(ID, 'drama', { cursor: 'c2' })).items.map(item => item.id), ['c3', 'c4'])
   await assert.rejects(source.danmaku(ID, 1, 'audio'), { code: 'invalid' })
   await assert.rejects(source.comments(ID, 'audio'), { code: 'invalid' })
-  await source.download({ id: ID, dir: join(tempDir(t), 'show'), from: 1, to: 1, quality: '720' })
-  await source.download({ id: ID, dir: join(tempDir(t), 'other'), from: 1, to: 1, quality: AUTO })
+  await source.download({ id: ID, dir: join(tempDir(), 'show'), from: 1, to: 1, quality: '720' })
+  await source.download({ id: ID, dir: join(tempDir(), 'other'), from: 1, to: 1, quality: AUTO })
   assert.deepEqual(logOf(log), ['danmaku 2', 'comments first', 'comments c2', '1@720', '1'])
 })
 
@@ -82,7 +82,7 @@ function makeHub(dir, source) {
 }
 
 test('a room reads its episode\'s danmaku and its work\'s comments from copies kept with the show, asked again once old', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const log = join(dir, 'log')
   const hub = makeHub(dir, fakeSource(t, log))
   await hub.load()
@@ -111,7 +111,7 @@ test('a room reads its episode\'s danmaku and its work\'s comments from copies k
 })
 
 test('picking a quality in a room fetches what lies ahead again in it, for everyone; the episode being watched stays', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const log = join(dir, 'log')
   const hub = makeHub(dir, fakeSource(t, log, 150))
   await hub.load()

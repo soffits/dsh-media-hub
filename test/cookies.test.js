@@ -25,7 +25,7 @@ test('a person\'s own account first, then the default, then one its owner shared
 test('the page sees an account by its name only; the private copy is mode 600; an unreadable file is a clear error', async (t) => {
   assert.deepEqual(accountView({ person: 'sub-1', name: '', file: '/secret', userAgent: 'x', share: false }), { name: 'sub-1' })
   assert.equal(accountView(null), null)
-  const dir = tempDir(t)
+  const dir = tempDir()
   const file = join(dir, 'cookies.txt')
   writeFileSync(file, 'value', { mode: 0o644 })
   const cookies = createCookies([])

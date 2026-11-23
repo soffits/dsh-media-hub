@@ -2,15 +2,18 @@
  * Builds dist/: the two entries (index.js, tools.js) with every package they
  * import (ws, schemastery) bundled in, so DSH imports the plugin without
  * resolving any bare package at boot, and the browser builds the page loads
- * from the host (src/vendored.js). dist/ is committed: `npm run build` after changing
- * a source file under index.js, tools.js or src/; CI fails when it is stale.
+ * from the host (src/vendored.js), and dist/client.js, the browser half DSH loads: client.js
+ * with the build of the page's files written in (src/web-files.js), so a change to any page
+ * file changes the browser half and DSH swaps it into open pages. dist/ is committed: `npm run
+ * build` after changing anything the plugin ships; CI fails when it is stale.
  */
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { VENDORED } from '../src/vendored.js'
+import { webBuild } from '../src/web-files.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -33,3 +36,9 @@ const require = createRequire(import.meta.url)
 for (const [name, { pkg, file }] of Object.entries(VENDORED)) {
   copyFileSync(resolve(dirname(require.resolve(`${pkg}/package.json`)), file), resolve(root, 'dist', name))
 }
+
+// After the vendored builds, which are page files too.
+const BUILD_MARK = "'%WEB_BUILD%'"
+const client = readFileSync(resolve(root, 'client.js'), 'utf8')
+if (client.split(BUILD_MARK).length !== 2) throw new Error(`client.js must hold ${BUILD_MARK} once`)
+writeFileSync(resolve(root, 'dist/client.js'), client.replace(BUILD_MARK, JSON.stringify(webBuild())))

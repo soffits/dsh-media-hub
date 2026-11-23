@@ -8,7 +8,7 @@ import { quietLogger, tempDir } from './helpers.js'
 const DAY = 86_400_000
 
 function setup(t, overrides = {}) {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const root = join(dir, 'library')
   const show = join(root, 'Show')
   mkdirSync(show, { recursive: true })

@@ -35,9 +35,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/ws/lib/constants.js
+// ../../node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/ws/lib/constants.js"(exports, module) {
+  "../../node_modules/ws/lib/constants.js"(exports, module) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -58,9 +58,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/ws/lib/buffer-util.js
+// ../../node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "node_modules/ws/lib/buffer-util.js"(exports, module) {
+  "../../node_modules/ws/lib/buffer-util.js"(exports, module) {
     "use strict";
     var { websocketMask, websocketUnmask } = __require("http");
     var { EMPTY_BUFFER } = require_constants();
@@ -143,9 +143,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// node_modules/ws/lib/limiter.js
+// ../../node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "node_modules/ws/lib/limiter.js"(exports, module) {
+  "../../node_modules/ws/lib/limiter.js"(exports, module) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -193,9 +193,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// node_modules/ws/lib/permessage-deflate.js
+// ../../node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "node_modules/ws/lib/permessage-deflate.js"(exports, module) {
+  "../../node_modules/ws/lib/permessage-deflate.js"(exports, module) {
     "use strict";
     var zlib = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -576,9 +576,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// node_modules/ws/lib/validation.js
+// ../../node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "node_modules/ws/lib/validation.js"(exports, module) {
+  "../../node_modules/ws/lib/validation.js"(exports, module) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants();
@@ -777,9 +777,9 @@ var require_validation = __commonJS({
   }
 });
 
-// node_modules/ws/lib/receiver.js
+// ../../node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "node_modules/ws/lib/receiver.js"(exports, module) {
+  "../../node_modules/ws/lib/receiver.js"(exports, module) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -1401,9 +1401,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// node_modules/ws/lib/sender.js
+// ../../node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "node_modules/ws/lib/sender.js"(exports, module) {
+  "../../node_modules/ws/lib/sender.js"(exports, module) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -1897,9 +1897,9 @@ var require_sender = __commonJS({
   }
 });
 
-// node_modules/ws/lib/event-target.js
+// ../../node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "node_modules/ws/lib/event-target.js"(exports, module) {
+  "../../node_modules/ws/lib/event-target.js"(exports, module) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -2126,9 +2126,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// node_modules/ws/lib/extension.js
+// ../../node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "node_modules/ws/lib/extension.js"(exports, module) {
+  "../../node_modules/ws/lib/extension.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function push2(dest, name2, elem) {
@@ -2279,9 +2279,9 @@ var require_extension = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket.js
+// ../../node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "node_modules/ws/lib/websocket.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var https = __require("https");
@@ -3215,9 +3215,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// node_modules/ws/lib/stream.js
+// ../../node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "node_modules/ws/lib/stream.js"(exports, module) {
+  "../../node_modules/ws/lib/stream.js"(exports, module) {
     "use strict";
     var WebSocket2 = require_websocket();
     var { Duplex } = __require("stream");
@@ -3313,9 +3313,9 @@ var require_stream = __commonJS({
   }
 });
 
-// node_modules/ws/lib/subprotocol.js
+// ../../node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "node_modules/ws/lib/subprotocol.js"(exports, module) {
+  "../../node_modules/ws/lib/subprotocol.js"(exports, module) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -3358,9 +3358,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket-server.js
+// ../../node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "node_modules/ws/lib/websocket-server.js"(exports, module) {
+  "../../node_modules/ws/lib/websocket-server.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var http2 = __require("http");
@@ -3762,9 +3762,9 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// node_modules/ms/index.js
+// ../../node_modules/ms/index.js
 var require_ms = __commonJS({
-  "node_modules/ms/index.js"(exports, module) {
+  "../../node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -3878,9 +3878,9 @@ var require_ms = __commonJS({
   }
 });
 
-// node_modules/debug/src/common.js
+// ../../node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "node_modules/debug/src/common.js"(exports, module) {
+  "../../node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug4.debug = createDebug4;
       createDebug4.default = createDebug4;
@@ -4055,9 +4055,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/debug/src/browser.js
+// ../../node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "node_modules/debug/src/browser.js"(exports, module) {
+  "../../node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs2;
     exports.save = save;
     exports.load = load;
@@ -4225,9 +4225,9 @@ var require_browser = __commonJS({
   }
 });
 
-// node_modules/debug/src/node.js
+// ../../node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "node_modules/debug/src/node.js"(exports, module) {
+  "../../node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -4399,9 +4399,9 @@ var require_node = __commonJS({
   }
 });
 
-// node_modules/debug/src/index.js
+// ../../node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "node_modules/debug/src/index.js"(exports, module) {
+  "../../node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -4410,9 +4410,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/smart-buffer/build/utils.js
+// ../../node_modules/smart-buffer/build/utils.js
 var require_utils = __commonJS({
-  "node_modules/smart-buffer/build/utils.js"(exports) {
+  "../../node_modules/smart-buffer/build/utils.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var buffer_1 = __require("buffer");
@@ -4479,9 +4479,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/smart-buffer/build/smartbuffer.js
+// ../../node_modules/smart-buffer/build/smartbuffer.js
 var require_smartbuffer = __commonJS({
-  "node_modules/smart-buffer/build/smartbuffer.js"(exports) {
+  "../../node_modules/smart-buffer/build/smartbuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var utils_1 = require_utils();
@@ -5637,9 +5637,9 @@ var require_smartbuffer = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/constants.js
+// ../../node_modules/socks/build/common/constants.js
 var require_constants2 = __commonJS({
-  "node_modules/socks/build/common/constants.js"(exports) {
+  "../../node_modules/socks/build/common/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SOCKS5_NO_ACCEPTABLE_AUTH = exports.SOCKS5_CUSTOM_AUTH_END = exports.SOCKS5_CUSTOM_AUTH_START = exports.SOCKS_INCOMING_PACKET_SIZES = exports.SocksClientState = exports.Socks5Response = exports.Socks5HostType = exports.Socks5Auth = exports.Socks4Response = exports.SocksCommand = exports.ERRORS = exports.DEFAULT_TIMEOUT = void 0;
@@ -5754,9 +5754,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/util.js
+// ../../node_modules/socks/build/common/util.js
 var require_util = __commonJS({
-  "node_modules/socks/build/common/util.js"(exports) {
+  "../../node_modules/socks/build/common/util.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SocksClientError = void 0;
@@ -5777,9 +5777,9 @@ var require_util = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/address-error.js
+// ../../node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "node_modules/ip-address/dist/address-error.js"(exports) {
+  "../../node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -5794,9 +5794,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/common.js
+// ../../node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "node_modules/ip-address/dist/common.js"(exports) {
+  "../../node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -5897,9 +5897,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v4/constants.js
+// ../../node_modules/ip-address/dist/v4/constants.js
 var require_constants3 = __commonJS({
-  "node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "../../node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -5938,9 +5938,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv4.js
+// ../../node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "node_modules/ip-address/dist/ipv4.js"(exports) {
+  "../../node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6507,9 +6507,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/constants.js
+// ../../node_modules/ip-address/dist/v6/constants.js
 var require_constants4 = __commonJS({
-  "node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "../../node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -6597,9 +6597,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/helpers.js
+// ../../node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "../../node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -6636,9 +6636,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/v6/regular-expressions.js
+// ../../node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "../../node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -6728,9 +6728,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ipv6.js
+// ../../node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "node_modules/ip-address/dist/ipv6.js"(exports) {
+  "../../node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8061,9 +8061,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// node_modules/ip-address/dist/ip-address.js
+// ../../node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "node_modules/ip-address/dist/ip-address.js"(exports) {
+  "../../node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8111,9 +8111,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/helpers.js
+// ../../node_modules/socks/build/common/helpers.js
 var require_helpers2 = __commonJS({
-  "node_modules/socks/build/common/helpers.js"(exports) {
+  "../../node_modules/socks/build/common/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.validateSocksClientOptions = validateSocksClientOptions;
@@ -8217,9 +8217,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// node_modules/socks/build/common/receivebuffer.js
+// ../../node_modules/socks/build/common/receivebuffer.js
 var require_receivebuffer = __commonJS({
-  "node_modules/socks/build/common/receivebuffer.js"(exports) {
+  "../../node_modules/socks/build/common/receivebuffer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ReceiveBuffer = void 0;
@@ -8265,17 +8265,17 @@ var require_receivebuffer = __commonJS({
   }
 });
 
-// node_modules/socks/build/client/socksclient.js
+// ../../node_modules/socks/build/client/socksclient.js
 var require_socksclient = __commonJS({
-  "node_modules/socks/build/client/socksclient.js"(exports) {
+  "../../node_modules/socks/build/client/socksclient.js"(exports) {
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve8) {
-          resolve8(value);
+        return value instanceof P ? value : new P(function(resolve9) {
+          resolve9(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve8, reject) {
+      return new (P || (P = Promise))(function(resolve9, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -8291,7 +8291,7 @@ var require_socksclient = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve8(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve9(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -8325,13 +8325,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnection(options, callback) {
-        return new Promise((resolve8, reject) => {
+        return new Promise((resolve9, reject) => {
           try {
             (0, helpers_1.validateSocksClientOptions)(options, ["connect"]);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve8(err);
+              return resolve9(err);
             } else {
               return reject(err);
             }
@@ -8342,16 +8342,16 @@ var require_socksclient = __commonJS({
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(null, info);
-              resolve8(info);
+              resolve9(info);
             } else {
-              resolve8(info);
+              resolve9(info);
             }
           });
           client.once("error", (err) => {
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(err);
-              resolve8(err);
+              resolve9(err);
             } else {
               reject(err);
             }
@@ -8368,13 +8368,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnectionChain(options, callback) {
-        return new Promise((resolve8, reject) => __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve9, reject) => __awaiter(this, void 0, void 0, function* () {
           try {
             (0, helpers_1.validateSocksClientChainOptions)(options);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve8(err);
+              return resolve9(err);
             } else {
               return reject(err);
             }
@@ -8400,14 +8400,14 @@ var require_socksclient = __commonJS({
             }
             if (typeof callback === "function") {
               callback(null, { socket: sock });
-              resolve8({ socket: sock });
+              resolve9({ socket: sock });
             } else {
-              resolve8({ socket: sock });
+              resolve9({ socket: sock });
             }
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              resolve8(err);
+              resolve9(err);
             } else {
               reject(err);
             }
@@ -8944,9 +8944,9 @@ var require_socksclient = __commonJS({
   }
 });
 
-// node_modules/socks/build/index.js
+// ../../node_modules/socks/build/index.js
 var require_build = __commonJS({
-  "node_modules/socks/build/index.js"(exports) {
+  "../../node_modules/socks/build/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -8970,9 +8970,9 @@ var require_build = __commonJS({
 });
 
 // index.js
-import { join as join18, resolve as resolve7 } from "node:path";
+import { join as join18, resolve as resolve8 } from "node:path";
 
-// node_modules/@soffits/dsh-host-kit/src/locales.js
+// ../../node_modules/@soffits/dsh-host-kit/src/locales.js
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 var BASE = "en";
@@ -8998,7 +8998,7 @@ async function readLocales(dir, { warn = () => {
   return locales;
 }
 
-// node_modules/@soffits/dsh-host-kit/src/notices.js
+// ../../node_modules/@soffits/dsh-host-kit/src/notices.js
 function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
   const listeners = /* @__PURE__ */ new Set();
   let pending = [];
@@ -9050,7 +9050,7 @@ function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
   };
 }
 
-// node_modules/@soffits/dsh-host-kit/src/event-streams.js
+// ../../node_modules/@soffits/dsh-host-kit/src/event-streams.js
 function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
   const open4 = /* @__PURE__ */ new Set();
   function respond(request, start) {
@@ -9122,7 +9122,7 @@ function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
   };
 }
 
-// node_modules/ws/wrapper.mjs
+// ../../node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
 var import_extension = __toESM(require_extension(), 1);
 var import_permessage_deflate = __toESM(require_permessage_deflate(), 1);
@@ -9137,7 +9137,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join as join10 } from "node:path";
 
-// node_modules/@deepseek-ai/cosmokit/lib/index.js
+// ../../node_modules/@deepseek-ai/cosmokit/lib/index.js
 function isNullable(value) {
   return value === null || value === void 0;
 }
@@ -9362,7 +9362,7 @@ var Time;
   Time2.template = template;
 })(Time || (Time = {}));
 
-// node_modules/@deepseek-ai/schemastery/lib/index.mjs
+// ../../node_modules/@deepseek-ai/schemastery/lib/index.mjs
 var kSchema = /* @__PURE__ */ Symbol.for("schemastery");
 var kValidationError = /* @__PURE__ */ Symbol.for("ValidationError");
 globalThis.__schemastery_index__ ??= 0;
@@ -9615,8 +9615,8 @@ function validateVolatileSchema(schema, path = [], blocked = false, seen = /* @_
   if (schema.inner && (schema.type !== "lazy" || schema.inner[kSchema])) validateVolatileSchema(schema.inner, [...path, "*"], true, seen);
   if (schema.list) for (let index = 0; index < schema.list.length; index++) validateVolatileSchema(schema.list[index], [...path, String(index)], true, seen);
 }
-Schema.extend = function extend(type, resolve8) {
-  resolvers[type] = resolve8;
+Schema.extend = function extend(type, resolve9) {
+  resolvers[type] = resolve9;
 };
 Schema.resolve = function resolve(data, schema, options = {}, strict = false) {
   if (!schema) return [data];
@@ -10038,13 +10038,13 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { pipeline } from "node:stream/promises";
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../node_modules/https-proxy-agent/dist/index.js
 var import_debug2 = __toESM(require_src(), 1);
 import * as net2 from "net";
 import * as tls from "tls";
 import assert from "assert";
 
-// node_modules/agent-base/dist/index.js
+// ../../node_modules/agent-base/dist/index.js
 import * as net from "net";
 import * as http from "http";
 import { Agent as HttpsAgent } from "https";
@@ -10161,14 +10161,14 @@ var Agent2 = class extends http.Agent {
   }
 };
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../node_modules/https-proxy-agent/dist/index.js
 import { URL as URL2 } from "url";
 
-// node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// ../../node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var import_debug = __toESM(require_src(), 1);
 var debug = (0, import_debug.default)("https-proxy-agent:parse-proxy-response");
 function parseProxyResponse(socket) {
-  return new Promise((resolve8, reject) => {
+  return new Promise((resolve9, reject) => {
     let buffersLength = 0;
     const buffers = [];
     function read() {
@@ -10234,7 +10234,7 @@ function parseProxyResponse(socket) {
       }
       debug("got proxy server response: %o %o", firstLine, headers);
       cleanup();
-      resolve8({
+      resolve9({
         connect: {
           statusCode,
           statusText,
@@ -10249,7 +10249,7 @@ function parseProxyResponse(socket) {
   });
 }
 
-// node_modules/proxy-agent-negotiate/dist/index.js
+// ../../node_modules/proxy-agent-negotiate/dist/index.js
 function createNegotiateAuth() {
   return async ({ response, scheme }) => {
     if (scheme.toLowerCase() !== "negotiate") {
@@ -10279,7 +10279,7 @@ function createNegotiateAuth() {
   };
 }
 
-// node_modules/https-proxy-agent/dist/index.js
+// ../../node_modules/https-proxy-agent/dist/index.js
 var debug2 = (0, import_debug2.default)("https-proxy-agent");
 var setServernameFromNonIpHost = (options) => {
   if (options.servername === void 0 && options.host && !net2.isIP(options.host)) {
@@ -10451,7 +10451,7 @@ function omit(obj, ...keys) {
   return ret;
 }
 
-// node_modules/socks-proxy-agent/dist/index.js
+// ../../node_modules/socks-proxy-agent/dist/index.js
 var import_socks = __toESM(require_build(), 1);
 var import_debug3 = __toESM(require_src(), 1);
 import * as dns from "dns";
@@ -10538,12 +10538,12 @@ var SocksProxyAgent = class extends Agent2 {
     let { host } = opts;
     const { port, lookup: lookupFn = dns.lookup } = opts;
     if (shouldLookup) {
-      host = await new Promise((resolve8, reject) => {
+      host = await new Promise((resolve9, reject) => {
         lookupFn(host, {}, (err, address) => {
           if (err) {
             reject(err);
           } else {
-            resolve8(typeof address === "string" ? address : address[0].address);
+            resolve9(typeof address === "string" ? address : address[0].address);
           }
         });
       });
@@ -10664,11 +10664,11 @@ var PROBE_TIMEOUT_MS = 3e3;
 function proxyAnswers(proxy, timeoutMs = PROBE_TIMEOUT_MS) {
   const { hostname, port, protocol } = new URL(proxy);
   const defaultPort = protocol.startsWith("socks") ? 1080 : protocol === "https:" ? 443 : 80;
-  return new Promise((resolve8) => {
+  return new Promise((resolve9) => {
     const socket = connect4({ host: hostname.replace(/^\[|\]$/g, ""), port: Number(port) || defaultPort });
     const done = (up) => {
       socket.destroy();
-      resolve8(up);
+      resolve9(up);
     };
     socket.setTimeout(timeoutMs, () => done(false));
     socket.once("connect", () => done(true));
@@ -10694,9 +10694,9 @@ function createProxies(rules = [], io = {}) {
     const protocol = new URL(url).protocol;
     if (protocol !== "https:" && protocol !== "http:") throw codedError("invalid", `not a web address: ${url}`);
     const agent = agentFor(await route(url, page));
-    return new Promise((resolve8, reject) => {
+    return new Promise((resolve9, reject) => {
       const send = protocol === "https:" ? httpsRequest : httpRequest;
-      const req = send(url, { agent, headers: { "user-agent": USER_AGENT, accept: "image/*,*/*;q=0.5" }, timeout: timeoutMs }, resolve8);
+      const req = send(url, { agent, headers: { "user-agent": USER_AGENT, accept: "image/*,*/*;q=0.5" }, timeout: timeoutMs }, resolve9);
       req.on("timeout", () => req.destroy(codedError("timeout", `no answer from ${hostOf(url)} in ${timeoutMs / 1e3} s`)));
       req.on("error", reject);
       req.end();
@@ -10796,9 +10796,9 @@ function heightChoices(raw) {
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 function sha256Of(path) {
-  return new Promise((resolve8, reject) => {
+  return new Promise((resolve9, reject) => {
     const hash = createHash("sha256");
-    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve8(hash.digest("hex")));
+    createReadStream(path).on("data", (chunk) => hash.update(chunk)).on("error", reject).on("end", () => resolve9(hash.digest("hex")));
   });
 }
 
@@ -10819,7 +10819,7 @@ async function commandExists(command, path = process.env.PATH ?? "") {
   return false;
 }
 function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } = {}) {
-  return new Promise((resolve8, reject) => {
+  return new Promise((resolve9, reject) => {
     const [command, ...args] = argv;
     const child = spawn(command, args, { stdio: [input === void 0 ? "ignore" : "pipe", "pipe", "pipe"], detached: true, cwd, env: { ...process.env, ...env } });
     if (input !== void 0) {
@@ -10864,7 +10864,7 @@ function run(argv, { signal, timeoutMs, onStdoutLine, cwd, env, input } = {}) {
       if (timer) clearTimeout(timer);
       signal?.removeEventListener("abort", stop);
       if (onStdoutLine !== void 0 && pending.trim() !== "") onStdoutLine(pending);
-      resolve8({ code, stdout, stderr, oversized });
+      resolve9({ code, stdout, stderr, oversized });
     });
   });
 }
@@ -11558,9 +11558,9 @@ async function streamEpisode({ files, growing, dir, ffmpeg = "ffmpeg", ffprobe =
   child.stderr.on("data", (chunk) => {
     errors = (errors + chunk).slice(-4e3);
   });
-  const exited = new Promise((resolve8, reject) => {
+  const exited = new Promise((resolve9, reject) => {
     child.on("error", reject);
-    child.on("close", (code) => code === 0 ? resolve8() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
+    child.on("close", (code) => code === 0 ? resolve9() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
   });
   const running = settledFlag(exited);
   let told = false;
@@ -11698,7 +11698,7 @@ async function dropPrepared(cacheDir, path) {
   if (key !== null) await rm4(join7(cacheDir, key), { recursive: true, force: true });
 }
 function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
-  return new Promise((resolve8, reject) => {
+  return new Promise((resolve9, reject) => {
     const child = spawn3("nice", ["-n", "10", ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin", "-progress", "pipe:1", ...args], { stdio: ["ignore", "pipe", "pipe"], signal });
     let errors = "";
     child.stderr.on("data", (chunk) => {
@@ -11709,7 +11709,7 @@ function runFfmpeg(args, { ffmpeg, duration, onProgress, signal }) {
       if (match && duration && onProgress) onProgress(Math.min(1, Number(match[1]) / 1e6 / duration));
     });
     child.on("error", reject);
-    child.on("close", (code) => code === 0 ? resolve8() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
+    child.on("close", (code) => code === 0 ? resolve9() : reject(new Error(`ffmpeg exited with ${code}: ${errors.trim().split("\n").pop() ?? ""}`)));
   });
 }
 var remuxArgs = (input, output) => ["-y", "-i", input, "-map", "0:V:0?", "-map", "0:a:0?", "-sn", "-dn", "-c", "copy", "-movflags", "+faststart", "-f", "mp4", output];
@@ -12269,12 +12269,10 @@ var Config = Schema.object({
 });
 
 // src/http.js
-import { createHash as createHash4 } from "node:crypto";
-import { createReadStream as createReadStream2, existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";
+import { createReadStream as createReadStream2 } from "node:fs";
 import { readFile as readFile5, stat as stat6 } from "node:fs/promises";
-import { dirname as dirname4, extname as extname5, isAbsolute as isAbsolute2, relative, resolve as resolve3, sep } from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
+import { dirname as dirname5, extname as extname5, isAbsolute as isAbsolute2, relative, resolve as resolve4, sep } from "node:path";
+import { setTimeout as sleep2 } from "node:timers/promises";
 
 // src/filters.js
 var LANGUAGE = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/;
@@ -12324,11 +12322,62 @@ import { fileURLToPath } from "node:url";
 var LOCALE_DIR = resolve2(dirname3(fileURLToPath(import.meta.url)), "../locale");
 var readWords = (dir, logger) => readLocales(dir, { warn: (message) => logger?.warn(message) });
 
+// src/web-files.js
+import { createHash as createHash4 } from "node:crypto";
+import { existsSync as existsSync2, readFileSync, readdirSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname as dirname4, resolve as resolve3 } from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
+
 // src/vendored.js
 var VENDORED = Object.freeze({
   "hls.mjs": { pkg: "hls.js", file: "dist/hls.mjs" },
   "danmaku.mjs": { pkg: "danmaku", file: "dist/esm/danmaku.dom.js" }
 });
+
+// src/web-files.js
+var here = fileURLToPath2(new URL(".", import.meta.url));
+var ROOT = resolve3(here, "..");
+var WEB_NAME = /^[a-z0-9-]+\.(js|css)$/;
+var SHARED = Object.freeze({ "sync.js": "src/sync.js", "formats.js": "src/formats.js", "i18n.js": "src/i18n.js", "captions.js": "src/captions.js" });
+var MODULES = Object.freeze(Object.fromEntries(Object.entries(SHARED).map(([name2, path]) => [name2, resolve3(ROOT, path)])));
+function vendoredFile(name2, root) {
+  const built = resolve3(root, "dist", name2);
+  if (existsSync2(built)) return built;
+  const { pkg, file } = VENDORED[name2];
+  return resolve3(dirname4(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file);
+}
+function webFile(name2, root = ROOT) {
+  if (Object.hasOwn(VENDORED, name2)) return vendoredFile(name2, root);
+  if (Object.hasOwn(SHARED, name2)) return resolve3(root, SHARED[name2]);
+  return WEB_NAME.test(name2) ? resolve3(root, "web", name2) : void 0;
+}
+function webFiles(root = ROOT) {
+  const names = [...readdirSync(resolve3(root, "web")).filter((name2) => WEB_NAME.test(name2)), ...Object.keys(SHARED), ...Object.keys(VENDORED)];
+  return names.sort().map((name2) => [name2, webFile(name2, root)]);
+}
+function webBuild(files = webFiles()) {
+  const hash = createHash4("sha256");
+  for (const [name2, file] of files) hash.update(`${name2}\0`).update(readFileSync(file)).update("\0");
+  return hash.digest("hex").slice(0, 12);
+}
+function createBuildWatch(list = webFiles) {
+  let stamp = "";
+  let build = "";
+  const seen = /* @__PURE__ */ new Set();
+  const current = () => {
+    const listed2 = list();
+    const files = listed2.map(([name2, file]) => [name2, statSync(file, { throwIfNoEntry: false })]);
+    const now = files.map(([name2, info]) => `${name2}:${info ? `${info.ino}:${info.size}:${info.mtimeMs}:${info.ctimeMs}` : "-"}`).join("|");
+    if (now !== stamp) {
+      stamp = now;
+      build = files.every(([, info]) => info !== void 0) ? webBuild(listed2) : "";
+      if (build) seen.add(build);
+    }
+    return build;
+  };
+  return { current, seen: (name2) => seen.has(name2) };
+}
 
 // src/http.js
 var ROUTE = `/${PREFIX}`;
@@ -12353,30 +12402,18 @@ var MEDIA_TYPES = Object.freeze({
   ".jpg": "image/jpeg"
 });
 var WEB_TYPES = Object.freeze({ ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8" });
-var here = fileURLToPath2(new URL(".", import.meta.url));
-var WEB_DIR = resolve3(here, "../web");
-var MODULES = Object.freeze({
-  "sync.js": resolve3(here, "../src/sync.js"),
-  "formats.js": resolve3(here, "../src/formats.js"),
-  "i18n.js": resolve3(here, "../src/i18n.js"),
-  "captions.js": resolve3(here, "../src/captions.js")
-});
-function vendoredFile(name2) {
-  const built = resolve3(here, "../dist", name2);
-  if (existsSync2(built)) return built;
-  const { pkg, file } = VENDORED[name2];
-  return resolve3(dirname4(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file);
-}
-function webFile(name2) {
-  if (Object.hasOwn(VENDORED, name2)) return vendoredFile(name2);
-  if (MODULES[name2] !== void 0) return MODULES[name2];
-  return /^[a-z0-9-]+\.(js|css)$/.test(name2) ? resolve3(WEB_DIR, name2) : void 0;
-}
-function webBuild() {
-  const hash = createHash4("sha256");
-  const files = [...readdirSync(WEB_DIR).sort().map((name2) => resolve3(WEB_DIR, name2)), ...Object.values(MODULES)];
-  for (const file of files) hash.update(file.slice(dirname4(WEB_DIR).length)).update(readFileSync(file));
-  return hash.digest("hex").slice(0, 12);
+var BUILD_WRITE_MS = 1e4;
+var BUILD_LOOK_MS = 100;
+async function sendWebFile(res, builds, build, name2) {
+  const file = webFile(name2);
+  if (file === void 0) return sendText(res, 404, "Not found.");
+  for (const until = Date.now() + BUILD_WRITE_MS; builds.current() !== build; ) {
+    if (builds.seen(build) || Date.now() >= until) return sendText(res, 404, "Not found.");
+    await sleep2(BUILD_LOOK_MS);
+  }
+  const body2 = await readFile5(file).catch(() => null);
+  if (body2 === null || builds.current() !== build) return sendText(res, 404, "Not found.");
+  res.writeHead(200, { ...SECURITY_HEADERS, "cache-control": "private, max-age=31536000, immutable", "content-type": WEB_TYPES[extname5(file)], "content-length": body2.length }).end(body2);
 }
 function admitOwner(connection, request) {
   const admission = connection.admit(request);
@@ -12435,7 +12472,7 @@ function sendJson(res, status, value) {
   res.writeHead(status, { ...SECURITY_HEADERS, "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(body2) }).end(body2);
 }
 function within(root, rel) {
-  const target = resolve3(root, rel);
+  const target = resolve4(root, rel);
   const back = relative(root, target);
   if (back === "" || back === ".." || back.startsWith(`..${sep}`) || isAbsolute2(back)) return null;
   return target;
@@ -12488,7 +12525,7 @@ var API = Object.freeze([
   ["POST", "library/seen", async ({ hub, body: body2 }) => hub.dismissNews((await body2()).path)],
   ["POST", "library/cancel", async ({ hub, body: body2 }) => hub.cancelDownload((await body2()).path)],
   ["POST", "follow", async ({ hub, body: body2 }) => hub.followWork(pick3(await body2(), ["source", "id", "follow"]))],
-  ["GET", "settings", ({ settings, build }) => ({ ...settings(), build })],
+  ["GET", "settings", ({ settings }) => settings()],
   ["GET", "locales", ({ localeDir, logger }) => readWords(localeDir, logger)],
   ["GET", "sources", async ({ hub }) => ({ sources: await hub.sources() })],
   ["GET", "trending", ({ hub, query }) => hub.trending(query("source"), query("kind"))],
@@ -12505,8 +12542,7 @@ function matchApi(method, parts) {
 var STATUS = Object.freeze({ points: 402, invalid: 400, empty: 400, not_found: 404, unsupported: 501, outside: 403, in_use: 409, exists: 409, no_space: 507, source_failed: 424, unavailable: 503 });
 var statusOf = (error) => error?.status ?? STATUS[error?.code] ?? 500;
 var errorBody = (error) => ({ error: { code: error?.code ?? "error", ...error?.reason ? { reason: error.reason } : {}, ...error?.points ? { points: error.points } : {}, message: error?.message ?? String(error) } });
-function createHandler({ connection, service, settings = () => ({ label: "", presence: {} }), localeDir = LOCALE_DIR, logger }) {
-  const build = webBuild();
+function createHandler({ connection, service, settings = () => ({ label: "", presence: {} }), localeDir = LOCALE_DIR, builds = createBuildWatch(), logger }) {
   return async (req, res) => {
     const admitted = admitOwner(connection, req);
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? "Sign in to DSH first." : "Forbidden.");
@@ -12520,13 +12556,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
       } catch {
         return sendText(res, 400, "Bad address.");
       }
-      if (parts[0] === "web" && parts.length === 3 && req.method === "GET") {
-        const file = webFile(parts[2]);
-        const body2 = file === void 0 ? null : await readFile5(file).catch(() => null);
-        if (body2 === null) return sendText(res, 404, "Not found.");
-        res.writeHead(200, { ...SECURITY_HEADERS, "cache-control": "no-cache", "content-type": WEB_TYPES[extname5(file)], "content-length": body2.length }).end(body2);
-        return;
-      }
+      if (parts[0] === "web" && parts.length === 3 && req.method === "GET") return await sendWebFile(res, builds, parts[1], parts[2]);
       if (parts[0] === "covers" && parts.length === 2 && req.method === "GET") {
         const cover = await hub.coverFile(parts[1]);
         if (cover === null) return sendText(res, 404, "Not found.");
@@ -12537,7 +12567,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         if (item === void 0) return sendText(res, 404, "Not found.");
         const rest = parts.slice(3).join("/");
         if (item.kind === "hls") {
-          const target = within(dirname4(item.file), rest);
+          const target = within(dirname5(item.file), rest);
           return target === null ? sendText(res, 404, "Not found.") : sendFile(req, res, target);
         }
         return sendFile(req, res, item.file);
@@ -12550,7 +12580,7 @@ function createHandler({ connection, service, settings = () => ({ label: "", pre
         const found = matchApi(req.method, parts.slice(1));
         if (found !== null) {
           const query = (name2) => url.searchParams.get(name2) ?? "";
-          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, build, localeDir, logger }));
+          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, localeDir, logger }));
         }
       }
       return sendText(res, 404, "Not found.");
@@ -12573,14 +12603,14 @@ Content-Length: 0\r
 import { spawn as spawn5 } from "node:child_process";
 import { createHash as createHash7 } from "node:crypto";
 import { statfs as statfs2, stat as stat10 } from "node:fs/promises";
-import { join as join17, resolve as resolve6 } from "node:path";
+import { join as join17, resolve as resolve7 } from "node:path";
 
 // src/downloads.js
 import { join as join11 } from "node:path";
 
 // src/json-file.js
 import { mkdir as mkdir6, readFile as readFile6, rename as rename3, writeFile as writeFile3 } from "node:fs/promises";
-import { dirname as dirname5 } from "node:path";
+import { dirname as dirname6 } from "node:path";
 var isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 async function readJson2(file, { logger, valid = isObject, now = Date.now }) {
   let problem;
@@ -12601,7 +12631,7 @@ async function readJson2(file, { logger, valid = isObject, now = Date.now }) {
 }
 var serialize = (value) => JSON.stringify(value, null, 1);
 async function writeWhole(file, body2) {
-  await mkdir6(dirname5(file), { recursive: true });
+  await mkdir6(dirname6(file), { recursive: true });
   await writeFile3(`${file}.part`, body2);
   await rename3(`${file}.part`, file);
 }
@@ -12974,7 +13004,7 @@ function attachment(name2) {
   return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name2)}`;
 }
 function runConverter(command, input, output) {
-  return new Promise((resolve8, reject) => {
+  return new Promise((resolve9, reject) => {
     const child = spawn4(command, [input, output], { stdio: ["ignore", "ignore", "pipe"], detached: true });
     let stderr = "";
     const timer = setTimeout(() => {
@@ -12992,7 +13022,7 @@ function runConverter(command, input, output) {
     });
     child.on("close", (code) => {
       clearTimeout(timer);
-      if (code === 0) resolve8();
+      if (code === 0) resolve9();
       else reject(codedError("convert_failed", `conversion failed: ${stderr.trim().split("\n").pop() || `exit ${code}`}`));
     });
   });
@@ -13226,8 +13256,8 @@ function createLimiter(concurrency) {
       });
     }
   };
-  return (job) => new Promise((resolve8, reject) => {
-    waiting.push(() => job().then(resolve8, reject));
+  return (job) => new Promise((resolve9, reject) => {
+    waiting.push(() => job().then(resolve9, reject));
     pump();
   });
 }
@@ -13381,7 +13411,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
 // src/hub.js
 import { randomBytes as randomBytes2 } from "node:crypto";
 import { mkdir as mkdir9 } from "node:fs/promises";
-import { dirname as dirname6, isAbsolute as isAbsolute3, join as join14, resolve as resolve4 } from "node:path";
+import { dirname as dirname7, isAbsolute as isAbsolute3, join as join14, resolve as resolve5 } from "node:path";
 
 // src/sync.js
 var DRIFT = Object.freeze({
@@ -13892,7 +13922,7 @@ function createRoomService(options) {
     return { ...room, items: room.items.map((entry, n) => n === room.index ? { ...entry, status: "preparing", error: null } : entry) };
   }
   async function reopen(room) {
-    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname6(item.file)) === null;
+    const unfinished = async (item) => item.status === "ready" && item.kind === "hls" && typeof item.file === "string" && item.file.startsWith(`${cacheDir}/`) && await finishedPlaylist(dirname7(item.file)) === null;
     const items = [];
     for (const item of room.items) {
       if (!await unfinished(item)) items.push(item);
@@ -13951,7 +13981,7 @@ function createRoomService(options) {
   }
   async function localItems(path, fromPanel) {
     if (typeof path !== "string" || !isAbsolute3(path)) throw codedError("invalid", "path must be an absolute path");
-    const target = resolve4(path);
+    const target = resolve5(path);
     if (fromPanel && !libraryRoots.some((root) => target === root || target.startsWith(`${root}/`))) {
       throw codedError("outside", "the panel can only open files from the library folders");
     }
@@ -13967,7 +13997,7 @@ function createRoomService(options) {
     return episodes.map(localItem);
   }
   async function syncShow(path) {
-    const target = resolve4(path);
+    const target = resolve5(path);
     const entries = await options.directory?.(target);
     if (!entries) return;
     for (const room of [...rooms.values()]) {
@@ -14006,7 +14036,7 @@ function createRoomService(options) {
       const start = input.start;
       const room = {
         ...created,
-        showPath: resolve4(input.path),
+        showPath: resolve5(input.path),
         together: input.together === true,
         ...Number.isInteger(start?.index) && start.index >= 0 && start.index < items.length ? { index: start.index, position: Math.max(0, Number(start.position) || 0) } : {}
       };
@@ -14055,18 +14085,18 @@ function createRoomService(options) {
     },
     /** Whether an open room plays anything from `path` (a show folder or file). */
     usesPath(path) {
-      const target = resolve4(path);
+      const target = resolve5(path);
       return [...rooms.values()].some((room) => room.showPath === target || room.items.some((item) => typeof item.sourcePath === "string" && (item.sourcePath === target || item.sourcePath.startsWith(`${target}/`))));
     },
     /** The episode numbers rooms on a show are on, one per room; empty when no room has it open. */
     focusesOf(path) {
-      const target = resolve4(path);
+      const target = resolve5(path);
       return [...rooms.values()].filter((room) => room.showPath === target).map((room) => room.items[room.index]?.slot).filter((n) => n !== void 0);
     },
     syncShow,
     /** Episodes someone waits on that could not be fetched: show them as failed (with the reason, when known), so a click on one tries again. */
     failWaiting(path, message, reason = null) {
-      const target = resolve4(path);
+      const target = resolve5(path);
       for (const room of [...rooms.values()]) {
         if (room.showPath !== target) continue;
         const items = room.items.map((item) => item.slot !== void 0 && item.sourcePath === null && item.status === "preparing" ? { ...item, status: "failed", progress: null, error: message, reason } : item);
@@ -14079,7 +14109,7 @@ function createRoomService(options) {
      * @param {{ fraction: number | null, done: number, total: number | null, speed: number | null, eta: number | null }} progress
      */
     downloadProgress(path, number, progress2) {
-      const target = resolve4(path);
+      const target = resolve5(path);
       for (const room of [...rooms.values()]) {
         if (room.showPath !== target) continue;
         const item = room.items.find((entry) => entry.slot === number && entry.sourcePath === null && entry.status === "preparing");
@@ -14091,7 +14121,7 @@ function createRoomService(options) {
      * Episode `number` of a show while a source still fetches it, as files that play while they grow
      * (`growing` settles when they are complete): rooms waiting on it play it once enough is there.
      */
-    streamEpisode: (path, number, partial) => streams.offer(resolve4(path), number, partial),
+    streamEpisode: (path, number, partial) => streams.offer(resolve5(path), number, partial),
     /** The episode number of a room's item in its show (undefined for a room on plain files). */
     slotOf: (roomId, index) => rooms.get(roomId)?.items[index]?.slot,
     /** The prepared file of a ready local item. */
@@ -14256,7 +14286,7 @@ function createJournal({ log, library, now = Date.now }) {
 
 // src/shows.js
 import { mkdir as mkdir10, readFile as readFile8, readdir as readdir7, rename as rename6, rm as rm8, stat as stat9, statfs, writeFile as writeFile4 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname7, extname as extname7, join as join15, resolve as resolve5 } from "node:path";
+import { basename as basename5, dirname as dirname8, extname as extname7, join as join15, resolve as resolve6 } from "node:path";
 
 // src/presence.js
 var RATINGS = Object.freeze(["loved", "fine", "not-for-me", "unfinished"]);
@@ -14403,8 +14433,8 @@ function createLibrary(options) {
   }
   function showPath(path) {
     if (typeof path !== "string") return null;
-    const target = resolve5(path);
-    return roots.includes(dirname7(target)) && !basename5(target).startsWith(".") ? target : null;
+    const target = resolve6(path);
+    return roots.includes(dirname8(target)) && !basename5(target).startsWith(".") ? target : null;
   }
   const sourcedPaths = () => Object.keys(meta).filter((path) => isSourced(meta[path]) && showPath(path) === path);
   function requireShow(path) {
@@ -14414,7 +14444,7 @@ function createLibrary(options) {
   }
   function showOf(episodePath) {
     if (typeof episodePath !== "string") return null;
-    return showPath(episodePath) ?? showPath(dirname7(episodePath));
+    return showPath(episodePath) ?? showPath(dirname8(episodePath));
   }
   async function episodeFiles(path) {
     const info = await stat9(path).catch(() => null);
@@ -14449,7 +14479,7 @@ function createLibrary(options) {
     if (text3 !== null) await writeFile4(sums, text3.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
   }
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename5(path), ...fields });
-  const autoDeletes = (path) => options.autoDeleteDays > 0 && dirname7(path) === roots[0];
+  const autoDeletes = (path) => options.autoDeleteDays > 0 && dirname8(path) === roots[0];
   function deletesAt(path) {
     const { countdownFrom, keep } = record(path);
     if (!countdownFrom || keep || !autoDeletes(path)) return null;
@@ -14752,7 +14782,7 @@ function createLibrary(options) {
       if (download(target)?.active) throw codedError("in_use", "this show is still downloading");
       const isFile = (await stat9(target)).isFile();
       const clean = cleanName(name2);
-      const next = join15(dirname7(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
+      const next = join15(dirname8(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
       if (next === target) return { path: target };
       if (await stat9(next).then(() => true, () => false)) throw codedError("exists", "a show with that name is already in the library");
       await rename6(target, next);
@@ -14909,7 +14939,7 @@ var newSeasons = (info, seen) => (info.related ?? []).filter((other) => other.re
 function createFollows({ library, source, refreshed, addSeason, record, notify, logger, now = Date.now, random = Math.random, pauseMs = 3e4, tickMs = 6e5 }) {
   let timer = null;
   let busy = false;
-  const sleep2 = (ms) => new Promise((done) => setTimeout(done, ms));
+  const sleep3 = (ms) => new Promise((done) => setTimeout(done, ms));
   async function check(path) {
     const entry = library.follows().find((item) => item.path === path);
     const found = entry && source(entry.source.source);
@@ -14947,7 +14977,7 @@ function createFollows({ library, source, refreshed, addSeason, record, notify, 
     try {
       for (const { path } of dueFollows(library.follows(), now())) {
         await check(path);
-        await sleep2(pauseMs);
+        await sleep3(pauseMs);
       }
     } finally {
       busy = false;
@@ -15066,8 +15096,8 @@ function createCopies({ file, changed, logger, maxAgeMs = DAY_MS4, retryMs = HOU
   const limit = createLimiter(parallel);
   function ask(key, produce) {
     let settled;
-    flying.set(key, new Promise((resolve8) => {
-      settled = resolve8;
+    flying.set(key, new Promise((resolve9) => {
+      settled = resolve9;
     }));
     limit(async () => {
       try {
@@ -15580,7 +15610,7 @@ ${work.id}`).digest("hex").slice(0, 8);
     async cancelDownload(path) {
       const show = library.showPath(path);
       if (show !== null) await downloads.cancel(show);
-      return { cancelled: resolve6(path) };
+      return { cancelled: resolve7(path) };
     },
     /** A download someone waits on to watch: its state and, once open, its room. */
     download: (path) => {
@@ -15764,10 +15794,10 @@ function apply(ctx, config) {
   let current;
   ctx.provide?.("mediaHub", Object.freeze({ service: () => current }));
   ctx.effect(() => {
-    const stateDir = resolve7(config.stateDir);
+    const stateDir = resolve8(config.stateDir);
     const service = createMediaHub({
       stateDir,
-      libraryRoots: [join18(stateDir, "library"), ...config.libraryRoots.map((root) => resolve7(root))],
+      libraryRoots: [join18(stateDir, "library"), ...config.libraryRoots.map((root) => resolve8(root))],
       delivery: createDelivery({ mode: config.delivery }),
       tools: { ffmpeg: config.ffmpeg, ffprobe: config.ffprobe, maxHeight: config.maxHeight, threads: config.threads },
       webUrl: () => ctx.get("webApp")?.getAdvertisedUrl(),

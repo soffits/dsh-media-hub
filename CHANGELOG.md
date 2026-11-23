@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.4
+
+- An update now reaches a page that is already open, as 0.16.2 meant it to: the page swaps to the new version within a second, stays on the tab or room it showed, and never runs old and new code side by side. 0.16.2's version of this waited for parts of the plugin that an update touching only the page never reloads, so open pages (an iPhone home-screen app most of all, which is rarely restarted) kept the old version until a reload.
+- The page's files are cached for good under the name of their version, so opening the page fetches nothing it already has.
 ## 0.16.3
 
 - In the iPhone home-screen app, *Open in Safari* (the compass) is there from the start instead of only after *Download to device*: Safari fetches the book itself and never used the copy in the page, so the first download was wasted on that route.
