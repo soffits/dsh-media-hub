@@ -25,7 +25,7 @@
 - **The person behind the sync channel**: a room records who opened it by display name; the account a room fetches with comes from the request that opened it, so a room reopened by the assistant's tool (no signed-in person) uses the default account.
 
 - **Live duration while downloading**: an episode played as it downloads is an event playlist, so the player's timeline grows with what has arrived; the length is known from the start (probe) and could be shown.
-- **Browser suite after solo watching, and in CI**: `npm run test:browsers` opens rooms with *Watch* and expects them in the Watching tab; rooms are now unlisted until *Watch together*, so its room-list steps need that click. Not rerun for 0.5, and not in CI (it needs a `dsh` binary and Chromium there), so the page's drawing and the sync player are checked only by hand; CI only imports every page module (`test/web-modules.test.js`).
+- **Browser suite in CI**: `npm run test:browsers` passes locally but is not in CI (it needs a `dsh` binary and Chromium there), so the page's drawing and the sync player are checked only by hand; CI only imports every page module (`test/web-modules.test.js`). The suite drifted unnoticed for several releases for that reason.
 - **A person's own solo rooms**: an unlisted room is reached only by its link; the Watching tab could list the asking person's own (rooms would need to record the person, not only a display name).
 - **Flaky on main**: `a show kept offline is fetched whole and never trimmed…` and `an episode deleted by hand stays gone…` in test/media.test.js fail in about a third of runs, with or without the change stream (timing of the rolling cache). Not reproduced in 12 lone runs and 6 runs side by side, so not fixed yet; both still wait on fixed sleeps where an event would do.
 - Danmaku text keeps a site's emoticon codes as written (Fanqie's `[偷笑]`); a source could send them as pictures or Unicode instead. *rare*
@@ -36,4 +36,3 @@
 - `src/prepare.js` assumes `nice` is on PATH.
 
 - CI: `npm test` on Node 22 once hung past 10 min on main (run 45160605947, v0.15.5 merge) after passing on the PR; a rerun passed. Likely a test that leaves a handle open; find it if it happens again (rare).
-- `npm run test:browsers` is broken on main: after clicking Media the page stays blank and `.vsync-nav` never shows (no console error); the 0.15.6 share-sheet check in it has not run yet. *likely*
