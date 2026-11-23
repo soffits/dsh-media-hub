@@ -229,6 +229,8 @@ export function ShelfEntry({ t, entry, onAct }) {
       h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
       entry.state === 'fetching' && h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching')),
       (entry.state === 'failed' || entry.state === 'removed') && h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => act('/retry') }, t('shelf.again')),
+      entry.state === 'ready' && h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')),
+      entry.state === 'failed' && h('span', { className: 'vsync-badge vsync-badgeFailed' }, t('shelf.failed')),
       entry.state === 'ready' && h(SaveLink, { t, entry }),
       h(Menu, { label: t('library.more'), items: [{ label: t('shelf.delete'), danger: true, onSelect: () => setConfirming(true) }] }))
   return h(LibraryCard, {

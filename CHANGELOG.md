@@ -2,6 +2,7 @@
 
 ## 0.16.0
 
+- Two words for two steps: *Add to shelf* downloads a book onto your shelf in the hub, *Save to device* puts it on this phone or computer. Every book in My books says where it stands: downloading, *✓ On your shelf*, or *Download failed* with the reason and *Download to shelf again*.
 - Saving a book in the app installed to an iPhone's or iPad's home screen is one designed flow instead of 0.15.5 and 0.15.6's patches: the file is prepared inside the page, then handed to the share sheet (Save to Files, Books, other apps) by a tap that never waits on the network, so the sheet always opens and the page never leaves. A book just downloaded is prepared at once and needs one tap; an older book on the shelf takes a first tap that prepares it and turns the button green, *Ready: tap to save*. Beside it, *Open in Safari (any app)* opens the file in Safari itself, whose download view lists every app that opens the file (the share sheet shows only apps that take shared files) and has its own way back; the first time, Safari asks you to sign in. Other browsers, Android included, keep the plain download.
 
 ## 0.15.6
