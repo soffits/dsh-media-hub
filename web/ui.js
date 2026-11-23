@@ -240,6 +240,8 @@ export const Icon = {
   Book: ({ size = 16 }) => svg(size, h('path', { d: 'M3 3.5A1.5 1.5 0 0 1 4.5 2H13v10H4.5A1.5 1.5 0 0 0 3 13.5Zm0 10A1.5 1.5 0 0 0 4.5 15H13v-3', ...stroke })),
   Share: ({ size = 16 }) => svg(size, h('path', { d: 'M5.5 6.5h-1v7h7v-7h-1M8 9.5v-7M5.75 4.75 8 2.5l2.25 2.25', ...stroke })),
   Compass: ({ size = 16 }) => svg(size, h('circle', { cx: 8, cy: 8, r: 6, ...stroke }), h('path', { d: 'M10.5 5.5 9.1 9.1 5.5 10.5 6.9 6.9z', ...stroke })),
+  Plus: ({ size = 16 }) => svg(size, h('path', { d: 'M8 3v10M3 8h10', ...stroke })),
+  Retry: ({ size = 16 }) => svg(size, h('path', { d: 'M12.5 8a4.5 4.5 0 1 1-1.3-3.2M12.5 2.5v2.75H9.75', ...stroke })),
   Check: ({ size = 16 }) => svg(size, h('path', { d: 'M3.5 8.5 6.5 11.5 12.5 4.5', ...stroke })),
   Danmaku: ({ size = 16 }) => svg(size, h('rect', { x: 1.75, y: 3, width: 12.5, height: 10, rx: 2, ...stroke }), h('path', { d: 'M4.5 6.5h4M7 9.5h4.5', ...stroke })),
   Settings: ({ size = 16 }) => svg(size, h('path', { d: 'M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6', ...stroke }), h('circle', { cx: 10, cy: 4.5, r: 1.5, ...stroke }), h('circle', { cx: 6, cy: 11.5, r: 1.5, ...stroke })),
@@ -250,6 +252,15 @@ export const Icon = {
 
 /** A small turning ring, for something that is loading. */
 export const Spinner = () => h('span', { className: 'vsync-spinner', 'aria-hidden': true })
+
+/** An action shown as its icon alone; its name is the tooltip and what screen readers read. */
+export const IconButton = ({ label, icon, primary = false, onClick, href, download }) => h(href ? 'a' : 'button', {
+  ...(href ? { href, download } : { type: 'button', onClick }),
+  className: `vsync-btn vsync-iconBtn${primary ? ' vsync-primary' : ''}`, title: label, 'aria-label': label,
+}, h(icon, { size: 18 }))
+
+/** Work in progress as a spinner, with an optional short figure (a percentage); its name is the tooltip. */
+export const Pending = ({ label, figure = null }) => h('span', { className: 'vsync-pending', role: 'status', title: label, 'aria-label': label }, h(Spinner), figure)
 
 // ------------------------------------------------------------ watched marks
 

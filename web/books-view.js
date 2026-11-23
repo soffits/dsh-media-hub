@@ -12,7 +12,7 @@ import { Cover } from './details.js'
 import { DeviceCopy, removeDeviceCopy, useDeviceCopy } from './device-copy.js'
 import { offeredFormats } from './formats.js'
 import { LibraryCard, LibraryCover } from './library-card.js'
-import { Changes, Confirm, Icon, Menu, Spinner, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
+import { Changes, Confirm, Icon, IconButton, Menu, Pending, bytes, canChat, chatAbout, fill, h, languageName, React, shelf, shelfUrl } from './ui.js'
 
 
 export const FORMATS = ['', 'epub', 'pdf', 'txt', 'azw3', 'mobi']
@@ -59,9 +59,9 @@ export function startChat(t, book, sourceLabel) {
   chatAbout({ title: book.title, lines: [bookFacts(t, book, sourceLabel).join(' · '), book.blurb], context: { source: book.source, id: book.id, kind: book.kind } })
 }
 
-/** "Ask": a new conversation about the item. On phones only its icon shows; its name stays for screen readers. */
+/** "Ask": a new conversation about the item, as an icon; its name is the tooltip and what screen readers read. */
 export function ChatButton({ t, onClick }) {
-  return canChat() && h('button', { type: 'button', className: 'vsync-btn vsync-ask', title: t('chat.about'), 'aria-label': t('chat.about'), onClick }, h(Icon.Chat, { size: 14 }), h('span', { className: 'vsync-askLabel' }, t('chat.ask')))
+  return canChat() && h('button', { type: 'button', className: 'vsync-btn vsync-ask vsync-iconBtn', title: t('chat.about'), 'aria-label': t('chat.about'), onClick }, h(Icon.Chat, { size: 18 }))
 }
 
 /** Waits until the shelf entry is no longer being fetched. */
@@ -105,9 +105,9 @@ export function BookCard({ t, source, result }) {
 
   let status = null
   if (request.step === 'adding' || (request.step === 'added' && (entry === null || entry.state === 'fetching'))) {
-    status = h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t(offered.find(one => one.format === chosen)?.converted ? 'book.converting' : 'book.fetching'))
+    status = h(Pending, { label: t(offered.find(one => one.format === chosen)?.converted ? 'book.converting' : 'book.fetching') })
   } else if (entry?.state === 'ready') {
-    status = h(React.Fragment, null, h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')), h(DeviceCopy, { t, entry, link: fileLink(entry) }))
+    status = h(DeviceCopy, { t, entry, link: fileLink(entry) })
   } else if (entry?.state === 'failed' || request.step === 'error') {
     status = h('span', { className: 'vsync-error', role: 'alert' }, entry?.error ?? request.message)
   }
@@ -127,7 +127,7 @@ export function BookCard({ t, source, result }) {
           entry?.state !== 'ready' && request.step !== 'adding' && !(request.step === 'added' && entry?.state !== 'failed') && h(React.Fragment, null,
             offered.length > 1 && h('select', { className: 'vsync-field vsync-pick', 'aria-label': t('book.format'), value: chosen, onChange: event => setFormat(event.target.value) },
               offered.map(one => h('option', { key: one.format, value: one.format }, formatLabel(one)))),
-            h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: download }, h(Icon.Download, { size: 14 }), offered.length > 1 ? t('book.download') : fill(t('book.downloadAs'), { format: chosen.toUpperCase() })))))))
+            h(IconButton, { label: offered.length > 1 ? t('book.download') : fill(t('book.downloadAs'), { format: chosen.toUpperCase() }), icon: Icon.Plus, primary: true, onClick: download }))))))
 }
 
 /** What the signed-in person downloaded: the shelf as the Host answers it, and the one action on an entry (remove, fetch again). */
@@ -162,10 +162,8 @@ export function ShelfEntry({ t, entry, onAct }) {
     ? h(Confirm, { t, danger: true, question: t('shelf.deleteQuestion'), confirmLabel: t('shelf.delete'), onCancel: () => setConfirming(false), onConfirm: () => act('/remove') })
     : h('span', { className: 'vsync-actions' },
       h(ChatButton, { t, onClick: () => startChat(t, entry, entry.source) }),
-      entry.state === 'fetching' && h('span', { className: 'vsync-pending', role: 'status' }, h(Spinner), t('book.fetching')),
-      (entry.state === 'failed' || entry.state === 'removed') && h('button', { type: 'button', className: 'vsync-btn vsync-primary', onClick: () => act('/retry') }, t('shelf.again')),
-      entry.state === 'ready' && h('span', { className: 'vsync-badge vsync-badgeHere' }, t('book.onShelf')),
-      entry.state === 'failed' && h('span', { className: 'vsync-badge vsync-badgeFailed' }, t('shelf.failed')),
+      entry.state === 'fetching' && h(Pending, { label: t('book.fetching') }),
+      (entry.state === 'failed' || entry.state === 'removed') && h(IconButton, { label: t('shelf.again'), icon: Icon.Retry, primary: true, onClick: () => act('/retry') }),
       entry.state === 'ready' && h(DeviceCopy, { t, entry, link }),
       h(Menu, { label: t('library.more'), items: [
         copy.step === 'here' && { label: t('book.removeFromDevice'), onSelect: () => removeDeviceCopy(entry, link) },
@@ -177,7 +175,7 @@ export function ShelfEntry({ t, entry, onAct }) {
     badge: t('type.book'),
     lead: [entry.author, entry.format.toUpperCase(), entry.bytes ? bytes(t, entry.bytes) : null].filter(Boolean),
     rest: [entry.converted ? t('book.converted') : null, entry.state === 'removed' ? t('shelf.removed') : null].filter(Boolean),
-    aside: entry.state === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, entry.error),
+    aside: entry.state === 'failed' && h('span', { className: 'vsync-error', role: 'alert' }, fill(t('shelf.failedBecause'), { reason: entry.error })),
     actions,
   })
 }
