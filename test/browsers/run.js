@@ -52,6 +52,9 @@ async function bootDsh() {
   // A placeholder key keeps DSH's first-run "Get started" screen away; nothing in the test calls a model.
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'sk-placeholder' }
   execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `link:${repo}`], { env, cwd: root, stdio: 'ignore' })
+  // The page draws with the shared kit (client.js injects `uiKit` and waits for it), so the kit is installed at the version this checkout is built against.
+  const kitVersion = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).devDependencies['@soffits/dsh-ui-kit']
+  execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `@soffits/dsh-ui-kit@${kitVersion}`], { env, cwd: root, stdio: 'ignore' })
   // Every outbound request and yt-dlp call goes to a proxy that is down: nothing in the test reaches the network.
   writeFileSync(join(env.DSH_HOME, 'profiles/web/cordis.patch.yml'), JSON.stringify([{ id: 'media-hub', config: { proxies: [{ url: DEAD_PROXY, hosts: ['*'] }] } }]))
   const port = 40000 + Math.floor(Math.random() * 20000)
@@ -137,8 +140,8 @@ async function viewer(browser, signIn, origin, name) {
 /** A top tab of the page (Watching, Library, Discover); Watching may carry the count of open rooms. */
 async function openTab(page, name) {
   const role = { name: new RegExp(`^${name}( \\d+)?$`) }
-  await page.locator('.vsync-nav').getByRole('tab', role).click()
-  await page.locator('.vsync-nav').getByRole('tab', { ...role, selected: true }).waitFor({ timeout: 5000 })
+  await page.locator('.vsync-pageTabs').getByRole('tab', role).click()
+  await page.locator('.vsync-pageTabs').getByRole('tab', { ...role, selected: true }).waitFor({ timeout: 5000 })
 }
 
 const params = page => Object.fromEntries(new URL(page.url()).searchParams)
@@ -429,7 +432,7 @@ async function coverFlows({ a, b, origin }) {
   await sleep(1500)
   await dismissDialogs(b.page)
   await b.page.getByText('Media', { exact: true }).first().click()
-  await b.page.waitForSelector('.vsync-nav', { timeout: 15_000 })
+  await b.page.waitForSelector('.vsync-pageTabs', { timeout: 15_000 })
   await openTab(b.page, 'Discover')
   await b.page.locator('.vsync-searchField').fill('测试')
   await b.page.locator('.vsync-search button[type=submit]').click()
@@ -449,8 +452,8 @@ async function coverFlows({ a, b, origin }) {
  * Discover lists the configured source and Link with the source's own categories, and the last choice is remembered per browser.
  */
 async function tabFlows({ a, origin }) {
-  const tab = name => a.page.locator('.vsync-nav').getByRole('tab', { name, exact: true })
-  const selected = async () => (await a.page.locator('.vsync-nav [role=tab][aria-selected=true]').allTextContents()).join()
+  const tab = name => a.page.locator('.vsync-pageTabs').getByRole('tab', { name, exact: true })
+  const selected = async () => (await a.page.locator('.vsync-pageTabs [role=tab][aria-selected=true]').allTextContents()).join()
   const place = async () => ({ tab: await selected(), source: await a.page.locator('.vsync-segment [aria-selected=true]').textContent().catch(() => null), kind: await a.page.locator('.vsync-picker .vsync-chip[aria-selected=true]').textContent().catch(() => null) })
 
   // Watching is the default; nothing is playing and nothing started, so it says so and points at the other tabs.
@@ -502,7 +505,7 @@ async function tabFlows({ a, origin }) {
 
   // A refresh keeps the place; so does a link to it; the back button walks the tabs.
   await a.page.reload()
-  await a.page.waitForSelector('.vsync-nav', { timeout: 20_000 })
+  await a.page.waitForSelector('.vsync-pageTabs', { timeout: 20_000 })
   assert.deepEqual(await place(), { tab: 'Discover', source: 'Fanqie', kind: 'Audiobooks' })
   await a.page.goBack()
   await until('back goes to the Library tab', async () => ({ ok: (await selected()) === 'Library', sel: await selected() }))
@@ -517,7 +520,7 @@ async function tabFlows({ a, origin }) {
   await sleep(1500)
   await dismissDialogs(a.page)
   await a.page.getByText('Media', { exact: true }).first().click()
-  await a.page.waitForSelector('.vsync-nav', { timeout: 15_000 })
+  await a.page.waitForSelector('.vsync-pageTabs', { timeout: 15_000 })
   assert.equal(await selected(), 'Watching')
   await tab('Discover').click()
   await a.page.locator('.vsync-segment').waitFor()
@@ -582,8 +585,9 @@ async function bookFlows({ a, b, origin }) {
   // My books, on both browsers (one owner here); delete empties it.
   await page.goto(`${origin}/?vs-tab=library`)
   await dismissDialogs(page)
-  const shelf = page.locator('.vsync-shelf')
-  await shelf.locator('.vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
+  // A book on the shelf is a library card like a show.
+  const shelf = page.locator('.vsync-show').filter({ has: page.locator('.vsync-badge', { hasText: 'Book' }) })
+  await shelf.first().waitFor({ timeout: 20_000 })
   assert.deepEqual(await shelf.locator('.vsync-rowTitle').allTextContents(), ['Pride and Prejudice'])
   assert.match(await shelf.locator('.vsync-rowMeta').textContent(), /Jane Austen.*TXT/)
   // The second browser acts as a page installed to the home screen: Save hands the file to the share sheet and the page stays.
@@ -595,9 +599,9 @@ async function bookFlows({ a, b, origin }) {
     navigator.canShare = () => true
   })
   await b.page.goto(`${origin}/?vs-tab=library`)
-  await b.page.locator('.vsync-shelf .vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
+  await b.page.locator('.vsync-show').filter({ hasText: 'Pride and Prejudice' }).first().waitFor({ timeout: 20_000 })
   const before = b.page.url()
-  await b.page.locator('.vsync-shelf').getByRole('button', { name: 'Save TXT' }).click()
+  await b.page.locator('.vsync-show').filter({ hasText: 'Pride and Prejudice' }).getByRole('button', { name: 'Save TXT' }).click()
   await until('the book reaches the share sheet', async () => {
     const shared = await b.page.evaluate(() => window.__shared)
     return { ok: shared.length === 1, shared }
@@ -619,13 +623,14 @@ async function bookFlows({ a, b, origin }) {
     await shot(page, 'books-discover-phone')
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`${origin}/?vs-tab=library`)
-    await shelf.locator('.vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
+    await shelf.first().waitFor({ timeout: 20_000 })
     await sleep(1500)
     await dismissDialogs(page)
   }
-  await shelf.getByRole('button', { name: 'Delete' }).click()
-  await page.locator('.vsync-confirm').getByRole('button', { name: 'Delete' }).click()
-  await shelf.locator('.vsync-empty').waitFor({ timeout: 10_000 })
+  await shelf.getByRole('button', { name: 'More' }).click()
+  await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
+  await shelf.locator('.vsync-confirm').getByRole('button', { name: 'Delete' }).click()
+  await until('the book is off the shelf', async () => ({ ok: await shelf.count() === 0 }), 10_000)
   // The flows after this one start from Fanqie's short dramas, remembered by this browser.
   await page.goto(`${origin}/?vs-tab=discover&vs-source=fanqie&vs-kind=drama`)
   await page.locator('.vsync-segment').waitFor({ timeout: 20_000 })
@@ -648,9 +653,9 @@ async function languageFlows({ browser, signIn, origin }) {
     await page.waitForLoadState('networkidle').catch(() => {})
     await dismissDialogs(page)
     await page.goto(`${origin}/?vs-tab=discover&vs-source=fanqie&vs-kind=drama`)
-    await page.locator('.vsync-nav').waitFor({ timeout: 20_000 })
+    await page.locator('.vsync-pageTabs').waitFor({ timeout: 20_000 })
     await dismissDialogs(page)
-    assert.deepEqual(await page.locator('.vsync-navTab').allTextContents(), [ui['tab.watching'], ui['tab.library'], ui['tab.discover']], tag)
+    assert.deepEqual(await page.locator('.vsync-pageTabs [role=tab]').allTextContents(), [ui['tab.watching'], ui['tab.library'], ui['tab.discover']], tag)
     assert.equal(await page.getByText(ui.panel, { exact: true }).count() > 0, true, `${tag}: sidebar entry`)
     assert.ok((await page.locator('.vsync-seg').allTextContents()).includes(ui['source.name.fanqie']), `${tag}: source name`)
     await shot(page, `language-${tag}`)
@@ -662,19 +667,18 @@ async function languageFlows({ browser, signIn, origin }) {
 /** The Watching tab with something to continue: the started show, newest first, continuing it opens a room. */
 async function watchingFlows({ a }) {
   await closeRooms(a.page)
-  const continuing = a.page.locator('#vsync-continue + .vsync-rows .vsync-row')
-  await continuing.first().waitFor({ timeout: 10_000 })
-  const names = await continuing.locator('.vsync-rowTitle').allTextContents()
-  assert.ok(names.includes('测试短剧'), `continue watching lists the started show: ${names}`)
-  assert.match(await continuing.filter({ hasText: '测试短剧' }).locator('.vsync-rowMeta').textContent(), /continue from ep 2/)
+  // The show watched last is the Watching tab's card; its button picks up at the episode it stopped.
+  const card = a.page.locator('.vsync-cc').filter({ hasText: '测试短剧' })
+  await card.waitFor({ timeout: 10_000 })
   await shot(a.page, 'tab-watching')
-  await continuing.filter({ hasText: '测试短剧' }).getByRole('button', { name: 'Continue' }).click()
+  await card.getByRole('button', { name: 'Continue · episode 2' }).click()
   await a.page.waitForSelector('.vsync-media', { timeout: 60_000 })
-  await a.page.locator('.vsync-bar .vsync-icon').first().click()
-  await closeRooms(a.page)
+  // A room opened to watch alone is unlisted, so it is closed from inside, which also returns to the page.
+  await a.page.locator('.vsync-bar').getByRole('button', { name: 'Close room' }).click()
+  await a.page.locator('.vsync-bar .vsync-confirm').getByRole('button', { name: 'Close room' }).click()
   await openTab(a.page, 'Library')
   await a.page.waitForSelector('.vsync-show')
-  log('watching: open rooms, continue watching opens a room')
+  log('watching: the card continues the show in a room, which closes from inside')
 }
 
 /** Sorting and "Load more": a search whose source has a second page, sorted by plays, the page added below without repeats. */
@@ -818,8 +822,9 @@ async function hubFlows({ a, b, origin, home, show }) {
   assert.deepEqual(drama.episodesFinished, [1])
   assert.deepEqual(drama.with.sort(), ['Alice', 'Bob'])
 
-  // Back on the page: rooms block deleting their show; close them, then delete.
-  await a.page.locator('.vsync-bar .vsync-icon').first().click()
+  // Back on the page: rooms block deleting their show; close the room (unlisted, since it was opened to watch alone), then delete.
+  await a.page.locator('.vsync-bar').getByRole('button', { name: 'Close room' }).click()
+  await a.page.locator('.vsync-bar .vsync-confirm').getByRole('button', { name: 'Close room' }).click()
   await openTab(a.page, 'Library')
   await a.page.waitForSelector('.vsync-show')
   await until('library shows both posters', async () => {
@@ -831,7 +836,10 @@ async function hubFlows({ a, b, origin, home, show }) {
   assert.match(dramaMeta, /watched 1\/3/)
   assert.match(dramaMeta, /continue from ep 2/)
   const shownRow = a.page.locator('.vsync-show', { hasText: '测试短剧' })
-  assert.ok(await shownRow.locator('img.vsync-posterCover').count() > 0, 'the library row shows the source cover')
+  const library = await a.page.evaluate(async () => (await fetch('media-hub/api/library')).json())
+  const cover = library.shows.find(one => one.name === '测试短剧')?.work?.cover
+  assert.ok(cover, 'the show keeps its work\'s cover')
+  assert.equal(new URL(await shownRow.locator('img.vsync-poster').first().getAttribute('src'), origin).href, new URL(cover, `${origin}/media-hub/`).href, 'the library row shows the source cover')
   assert.match(await shownRow.locator('.vsync-rowMeta').first().textContent(), /★ 8\.6/)
   await shownRow.locator('.vsync-detailsToggle').click()
   await shownRow.locator('.vsync-showDetails .vsync-related').first().waitFor({ timeout: 10_000 })
@@ -907,7 +915,7 @@ async function main() {
     await sleep(1500)
     await dismissDialogs(a.page)
     await a.page.getByText('Media', { exact: true }).first().click()
-    await a.page.waitForSelector('.vsync-nav', { timeout: 15_000 })
+    await a.page.waitForSelector('.vsync-pageTabs', { timeout: 15_000 })
     await tabFlows({ a, origin })
     await bookFlows({ a, b, origin })
     await languageFlows({ browser, signIn: dsh.url, origin })
@@ -921,6 +929,8 @@ async function main() {
     log('room', room, created.room.title, `${created.room.episodes} episodes`)
 
     await a.open(room)
+    // A room starts as one person's own; Watch together opens it to others.
+    await a.page.getByRole('button', { name: 'Watch together' }).click()
     await b.open(room)
     await until('both players loaded', async () => {
       const p = await positions(a, b)
@@ -1026,11 +1036,11 @@ async function main() {
     await a.page.waitForSelector('.vsync-row')
     await sleep(500)
     await until('the open room lists who is in it', async () => {
-      const who = await a.page.locator('.vsync-roomRow .vsync-avatarStack').first().getAttribute('aria-label')
+      const who = await a.page.locator('.vsync-roomCard .vsync-avatarStack').first().getAttribute('aria-label')
       return { ok: who === 'Bob', who }
     })
-    await until('the room card previews the episode now playing', async () => ({ ok: await a.page.locator('.vsync-roomRow img.vsync-preview').count() > 0 }), 20_000)
-    assert.equal((await a.page.locator('.vsync-navCount').textContent()).trim(), '1', 'the Watching tab counts the open room')
+    await until('the room card previews the episode now playing', async () => ({ ok: await a.page.locator('.vsync-roomCard img.vsync-preview').count() > 0 }), 20_000)
+    assert.equal((await a.page.locator('.vsync-tabCount').textContent()).trim(), '1', 'the Watching tab counts the open room')
     await shot(a.page, 'rooms-list')
 
     await hubFlows({ a, b, origin, home: dsh.home, show })
