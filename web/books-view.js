@@ -87,8 +87,15 @@ function useEntry(entryId) {
 
 export const fileLink = entry => `${shelfUrl('/file').href}?entry=${encodeURIComponent(entry.entry)}`
 
+/**
+ * A page installed to the home screen has no back button, and iOS shows a file opened in its own window
+ * full screen with no way out, so there the file opens outside the app (a Safari sheet with Done).
+ */
+const installedApp = () => globalThis.matchMedia?.('(display-mode: standalone)').matches === true || globalThis.navigator?.standalone === true
+
 export function SaveLink({ t, entry, primary = true }) {
-  return h('a', { className: `vsync-btn${primary ? ' vsync-primary' : ''}`, href: fileLink(entry), download: entry.name ?? '' }, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format: entry.format.toUpperCase() }))
+  const outside = installedApp() ? { target: '_blank', rel: 'noopener' } : {}
+  return h('a', { className: `vsync-btn${primary ? ' vsync-primary' : ''}`, href: fileLink(entry), download: entry.name ?? '', ...outside }, h(Icon.Download, { size: 14 }), fill(t('book.save'), { format: entry.format.toUpperCase() }))
 }
 
 /** One book search result: facts, the formats it comes in, and a download in the one picked. */
