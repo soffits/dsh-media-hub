@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.0
+
+- Two words for two places: *Add to shelf* downloads a book onto your shelf in the hub; *Download to device* puts it on this phone or computer. Every book in My books says where it stands on the shelf: downloading, *✓ On your shelf*, or *Download failed* with the reason and *Download to shelf again*.
+- In the app installed to an iPhone's or iPad's home screen, a shelf book is either not on the device (*Download to device*, with its progress) or on it (*✓ On this device*, with two icon buttons: share, for *Save to other apps*, and a compass, for *Open in Safari*). The copy is kept on the device, so it is still there when the app is opened again; *Remove from this device* is in the book's menu. *Save to other apps* opens the share sheet at once and the page never leaves; *Open in Safari* opens the book in Safari, whose download view lists every app that opens it (the share sheet shows only apps that take shared files) and has its own way back. The first time, Safari asks you to sign in. This replaces 0.15.5 and 0.15.6, which still left iPhones stuck on the file or needed a silent second tap.
+
 ## 0.15.6
 
 - On a page installed to the home screen, *Save* now hands the book to the share sheet (Save to Files, Books) and the page stays where it was. 0.15.5's new window still left iPhones stuck on the file.
