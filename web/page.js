@@ -73,9 +73,11 @@ function Home({ t, nav, go, onOpen, rooms, library, load }) {
         h(DiscoverView, { t, nav, onNav: go, onOpen, onSaved: load, onBack: () => (history.state?.[PUSHED] ? history.back() : go({ work: null }, { replace: true })) }))))
 }
 
-export function Page({ t, initialRoom }) {
+/** `onRoom` hears which room the page shows (or null), so client.js can hand it on when DSH swaps the plugin's browser half. */
+export function Page({ t, initialRoom, onRoom }) {
   setWords(t)
   const [roomId, setRoomId] = React.useState(initialRoom)
+  React.useEffect(() => { onRoom(roomId) }, [roomId, onRoom])
   const [nav, go] = useNav()
   const [rooms, setRooms] = React.useState(undefined)
   const [library, setLibrary] = React.useState(null)

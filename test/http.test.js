@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { createHandler, resolveRange, webBuild, within } from '../src/http.js'
+import { createHandler, resolveRange, within } from '../src/http.js'
+import { createBuildWatch, webBuild } from '../src/web-files.js'
 import { fakeConnection, tempDir } from './helpers.js'
 
 test('Range headers resolve to one window', () => {
@@ -25,8 +26,8 @@ test('paths inside a folder are allowed, escapes are not', () => {
   assert.equal(within('/a/b', '..foo'), '/a/b/..foo')
 })
 
-async function serve(t, service) {
-  const server = createServer(createHandler({ connection: fakeConnection, service: () => service }))
+async function serve(t, service, options = {}) {
+  const server = createServer(createHandler({ connection: fakeConnection, service: () => service, ...options }))
   await new Promise(done => server.listen(0, '127.0.0.1', done))
   t.after(() => server.close())
   const base = `http://127.0.0.1:${server.address().port}/media-hub/`
@@ -34,7 +35,7 @@ async function serve(t, service) {
 }
 
 test('media is served only to admitted owners, with Range support', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const file = join(dir, 'ep1.mp4')
   writeFileSync(file, Buffer.from('0123456789abcdefghij'))
   const service = { mediaFile: (room, index) => (room === 'room1' && index === 0 ? { file, kind: 'file' } : undefined) }
@@ -63,7 +64,7 @@ test('media is served only to admitted owners, with Range support', async (t) =>
 })
 
 test('HLS segments resolve next to their playlist and cannot leave its folder', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   mkdirSync(join(dir, 'show', 'seg'), { recursive: true })
   writeFileSync(join(dir, 'show', 'index.m3u8'), '#EXTM3U\n')
   writeFileSync(join(dir, 'show', 'seg', '1.ts'), 'segment')
@@ -97,7 +98,7 @@ test('the room API maps service errors to statuses, and a failed site is never a
 
 test('the player modules are served, nothing else from the package', async (t) => {
   const get = await serve(t, {})
-  const { build } = await (await get('api/settings')).json()
+  const build = webBuild()
   const module = await get(`web/${build}/sync.js`)
   assert.equal(module.status, 200)
   assert.match(module.headers.get('content-type'), /javascript/)
@@ -106,17 +107,48 @@ test('the player modules are served, nothing else from the package', async (t) =
   assert.equal((await get(`web/${build}/http.js`)).status, 404)
 })
 
-test('the page files are named by a build that changes when one of them does, so an updated page loads new modules', async (t) => {
-  const get = await serve(t, {})
-  const { build } = await (await get('api/settings')).json()
-  assert.match(build, /^[0-9a-f]{12}$/)
-  assert.equal(build, webBuild())
+test('the page files are named by a build that changes when one of them does', (t) => {
+  const dir = tempDir()
+  const files = () => [['a.js', join(dir, 'a.js')], ['b.css', join(dir, 'b.css')]]
+  writeFileSync(join(dir, 'a.js'), 'one')
+  writeFileSync(join(dir, 'b.css'), 'x')
+  const builds = createBuildWatch(files)
+  const first = builds.current()
+  assert.match(first, /^[0-9a-f]{12}$/)
+  assert.equal(builds.current(), first)
+  writeFileSync(join(dir, 'a.js'), 'two')
+  const second = builds.current()
+  assert.notEqual(second, first)
+  assert.ok(builds.seen(first) && builds.seen(second))
+  rmSync(join(dir, 'b.css'))
+  assert.equal(builds.current(), '', 'a file missing is an install half done')
+  // The browser half carries the build of the files it ships with.
+  assert.match(readFileSync(new URL('../dist/client.js', import.meta.url), 'utf8'), new RegExp(`const BUILD = "${webBuild()}"`))
+})
+
+test('a page file is served only as the build its address names, for good', async (t) => {
+  let current = 'b1'
+  const seen = new Set(['b1'])
+  const builds = { current: () => current, seen: name => seen.has(name) }
+  const get = await serve(t, {}, { builds })
+  const now = await get('web/b1/sync.js')
+  assert.equal(now.status, 200)
+  assert.equal(now.headers.get('cache-control'), 'private, max-age=31536000, immutable')
+  assert.equal((await (await get('api/settings')).json()).build, undefined)
   // No fixed address: a module there would outlive every update in an open page.
   assert.equal((await get('web/sync.js')).status, 404)
+  // The browser half of an update can arrive before the install finished writing the page's files: its build is waited for.
+  setTimeout(() => { current = 'b2'; seen.add('b2') }, 300)
+  const next = await get('web/b2/sync.js')
+  assert.equal(next.status, 200)
+  // A page left open on the build replaced gets nothing newer under its old address.
+  const started = Date.now()
+  assert.equal((await get('web/b1/sync.js')).status, 404)
+  assert.ok(Date.now() - started < 1000, 'a replaced build is not waited for')
 })
 
 test('covers are served only to admitted owners, as the picture type they are', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const file = join(dir, 'c.img')
   writeFileSync(file, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]))
   const key = 'a'.repeat(32)
@@ -132,7 +164,7 @@ test('covers are served only to admitted owners, as the picture type they are', 
 })
 
 test('the page gets the words the locale files hold now, not what they held when the plugin started', async (t) => {
-  const localeDir = tempDir(t)
+  const localeDir = tempDir()
   writeFileSync(join(localeDir, 'en.json'), JSON.stringify({ meta: {}, ui: { hello: 'one' } }))
   const server = createServer(createHandler({ connection: fakeConnection, service: () => ({}), localeDir, logger: { warn() {} } }))
   await new Promise(done => server.listen(0, '127.0.0.1', done))

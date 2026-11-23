@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict'
-import { chmod, mkdtemp, readFile, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { chmod, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { createCopies } from '../src/copies.js'
 import { createDiscover } from '../src/discover.js'
 import { parseTrending } from '../src/sources/command.js'
+import { tempDir } from './helpers.js'
 
 const logger = { warn() {} }
 const settle = () => new Promise(resolve => setTimeout(resolve, 40))
 const KINDS = [{ id: 'drama', media: 'video', trending: true }, { id: 'novel', media: 'book' }]
 
 async function copiesAt(options = {}) {
-  const dir = await mkdtemp(join(tmpdir(), 'copies-'))
+  const dir = tempDir()
   const changes = []
   const clock = { at: 1_000_000 }
   const copies = createCopies({ file: join(dir, 'discover.json'), changed: () => changes.push(clock.at), logger, now: () => clock.at, ...options })
@@ -122,7 +122,7 @@ test('Discover picks come from the recommender per source and kind, none without
 
 test('picks are made from the trending copies, handed to the recommender on stdin, kept as one copy, and shown at once', async () => {
   const { copies } = await copiesAt()
-  const dir = await mkdtemp(join(tmpdir(), 'recommender-'))
+  const dir = tempDir()
   const script = join(dir, 'recommender.mjs')
   await writeFile(script, `#!/usr/bin/env node
 import { readFileSync, appendFileSync } from 'node:fs'

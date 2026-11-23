@@ -97,7 +97,7 @@ const filesOf = path => readdirSync(path).filter(name => name.endsWith('.mp4')).
 const numbersIn = path => filesOf(path).map(name => Number.parseInt(name, 10))
 
 test('watch now: the room opens at once with every episode listed, the one being watched is fetched first; its show cannot be deleted while open', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(5, { gated: true })
   const hub = makeHub(dir, stub.source)
   await hub.load()
@@ -136,7 +136,7 @@ test('watch now: the room opens at once with every episode listed, the one being
 })
 
 test('a download job saved before the rolling cache is dropped at start, not run', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   mkdirSync(join(dir, 'state'), { recursive: true })
   writeFileSync(join(dir, 'state', 'downloads.json'), JSON.stringify({ jobs: [{ dir: join(dir, 'state', 'library', 'Old'), source: 'stub', id: '42', title: 'Old', kind: 'drama', episodes: 3, status: 'running', priority: false, createdAt: 1 }] }))
   const stub = stubSource(3)
@@ -148,7 +148,7 @@ test('a download job saved before the rolling cache is dropped at start, not run
 })
 
 test('save to library fetches only the window; the episode list names every episode, cached or not', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(12)
   const hub = makeHub(dir, stub.source)
   await hub.load()
@@ -168,7 +168,7 @@ test('save to library fetches only the window; the episode list names every epis
 })
 
 test('the window rolls with the room: watched episodes more than one behind are deleted, the next ones are fetched, the watch log still counts them', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(12)
   let clock = Date.parse('2026-11-16T20:00:00Z')
   const hub = makeHub(dir, stub.source, { now: () => clock })
@@ -215,7 +215,7 @@ test('the window rolls with the room: watched episodes more than one behind are 
 })
 
 test('a jump while an earlier run is in flight cuts it and fetches the jump target first', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(12, { gated: true })
   const hub = makeHub(dir, stub.source)
   await hub.load()
@@ -256,7 +256,7 @@ function heldEncoding(t, dir) {
 }
 
 test('replaying an episode the cache deleted fetches it again and plays it at once, whatever else is being prepared', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const held = heldEncoding(t, dir)
   const stub = stubSource(12, { video: held.video })
   let clock = Date.parse('2026-11-16T20:00:00Z')
@@ -281,7 +281,7 @@ test('replaying an episode the cache deleted fetches it again and plays it at on
 })
 
 test('a jump many episodes ahead fetches and plays the episode at once; the ones left behind stop, the ones after it follow one at a time', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const held = heldEncoding(t, dir)
   const stub = stubSource(20, { video: held.video })
   const hub = makeHub(dir, stub.source, { tools: held.tools })
@@ -305,7 +305,7 @@ test('a jump many episodes ahead fetches and plays the episode at once; the ones
 })
 
 test('a show kept offline is fetched whole and never trimmed; going back to rolling trims what was watched', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(6)
   const hub = makeHub(dir, stub.source)
   await hub.load()
@@ -336,7 +336,7 @@ test('a show kept offline is fetched whole and never trimmed; going back to roll
 })
 
 test('an episode deleted by hand stays gone until someone goes to it', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(8)
   const hub = makeHub(dir, stub.source)
   await hub.load()
@@ -357,7 +357,7 @@ test('an episode deleted by hand stays gone until someone goes to it', async (t)
 })
 
 test('over the cap, the least recently watched episodes of unpinned shows go first, but never one in an open room\'s window; kept shows do not count', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(6)
   const first = makeHub(dir, stub.source)
   await first.load()
@@ -384,7 +384,7 @@ test('over the cap, the least recently watched episodes of unpinned shows go fir
 })
 
 test('the least recently watched goes first when the cap is only a little exceeded', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(4)
   const first = makeHub(dir, stub.source)
   await first.load()
@@ -405,7 +405,7 @@ test('the least recently watched goes first when the cap is only a little exceed
 })
 
 test('the watch log records who watched what and where they stopped; history sums it up; reopening continues', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stub = stubSource(2)
   let clock = Date.parse('2026-11-16T20:00:00Z')
   const hub = makeHub(dir, stub.source, { now: () => clock })
@@ -480,7 +480,7 @@ test('watched means from 90 %, at most five minutes and at least three seconds b
 })
 
 test('search and info answers carry cover routes, never the source\'s picture URLs', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const cdn = 'https://cdn.invalid/novel-pic/1~x.heic?x-signature=abc'
   const source = {
     ...stubSource(3).source,
@@ -519,7 +519,7 @@ const workSource = (episodes, calls, down = []) => ({
 })
 
 test('a show saved from a source keeps its work\'s details, covers as routes; episodes and rooms use the real titles', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const calls = []
   const hub = makeHub(dir, workSource(3, calls))
   await hub.load()
@@ -539,7 +539,7 @@ test('a show saved from a source keeps its work\'s details, covers as routes; ep
 })
 
 test('pages read a work\'s saved copy at once; a missing or day-old copy is asked of its source in the background, once, and a failing source is left alone', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const calls = []
   const down = []
   let title = 'Show 1'
@@ -582,7 +582,7 @@ test('pages read a work\'s saved copy at once; a missing or day-old copy is aske
 })
 
 test('open pages are told when the notes change: a watch-state write, a refreshed copy', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   let clock = 1_000
   const hub = makeHub(dir, workSource(2, []), { changeIntervalMs: 10, now: () => clock })
   await hub.load()
@@ -600,7 +600,7 @@ test('open pages are told when the notes change: a watch-state write, a refreshe
 })
 
 test('two works with one title get two folders in the library, whatever their ids look like', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const source = { ...workSource(1, []), info: async id => ({ id, title: 'Same title', kind: 'drama', episodes: 1, episodeTitles: [], related: [] }) }
   const hub = makeHub(dir, source)
   await hub.load()
@@ -613,7 +613,7 @@ test('two works with one title get two folders in the library, whatever their id
 })
 
 test('saving a work already in the library reuses its show: one folder, no second copy', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const hub = makeHub(dir, workSource(3, []))
   await hub.load()
   t.after(() => hub.dispose())
@@ -627,7 +627,7 @@ test('saving a work already in the library reuses its show: one folder, no secon
 })
 
 test('a room waiting on a download sees its progress, plays the episode while it downloads with the captions beside it, and keeps playing it when the file lands; fetched with the account of whoever opened the room', { skip: !hasFfmpeg }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const sample = join(dir, 'sample.mp4')
   makeVideo(sample, { seconds: 1 })
   // What a site sends while it is fetched: fragments readable from the start, a key frame every two seconds.
@@ -686,7 +686,7 @@ test('a room waiting on a download sees its progress, plays the episode while it
 })
 
 test('a download that fails says why to the room waiting on it and to the library', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const source = {
     id: 'stub',
     label: 'Stub',
@@ -708,7 +708,7 @@ test('a download that fails says why to the room waiting on it and to the librar
 })
 
 test('with the points plugin, starting a series new to the hub is an extra; going on with it, a later season of it or a film is not', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const points = fakePoints({ ann: 100 })
   const calls = []
   const films = { ...workSource(1, calls), id: 'films' }
@@ -733,7 +733,7 @@ test('with the points plugin, starting a series new to the hub is an extra; goin
 })
 
 test('late at night, starting to watch is a binge night: one ticket for the whole night, used per room; a room is never stopped', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const points = fakePoints({ ann: 100 })
   const films = { ...workSource(1, []), id: 'films' }
   const hub = makeHub(dir, films, { sources: [films], points: () => points, bingeNight: { from: '01:00', to: '06:00' }, now: () => new Date(2026, 10, 18, 2, 0).getTime() })
@@ -751,7 +751,7 @@ test('late at night, starting to watch is a binge night: one ticket for the whol
 })
 
 test('a saved show outside the library folders is left alone: the hub still starts and the cache cap still runs', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   mkdirSync(join(dir, 'state'), { recursive: true })
   const outside = join(dir, 'removed-root', 'Old show')
   writeFileSync(join(dir, 'state', 'shows.json'), JSON.stringify({ shows: { [outside]: { source: { source: 'stub', id: '7', kind: 'drama', episodes: 3 }, pinned: true } } }))
@@ -768,7 +768,7 @@ test('a saved show outside the library folders is left alone: the hub still star
 })
 
 test('stopping a download whose source ignores the stop waits only so long', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stubborn = { id: 'stuck', label: 'Stuck', kinds: [], available: async () => true, download: () => new Promise(() => {}) }
   const warnings = []
   const downloads = createDownloads({ stateDir: dir, sources: new Map([['stuck', stubborn]]), have: async () => new Set(), onFiles: async () => {}, logger: { info() {}, warn: message => warnings.push(message) }, stopWaitMs: 100 })

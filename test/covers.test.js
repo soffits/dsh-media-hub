@@ -12,7 +12,7 @@ const KINDS = [{ id: 'drama', label: 'Short dramas' }]
 const url = n => `https://cdn.invalid/novel-pic/760000000000000000${n}~tplv-600.heic?x-signature=abc`
 
 function setup(t, { env = {}, ...options } = {}) {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const log = join(dir, 'cover-calls.txt')
   const source = createCommandSource({ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], env: { FAKE_SOURCE_COVER_LOG: log, ...env } }, { logger: quietLogger, cwd: join(dir, 'work') })
   const covers = createCovers({ dir: join(dir, 'covers'), logger: quietLogger, ...options }, id => (id === 'stub' ? source : undefined))
@@ -64,7 +64,7 @@ test('unknown keys, malformed keys and sources without a cover verb give nothing
   assert.equal(await covers.file('ZZ'), null)
   const key = covers.ofSource('gone', url(1)).slice('covers/'.length)
   assert.equal(await covers.file(key), null, 'the source is not there')
-  const bare = createCovers({ dir: join(tempDir(t), 'covers'), logger: quietLogger }, () => ({ search: async () => ({ results: [], next: null }) }))
+  const bare = createCovers({ dir: join(tempDir(), 'covers'), logger: quietLogger }, () => ({ search: async () => ({ results: [], next: null }) }))
   const bareKey = bare.ofSource('x', url(1)).slice('covers/'.length)
   assert.equal(await bare.file(bareKey), null, 'the source has no cover verb')
   assert.deepEqual(calls(), [])
@@ -144,7 +144,7 @@ test('a still past the end of a short video is its first frame, and a file with 
 
 test('a picture a source names is fetched with its work\'s page, for the route the fetch takes', async (t) => {
   const asked = []
-  const covers = createCovers({ dir: join(tempDir(t), 'covers'), logger: quietLogger }, () => ({ cover: async (url, file, context) => { asked.push([url, context.page]); throw new Error('offline') } }))
+  const covers = createCovers({ dir: join(tempDir(), 'covers'), logger: quietLogger }, () => ({ cover: async (url, file, context) => { asked.push([url, context.page]); throw new Error('offline') } }))
   const work = covers.decorate('link', { id: 'x', cover: 'https://pictures.example/1.jpg', url: 'https://video.example/watch/1' })
   assert.equal(await covers.file(work.cover.slice('covers/'.length)), null)
   assert.deepEqual(asked, [['https://pictures.example/1.jpg', 'https://video.example/watch/1']])

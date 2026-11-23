@@ -22,7 +22,7 @@ test('a browser with no Media Source but native HLS uses it, and one with neithe
 
 test('the page asks for hls.js where the Host serves it, next to the player module', async () => {
   const { readFile, access } = await import('node:fs/promises')
-  const { webFile } = await import('../src/http.js')
+  const { webFile } = await import('../src/web-files.js')
   const source = await readFile(new URL('../web/player.js', import.meta.url), 'utf8')
   const spec = /import\(new URL\('([^']+)', import\.meta\.url\)/.exec(source)?.[1]
   assert.ok(spec, 'player.js loads hls.js relative to its own address')

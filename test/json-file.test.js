@@ -6,7 +6,7 @@ import { createJsonSaver, readJson } from '../src/json-file.js'
 import { quietLogger, tempDir } from './helpers.js'
 
 test('a state file that cannot be read is moved aside, so the next save does not overwrite it', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const file = join(dir, 'shows.json')
   assert.deepEqual(await readJson(file, { logger: quietLogger }), { value: undefined, damaged: false })
   writeFileSync(file, '{"shows": {"a": 1}')
@@ -20,7 +20,7 @@ test('a state file that cannot be read is moved aside, so the next save does not
 })
 
 test('saves land in the order asked, each with the value as it was then', async (t) => {
-  const file = join(tempDir(t), 'nested', 'state.json')
+  const file = join(tempDir(), 'nested', 'state.json')
   const saver = createJsonSaver(file, quietLogger)
   const value = { n: 1 }
   saver.save(value)

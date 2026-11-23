@@ -19,26 +19,42 @@
  * quality with every call routed by the `proxies` setting (to a proxy that is
  * down, so the thumbnail fails closed and the library falls back to a frame).
  *
+ * Last, an update laid over the installed files while pages are open (the
+ * plugin is linked from a copy of the files it ships, for that): every open
+ * page swaps to the new build whole and stays where it was.
+ *
  * Env: CHROME_PATH (default `chromium` on PATH), SCREENSHOT_DIR (optional).
  */
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, webkit } from 'playwright-core'
 import { createWatchLog } from '../../src/watchlog.js'
+import { webBuild, webFiles } from '../../src/web-files.js'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const screenshots = process.env.SCREENSHOT_DIR
 const DEAD_PROXY = 'socks5h://127.0.0.1:9'
 const sleep = ms => new Promise(done => setTimeout(done, ms))
 const log = (...args) => console.log('·', ...args)
+/** Everything the run writes outside the DSH home it boots (browser profiles), removed when it ends. */
+const scratch = mkdtempSync(join(tmpdir(), 'media-hub-browsers-'))
+process.once('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
 async function bootDsh() {
-  if (process.env.DSH_URL && process.env.DSH_HOME) return { url: process.env.DSH_URL, home: process.env.DSH_HOME, stop: async () => {} }
-  const root = mkdtempSync(join(tmpdir(), 'media-hub-dsh-'))
+  if (process.env.DSH_URL && process.env.DSH_HOME) return { url: process.env.DSH_URL, home: process.env.DSH_HOME, plugin: null, stop: async () => {} }
+  const root = join(scratch, 'dsh')
+  mkdirSync(root)
+  // The plugin as an install has it, the files the package ships, so the update at the end can be laid over them.
+  const plugin = join(root, 'plugin')
+  const [{ files }] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: repo, encoding: 'utf8' }))
+  for (const { path } of files) {
+    mkdirSync(dirname(join(plugin, path)), { recursive: true })
+    cpSync(join(repo, path), join(plugin, path))
+  }
   // The stand-in source command answers as `fanqie` (the default source entry) on DSH's PATH; its episodes are copies of a short test video.
   const bin = join(root, 'bin')
   mkdirSync(bin)
@@ -51,7 +67,7 @@ async function bootDsh() {
   makeVideo(sample, 20)
   // A placeholder key keeps DSH's first-run "Get started" screen away; nothing in the test calls a model.
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'sk-placeholder' }
-  execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `link:${repo}`], { env, cwd: root, stdio: 'ignore' })
+  execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `link:${plugin}`], { env, cwd: root, stdio: 'ignore' })
   // The page draws with the shared kit (client.js injects `uiKit` and waits for it), so the kit is installed at the version this checkout is built against.
   const kitVersion = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).devDependencies['@soffits/dsh-ui-kit']
   execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `@soffits/dsh-ui-kit@${kitVersion}`], { env, cwd: root, stdio: 'ignore' })
@@ -76,10 +92,10 @@ async function bootDsh() {
   return {
     url,
     home: env.DSH_HOME,
+    plugin,
     stop: async () => {
       process.kill(-child.pid, 'SIGTERM')
       await new Promise(done => child.once('exit', done))
-      rmSync(root, { recursive: true, force: true })
     },
   }
 }
@@ -892,6 +908,12 @@ const IPHONE = {
 }
 const IPHONE_SIDEWAYS = { width: 814, height: 572 }
 
+/** Pages of `context` run as the app installed to the home screen. */
+const homeScreenApp = context => context.addInitScript(() => {
+  const realMatch = window.matchMedia.bind(window)
+  window.matchMedia = query => (query === '(display-mode: standalone)' ? { matches: true, media: query, addEventListener() {}, removeEventListener() {} } : realMatch(query))
+})
+
 /**
  * The page installed to an iPhone's home screen. A shelf book there is either not on this device (Download to
  * device, with progress) or on it (Save to other apps), and that state survives a reload; Open in Safari is
@@ -902,12 +924,11 @@ const IPHONE_SIDEWAYS = { width: 814, height: 572 }
 async function iosSaveFlows({ signIn, origin }) {
   // WebKit, the engine every iPhone browser runs: its fetch, streams, Cache Storage and share rules are the ones that count here.
   // With a profile on disk, as an installed app has: Cache Storage of a throwaway WebKit session is dropped at every navigation.
-  const safari = await webkit.launchPersistentContext(mkdtempSync(join(tmpdir(), 'media-hub-webkit-')), IPHONE)
+  const safari = await webkit.launchPersistentContext(mkdtempSync(join(scratch, 'webkit-')), IPHONE)
   const phone = await viewer({ newContext: async () => safari }, signIn, origin, 'Carol')
   const page = phone.page
+  await homeScreenApp(phone.context)
   await phone.context.addInitScript(() => {
-    const realMatch = window.matchMedia.bind(window)
-    window.matchMedia = query => (query === '(display-mode: standalone)' ? { matches: true, media: query, addEventListener() {}, removeEventListener() {} } : realMatch(query))
     window.__events = []
     const realFetch = window.fetch.bind(window)
     window.fetch = (input, init) => {
@@ -1007,14 +1028,72 @@ async function iosSaveFlows({ signIn, origin }) {
   await safari.close()
 }
 
+/**
+ * An update laid over the installed files while pages are open, as an install does it (changed files rewritten, the
+ * rest left alone): DSH swaps the plugin's browser half into each open page, which then runs the new build whole
+ * (no module of the old one, the old addresses gone) and stays where it was: the Library tab, a room, the sidebar
+ * entry. In Chromium and in the iPhone home-screen app.
+ */
+async function updateFlows({ browser, a, signIn, origin, home, plugin }) {
+  if (plugin === null) return log('update: skipped (the plugin is not a copy this run installed)')
+  const show = join(home, 'media-hub', 'library', 'Update show')
+  mkdirSync(show, { recursive: true })
+  makeVideo(join(show, 'Episode 1.mp4'), 30)
+  const created = await a.page.evaluate(async path => (await fetch('api/media-hub/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ source: 'local', path, by: 'Alice' }) })).json(), show)
+  const room = created.room.id
+  const watcher = await viewer(browser, signIn, origin, 'Dana')
+  await watcher.open(room)
+  const safari = await webkit.launch()
+  const phone = await viewer(safari, signIn, origin, 'Carol', IPHONE)
+  await homeScreenApp(phone.context)
+  const onLibrary = [a, phone]
+  for (const { page } of onLibrary) {
+    await page.goto(`${origin}/?vs-tab=library`)
+    await page.locator('.vsync-pageTabs').waitFor({ timeout: 20_000 })
+    await dismissDialogs(page)
+  }
+  const viewers = [a, phone, watcher]
+  const before = webBuild(webFiles(plugin))
+  const marks = viewers.map(one => one.requests.length)
+
+  appendFileSync(join(plugin, 'web/page.js'), "\ndocument.documentElement.dataset.mediaHubUpdated = 'yes'\n")
+  const after = webBuild(webFiles(plugin))
+  const client = join(plugin, 'dist/client.js')
+  writeFileSync(client, readFileSync(client, 'utf8').replace(JSON.stringify(before), JSON.stringify(after)))
+  log('update: page files', before, '->', after)
+
+  for (const [n, { page, requests }] of viewers.entries()) {
+    await until('the open page runs the new build', async () => page.evaluate(build => ({
+      ok: document.documentElement.dataset.mediaHubUpdated === 'yes' && document.querySelectorAll(`link#dsh-media-hub[href*="/web/${build}/"]`).length === 1,
+      styles: [...document.querySelectorAll('link#dsh-media-hub')].map(link => link.getAttribute('href')),
+    }), after), 20_000)
+    const loaded = requests.slice(marks[n]).filter(url => url.includes('/media-hub/web/'))
+    assert.ok(loaded.length > 0 && loaded.every(url => url.includes(`/media-hub/web/${after}/`)), `only the new build loaded: ${loaded.join(' ')}`)
+  }
+  for (const { page } of onLibrary) {
+    await page.locator('.vsync-pageTabs').getByRole('tab', { name: 'Library', selected: true }).waitFor({ timeout: 10_000 })
+    assert.equal(params(page)['vs-tab'], 'library')
+  }
+  await watcher.page.waitForSelector('video.vsync-media', { timeout: 20_000 })
+  assert.match(await watcher.page.locator('video.vsync-media').getAttribute('src'), new RegExp(`/media/${room}/`), 'the room stayed open')
+  await a.page.getByText('Media', { exact: true }).first().waitFor({ timeout: 5000 })
+  const old = await a.page.evaluate(async build => (await fetch(`media-hub/web/${build}/page.js`)).status, before)
+  assert.equal(old, 404, 'the old build is gone, not served with new bytes')
+  assert.deepEqual([...watcher.crashes, ...phone.crashes], [])
+  await watcher.context.close()
+  await safari.close()
+  log('update: open pages swapped to the new build whole, on the tab and room they showed, in Chromium and the home-screen app')
+}
+
 async function main() {
   const dsh = await bootDsh()
   const origin = new URL(dsh.url).origin
-  const browser = await chromium.launch({
-    executablePath: process.env.CHROME_PATH || execFileSync('sh', ['-c', 'command -v chromium']).toString().trim(),
-    args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio'],
-  })
+  let browser
   try {
+    browser = await chromium.launch({
+      executablePath: process.env.CHROME_PATH || execFileSync('sh', ['-c', 'command -v chromium']).toString().trim(),
+      args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio'],
+    })
     const show = makeEpisodes(dsh.home)
     const a = await viewer(browser, dsh.url, origin, 'Alice')
     const b = await viewer(browser, dsh.url, origin, 'Bob')
@@ -1155,11 +1234,12 @@ async function main() {
     await rollingFlows({ a, b, home: dsh.home })
 
     await linkFlows({ a, home: dsh.home })
+    await updateFlows({ browser, a, signIn: dsh.url, origin, home: dsh.home, plugin: dsh.plugin })
 
     assert.deepEqual([...a.crashes, ...b.crashes], [], 'no page crashed while rendering')
     console.log('two-browser test passed')
   } finally {
-    await browser.close()
+    await browser?.close()
     await dsh.stop()
   }
 }

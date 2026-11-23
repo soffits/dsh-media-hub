@@ -83,7 +83,7 @@ function makeHub(dir, source, overrides = {}) {
 }
 
 test('following a new work adds an empty show; a season that appears later is added by itself, grouped, followed, with news and a log line', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const { source, state, calls } = stub()
   const note = join(dir, 'notified.jsonl')
   const hub = makeHub(dir, source, { notifyCommand: [process.execPath, '-e', `require('fs').appendFileSync(${JSON.stringify(note)}, require('fs').readFileSync(0, 'utf8'))`] })
@@ -121,7 +121,7 @@ test('following a new work adds an empty show; a season that appears later is ad
 })
 
 test('more episodes of the season in progress grow the show and are noted; stopping stops the checks', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const { source, state, calls } = stub()
   const hub = makeHub(dir, source)
   await hub.load()
@@ -138,7 +138,7 @@ test('more episodes of the season in progress grow the show and are noted; stopp
 })
 
 test('a failing check is not retried in a loop: the next try is a day on', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const stubbed = stub()
   const hub = makeHub(dir, stubbed.source)
   await hub.load()

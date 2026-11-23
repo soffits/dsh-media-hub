@@ -3,8 +3,9 @@
  * setting, else the page's own name in the viewer's language) and its page
  * in the main column. Its words come from the plugin's locale/ folder.
  *
- * Plain JavaScript in DSH's Client module format (no build step); React
- * comes from the page's module table. This file registers the entry, the
+ * Plain JavaScript in DSH's Client module format; React comes from the
+ * page's module table. DSH loads dist/client.js, this file with the build of
+ * the page's files written in (scripts/build.mjs). It registers the entry, the
  * words and the styles; the page itself (search, rooms, library, one room)
  * lives in browser modules the Host half serves under /media-hub/web/
  * (page.js and the modules it imports), loaded when the page first opens.
@@ -27,12 +28,23 @@ window.__ModuleLoader__.load({
     const STYLE_ID = 'dsh-media-hub'
     const LINK_PARAMS = ['media-room', 'videosync']
     /**
-     * The page's files, under the name of their build (the Host's `settings.build`): an update that swaps this
-     * half into an open page then loads the new modules and styles with it, since a browser keeps the first
-     * module it loaded from an address.
+     * The build of the page's files (src/web-files.js), which the page loads from addresses named by it, since a
+     * browser keeps the first module it loaded from an address for the life of the page. Being part of this bundle,
+     * it makes an update of any page file an update of the browser half, which DSH swaps into open pages.
      */
-    let build = null
-    const web = name => new URL(`media-hub/web/${build}/${name}`, document.baseURI).href
+    const BUILD = '%WEB_BUILD%'
+    const web = name => new URL(`media-hub/web/${BUILD}/${name}`, document.baseURI).href
+
+    /**
+     * Where an open page stood (its place in the URL and the room it showed), handed from the browser half DSH swaps
+     * out to the one it swaps in: DSH closes a main panel whose entry goes away, and the page's state leaves with
+     * its modules. `showing` and `openRoom` are what the mounted page reports.
+     */
+    const HANDOVER = Symbol.for('@soffits/dsh-media-hub: hand-over')
+    let showing = false
+    let openRoom = null
+    let handedSearch = null
+    const reportRoom = (id) => { openRoom = id }
 
     function SidebarIcon({ size }) {
       const stroke = { stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }
@@ -77,10 +89,7 @@ window.__ModuleLoader__.load({
      * language is added by adding its file), the `label` setting, and the language lookup for it.
      */
     const loadStart = async () => {
-      const settings = await getJson('media-hub/api/settings', null)
-      if (typeof settings?.build !== 'string') throw new Error('the Host did not name its page files')
-      build = settings.build
-      const [words, { pick }] = await Promise.all([getJson('media-hub/api/locales', {}), import(web('i18n.js'))])
+      const [settings, words, { pick }] = await Promise.all([getJson('media-hub/api/settings', {}), getJson('media-hub/api/locales', {}), import(web('i18n.js'))])
       return { words, settings, pick }
     }
 
@@ -98,16 +107,24 @@ window.__ModuleLoader__.load({
     /** The page's modules, loaded once and handed this page's React, DSH's components and the kit. */
     let pageModule
     const loadPage = () => {
-      pageModule ??= Promise.all([import(web('ui.js')), import(web('page.js')), import(web('boundary.js'))]).then(([ui, page, boundary]) => {
+      pageModule ??= Promise.all([import(web('ui.js')), import(web('page.js')), import(web('boundary.js')), import(web('nav.js'))]).then(([ui, page, boundary, nav]) => {
         ui.init(React, { primitives, kit })
         ui.setChat(chat)
         ui.setPoints(points)
-        return { Page: page.Page, Boundary: boundary.createBoundary(React) }
+        return { Page: page.Page, Boundary: boundary.createBoundary(React), nav }
       })
       return pageModule
     }
 
-    /** A room asked for by the page's URL (?media-room=<id> or ?videosync=<id>), taken once. */
+    /** The page's place as the swapped-out half left it, put back in the URL before the page reads it. */
+    const restoreNav = (nav) => {
+      if (handedSearch === null) return
+      const search = nav.writeNav(location.search, nav.readNav(handedSearch))
+      handedSearch = null
+      history.replaceState(history.state, '', `${location.pathname}${search}${location.hash}`)
+    }
+
+    /** A room asked for by the page's URL (?media-room=<id> or ?videosync=<id>), or handed over, taken once. */
     let linkedRoom = null
     const takeLinkedRoom = () => {
       const params = new URLSearchParams(location.search)
@@ -153,16 +170,27 @@ window.__ModuleLoader__.load({
       const [error, setError] = useState(null)
       const ready = React.useSyncExternalStore(kitStore.subscribe, kitStore.get) !== null
       useEffect(() => {
+        showing = true
+        return () => {
+          showing = false
+          openRoom = null
+        }
+      }, [])
+      useEffect(() => {
         if (!ready) return undefined
         let live = true
-        loadPage().then(module => { if (live) setPage(module) }, (reason) => {
+        loadPage().then((module) => {
+          if (!live) return
+          restoreNav(module.nav)
+          setPage(module)
+        }, (reason) => {
           pageModule = undefined
           if (live) setError(reason.message)
         })
         return () => { live = false }
       }, [ready])
       return h('div', { className: 'vsync-page', ref: box },
-        page !== null && h(page.Boundary, { t }, h(page.Page, { t, initialRoom })),
+        page !== null && h(page.Boundary, { t }, h(page.Page, { t, initialRoom, onRoom: reportRoom })),
         error && h('p', { className: 'vsync-error', role: 'alert', style: { padding: 24 } }, error))
     }
 
@@ -228,13 +256,21 @@ window.__ModuleLoader__.load({
           }, error => console.warn('[media-hub] could not load its words and settings: %s', error.message))
           return () => {
             live = false
+            // Read before the entries go: DSH disposes this half before it applies the one swapped in.
+            if (showing) globalThis[HANDOVER] = { search: location.search, room: openRoom }
             for (const dispose of disposers.reverse()) dispose()
           }
         }, 'media-hub: words, styles and entries')
 
-        // A link to a room, or to a tab, opens this panel once it is registered.
+        // A link to a room, or to a tab, opens this panel once it is registered, as does a page handed over.
         ctx.effect(() => {
-          takeLinkedRoom()
+          const handed = globalThis[HANDOVER]
+          delete globalThis[HANDOVER]
+          if (handed === undefined) takeLinkedRoom()
+          else {
+            linkedRoom = handed.room
+            handedSearch = handed.search
+          }
           let timer
           let live = true
           const open = () => {
@@ -250,7 +286,7 @@ window.__ModuleLoader__.load({
               if (++tries > 50) clearInterval(timer)
             }, 100)
           }
-          if (linkedRoom !== null) open()
+          if (linkedRoom !== null || handed !== undefined) open()
           else import(web('nav.js')).then(({ hasNavParams }) => { if (live && hasNavParams(location.search)) open() }, () => {})
           return () => { live = false; clearInterval(timer) }
         }, 'media-hub: room link')

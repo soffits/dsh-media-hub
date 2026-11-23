@@ -6,7 +6,7 @@ import { follow, hlsArgs, playable, streamPlan } from '../src/stream.js'
 import { tempDir } from './helpers.js'
 
 test('a growing file is read from its start until it is complete', async (t) => {
-  const file = join(tempDir(t), 'part0.mp4')
+  const file = join(tempDir(), 'part0.mp4')
   const ended = { done: false }
   const chunks = []
   const reading = (async () => { for await (const chunk of follow(file, ended, { pollMs: 5 })) chunks.push(String(chunk)) })()

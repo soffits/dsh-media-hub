@@ -14,7 +14,7 @@ const KINDS = [{ id: 'drama', label: 'Short dramas' }, { id: 'audio', label: 'Au
 const ID = '7600000000000000001'
 const LONG_ID = '7600000000000000004'
 
-const stub = (t, extra = {}) => createCommandSource({ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], ...extra }, { logger: quietLogger, cwd: join(tempDir(t), 'work') })
+const stub = (t, extra = {}) => createCommandSource({ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], ...extra }, { logger: quietLogger, cwd: join(tempDir(), 'work') })
 
 test('search documents become results; hits of undeclared kinds and unusable ones are dropped', () => {
   const document = {
@@ -83,7 +83,7 @@ test('the command source drives the command: search, info, download into a folde
   assert.equal((await source.info(ID)).episodes, 3)
   await assert.rejects(source.info('7600000000000000009'), { code: 'source_failed', message: /Stub: error: no such work/ })
 
-  const dir = join(tempDir(t), 'show')
+  const dir = join(tempDir(), 'show')
   let calls = 0
   const result = await source.download({ id: ID, dir, onEpisode: () => { calls += 1 } })
   assert.deepEqual(result, { failed: [] })
@@ -93,7 +93,7 @@ test('the command source drives the command: search, info, download into a folde
 
 test('a download of a range fetches only those episodes and says which one it is on', async (t) => {
   const source = stub(t)
-  const dir = join(tempDir(t), 'show')
+  const dir = join(tempDir(), 'show')
   const started = []
   await source.download({ id: LONG_ID, dir, from: 4, to: 6, onStart: n => started.push(n) })
   assert.deepEqual(readdirSync(dir).sort(), ['04 第4集.mp4', '05 第5集.mp4', '06 第6集.mp4'])
@@ -110,7 +110,7 @@ test('fixed arguments and environment from the configuration reach the command',
 })
 
 test('the command runs in its own folder, not in the host\'s', async (t) => {
-  const stateDir = tempDir(t)
+  const stateDir = tempDir()
   const [source] = createSources([{ id: 'stub', label: 'Stub', kinds: KINDS, command: [FAKE], env: {} }], { stateDir, logger: quietLogger })
   await source.info(ID)
   assert.deepEqual(readdirSync(join(stateDir, 'stub')), [])
@@ -118,7 +118,7 @@ test('the command runs in its own folder, not in the host\'s', async (t) => {
 
 test('a cancelled download stops the command', async (t) => {
   const source = stub(t, { env: { FAKE_SOURCE_DELAY_MS: '400' } })
-  const dir = join(tempDir(t), 'show')
+  const dir = join(tempDir(), 'show')
   const controller = new AbortController()
   setTimeout(() => controller.abort(), 600)
   await source.download({ id: ID, dir, signal: controller.signal })
@@ -127,26 +127,26 @@ test('a cancelled download stops the command', async (t) => {
 
 test('an episode the command reports failed comes back as failed; the others stay', async (t) => {
   const source = stub(t, { env: { FAKE_SOURCE_FAIL: '2' } })
-  const dir = join(tempDir(t), 'show')
+  const dir = join(tempDir(), 'show')
   assert.deepEqual(await source.download({ id: ID, dir }), { failed: ['02 第2集.mp4'] })
   assert.deepEqual(readdirSync(dir).sort(), ['01 第1集.mp4', '03 第3集.mp4'])
 })
 
 test('a file whose hash is not the one reported is removed and counted as failed', async (t) => {
   const source = stub(t, { env: { FAKE_SOURCE_BAD_HASH: '2' } })
-  const dir = join(tempDir(t), 'show')
+  const dir = join(tempDir(), 'show')
   assert.deepEqual(await source.download({ id: ID, dir }), { failed: ['02 第2集.mp4'] })
   assert.deepEqual(readdirSync(dir).sort(), ['01 第1集.mp4', '03 第3集.mp4'])
 })
 
 test('a command that fails, prints no JSON or ends without a result is a source failure', async (t) => {
   const script = (body) => {
-    const path = join(tempDir(t), 'cmd.sh')
+    const path = join(tempDir(), 'cmd.sh')
     writeFileSync(path, `#!/bin/sh\n${body}\n`)
     chmodSync(path, 0o755)
     return path
   }
-  const dir = join(tempDir(t), 'show')
+  const dir = join(tempDir(), 'show')
   const failing = stub(t, { command: [script('echo "login expired" >&2; exit 3')] })
   await assert.rejects(failing.info(ID), { code: 'source_failed', message: 'Stub: login expired' })
   await assert.rejects(failing.download({ id: ID, dir }), { code: 'source_failed', message: 'Stub: login expired' })
@@ -160,25 +160,25 @@ test('a command that fails, prints no JSON or ends without a result is a source 
 test('ids and kinds are checked before the command runs', async (t) => {
   const source = stub(t)
   await assert.rejects(source.info('a b'), { code: 'invalid' })
-  await assert.rejects(source.download({ id: '', dir: tempDir(t) }), { code: 'invalid' })
+  await assert.rejects(source.download({ id: '', dir: tempDir() }), { code: 'invalid' })
 })
 
 test('sources are listed in order, then Link; ids may not repeat or take an id of the hub\'s own; one without its program is hidden', async (t) => {
   const definition = id => ({ id, label: id, kinds: KINDS, command: [FAKE], env: {} })
   const link = { ytDlp: 'surely-not-yt-dlp-here', proxies: createProxies([]), maxHeight: 1080 }
-  const sources = createSources([definition('one'), definition('two')], { stateDir: tempDir(t), logger: quietLogger, link })
+  const sources = createSources([definition('one'), definition('two')], { stateDir: tempDir(), logger: quietLogger, link })
   assert.deepEqual(sources.map(s => s.id), ['one', 'two', 'link'], 'Link comes last')
-  assert.throws(() => createSources([definition('one'), definition('one')], { stateDir: tempDir(t), logger: quietLogger, link }), /twice/)
-  assert.throws(() => createSources([{ ...definition('empty'), kinds: [] }], { stateDir: tempDir(t), logger: quietLogger, link }), /no kinds/)
-  assert.throws(() => createSources([definition('link')], { stateDir: tempDir(t), logger: quietLogger, link }), /reserved/)
-  const missing = createSources([definition('one'), { ...definition('gone'), command: ['surely-not-a-command-here'] }], { stateDir: tempDir(t), logger: quietLogger, link })
+  assert.throws(() => createSources([definition('one'), definition('one')], { stateDir: tempDir(), logger: quietLogger, link }), /twice/)
+  assert.throws(() => createSources([{ ...definition('empty'), kinds: [] }], { stateDir: tempDir(), logger: quietLogger, link }), /no kinds/)
+  assert.throws(() => createSources([definition('link')], { stateDir: tempDir(), logger: quietLogger, link }), /reserved/)
+  const missing = createSources([definition('one'), { ...definition('gone'), command: ['surely-not-a-command-here'] }], { stateDir: tempDir(), logger: quietLogger, link })
   assert.deepEqual((await describeSources(missing)).map(s => s.id), ['one'])
   assert.equal(await commandExists('surely-not-a-command-here'), false)
   assert.equal(await commandExists('node'), true)
 })
 
 test('the cover verb writes the picture where asked and its failure is the last stderr line', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const source = stub(t)
   const url = 'https://cdn.invalid/novel-pic/7600000000000000001~tplv-600.heic'
   await source.cover(url, join(dir, 'c.img'))

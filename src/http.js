@@ -1,7 +1,7 @@
 /**
  * The plugin's routes on DSH's web server, all under /media-hub:
  *
- *   GET    /media-hub/web/<file>               the page's browser modules and styles (web/), the sync math
+ *   GET    /media-hub/web/<build>/<file>       the page's browser modules and styles (src/web-files.js), only as the build on disk
  *   GET    /media-hub/media/<room>/<i>/<file>  an episode (Range), or an HLS playlist and its segments
  *   GET    /media-hub/subs/<room>/<i>/<n>.vtt  a subtitle track
  *   GET    /media-hub/covers/<key>             a picture: a work's cover, a show's poster, a room's frame (src/covers.js)
@@ -19,7 +19,7 @@
  *   POST   /media-hub/api/follow               { source, id, follow }: follow a work (an empty show when it is new), or stop
  *   POST   /media-hub/api/library/seen         { path }: the news of a followed show (new season, new episodes) was seen
  *   POST   /media-hub/api/library/pin           { path, pinned, by? }: keep the whole show offline, or back to the rolling cache
- *   GET    /media-hub/api/settings             { label, presence, build }: the sidebar entry's configured name, which parts of Watching show, the name of the page's files (webBuild)
+ *   GET    /media-hub/api/settings             { label, presence }: the sidebar entry's configured name, which parts of Watching show
  *   GET    /media-hub/api/locales              { <tag>: { <key>: text } }: the page's words, one table per locale/<tag>.json
  *   GET    /media-hub/api/sources              searchable sources, their kinds (with media) and filters
  *   GET    /media-hub/api/trending?source=&kind=   { trending: [{ source, at, lists }], loading }: what the sources put forward, from the saved copy (asked again in the background when old); source `all` merges every source with the kind
@@ -33,16 +33,14 @@
  * DSH's own /api instead, where the sign-in plugin says who is asking
  * (src/person-routes.js, src/shelf-routes.js).
  */
-import { createHash } from 'node:crypto'
-import { createReadStream, existsSync, readFileSync, readdirSync } from 'node:fs'
+import { createReadStream } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { PREFIX } from './delivery.js'
 import { parseFilters } from './filters.js'
 import { LOCALE_DIR, readWords } from './locales.js'
-import { VENDORED } from './vendored.js'
+import { createBuildWatch, webFile } from './web-files.js'
 
 export const ROUTE = `/${PREFIX}`
 export const WS_PATH = `${ROUTE}/ws`
@@ -70,43 +68,24 @@ const MEDIA_TYPES = Object.freeze({
 
 const WEB_TYPES = Object.freeze({ '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' })
 
-/** Browser files outside web/, by the name they are served under; everything in web/ is served by its own name. */
-const here = fileURLToPath(new URL('.', import.meta.url))
-const WEB_DIR = resolve(here, '../web')
-/** The modules that also run in the browser, by the name they are served under. `here` is src/ or dist/ (the built entries), both one level below the plugin's folder. */
-export const MODULES = Object.freeze({
-  'sync.js': resolve(here, '../src/sync.js'),
-  'formats.js': resolve(here, '../src/formats.js'),
-  'i18n.js': resolve(here, '../src/i18n.js'),
-  'captions.js': resolve(here, '../src/captions.js'),
-})
-
-/** A package's browser build the page loads (VENDORED): next to the built entries, else from the package (a source checkout). */
-function vendoredFile(name) {
-  const built = resolve(here, '../dist', name)
-  if (existsSync(built)) return built
-  const { pkg, file } = VENDORED[name]
-  return resolve(dirname(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file)
-}
-
-/** The file behind /media-hub/web/<build>/<name>, or undefined. */
-export function webFile(name) {
-  if (Object.hasOwn(VENDORED, name)) return vendoredFile(name)
-  if (MODULES[name] !== undefined) return MODULES[name]
-  return /^[a-z0-9-]+\.(js|css)$/.test(name) ? resolve(WEB_DIR, name) : undefined
-}
+/** How long a request for a build the Host has not seen waits for an install still writing it (the browser half can arrive first). */
+export const BUILD_WRITE_MS = 10_000
+const BUILD_LOOK_MS = 100
 
 /**
- * A name for the page's files as they are now: it changes exactly when one of them does. The page loads them from
- * /media-hub/web/<build>/, because a browser keeps the first module it loaded from an address for as long as the
- * page lives: under one fixed address, an update that swaps the plugin's browser half into an open page would
- * leave the old page code running with the new Host and its new words.
+ * One of the page's files, only as the build its address names: a build that was replaced is gone (404), so a page
+ * left open across an update never gets new bytes under an old address. Bytes served are that build's for good.
  */
-export function webBuild() {
-  const hash = createHash('sha256')
-  const files = [...readdirSync(WEB_DIR).sort().map(name => resolve(WEB_DIR, name)), ...Object.values(MODULES)]
-  for (const file of files) hash.update(file.slice(dirname(WEB_DIR).length)).update(readFileSync(file))
-  return hash.digest('hex').slice(0, 12)
+async function sendWebFile(res, builds, build, name) {
+  const file = webFile(name)
+  if (file === undefined) return sendText(res, 404, 'Not found.')
+  for (const until = Date.now() + BUILD_WRITE_MS; builds.current() !== build;) {
+    if (builds.seen(build) || Date.now() >= until) return sendText(res, 404, 'Not found.')
+    await sleep(BUILD_LOOK_MS)
+  }
+  const body = await readFile(file).catch(() => null)
+  if (body === null || builds.current() !== build) return sendText(res, 404, 'Not found.')
+  res.writeHead(200, { ...SECURITY_HEADERS, 'cache-control': 'private, max-age=31536000, immutable', 'content-type': WEB_TYPES[extname(file)], 'content-length': body.length }).end(body)
 }
 
 /**
@@ -239,7 +218,7 @@ export const API = Object.freeze([
   ['POST', 'library/seen', async ({ hub, body }) => hub.dismissNews((await body()).path)],
   ['POST', 'library/cancel', async ({ hub, body }) => hub.cancelDownload((await body()).path)],
   ['POST', 'follow', async ({ hub, body }) => hub.followWork(pick(await body(), ['source', 'id', 'follow']))],
-  ['GET', 'settings', ({ settings, build }) => ({ ...settings(), build })],
+  ['GET', 'settings', ({ settings }) => settings()],
   ['GET', 'locales', ({ localeDir, logger }) => readWords(localeDir, logger)],
   ['GET', 'sources', async ({ hub }) => ({ sources: await hub.sources() })],
   ['GET', 'trending', ({ hub, query }) => hub.trending(query('source'), query('kind'))],
@@ -271,10 +250,10 @@ export const errorBody = error => ({ error: { code: error?.code ?? 'error', ...(
 
 /**
  * The HTTP handler for everything under /media-hub.
- * @param {{ connection: object, service: () => object | undefined }} options - `service` answers the running room service
+ * @param {{ connection: object, service: () => object | undefined }} options - `service` answers the running room service;
+ *   `builds` the build of the page's files on disk (src/web-files.js)
  */
-export function createHandler({ connection, service, settings = () => ({ label: '', presence: {} }), localeDir = LOCALE_DIR, logger }) {
-  const build = webBuild()
+export function createHandler({ connection, service, settings = () => ({ label: '', presence: {} }), localeDir = LOCALE_DIR, builds = createBuildWatch(), logger }) {
   return async (req, res) => {
     const admitted = admitOwner(connection, req)
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? 'Sign in to DSH first.' : 'Forbidden.')
@@ -288,14 +267,7 @@ export function createHandler({ connection, service, settings = () => ({ label: 
       } catch {
         return sendText(res, 400, 'Bad address.')
       }
-      // The build segment only names the address (see webBuild); the file served is the current one.
-      if (parts[0] === 'web' && parts.length === 3 && req.method === 'GET') {
-        const file = webFile(parts[2])
-        const body = file === undefined ? null : await readFile(file).catch(() => null)
-        if (body === null) return sendText(res, 404, 'Not found.')
-        res.writeHead(200, { ...SECURITY_HEADERS, 'cache-control': 'no-cache', 'content-type': WEB_TYPES[extname(file)], 'content-length': body.length }).end(body)
-        return
-      }
+      if (parts[0] === 'web' && parts.length === 3 && req.method === 'GET') return await sendWebFile(res, builds, parts[1], parts[2])
       if (parts[0] === 'covers' && parts.length === 2 && req.method === 'GET') {
         const cover = await hub.coverFile(parts[1])
         if (cover === null) return sendText(res, 404, 'Not found.')
@@ -319,7 +291,7 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         const found = matchApi(req.method, parts.slice(1))
         if (found !== null) {
           const query = name => url.searchParams.get(name) ?? ''
-          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, build, localeDir, logger }))
+          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, localeDir, logger }))
         }
       }
       return sendText(res, 404, 'Not found.')

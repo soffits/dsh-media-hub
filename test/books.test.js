@@ -16,7 +16,7 @@ const quiet = { warn() {} }
 const covers = { ofSource: (source, url) => (url ? `covers/${source}-x` : null) }
 
 function setup(t, { capBytes = 0, convert = false, log } = {}) {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const source = createCommandSource({ id: 'lib', label: 'Lib', kinds: [{ id: 'book', label: 'Books', media: 'book' }], filters: ['language', 'year'], command: [process.execPath, FAKE], env: { FAKE_SOURCE_DELAY_MS: '5', ...(log ? { FAKE_SOURCE_LOG: log } : {}) } }, { logger: quiet, cwd: join(dir, 'cwd') })
   let converter = { command: '', available: async () => false }
   if (convert) {
@@ -123,7 +123,7 @@ test('an attachment keeps a name in any script and gives a plain fallback', () =
 })
 
 test('search filters: flags only for what the source understands, and the answer filtered by the hub too', async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const log = join(dir, 'log')
   const { source } = setup(t, { log })
   const filters = parseFilters(name => ({ language: 'zh-Hans', format: 'TXT', yearFrom: '1700', yearTo: 'x', maxMb: '1' })[name] ?? '')
@@ -201,7 +201,7 @@ test('a shelves file that cannot be read is set aside and the downloaded books s
 })
 
 test('a shelf that cannot be trimmed to its cap is logged, not an unhandled failure', { skip: process.getuid?.() === 0 }, async (t) => {
-  const dir = tempDir(t)
+  const dir = tempDir()
   const warnings = []
   const { source } = setup(t)
   const books = createBooks({ dir: join(dir, 'books'), sources: new Map([['lib', source]]), capBytes: 1, converter: { command: '', available: async () => false }, covers, logger: { warn: (...args) => warnings.push(args.join(' ')) } })
