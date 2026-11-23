@@ -590,24 +590,7 @@ async function bookFlows({ a, b, origin }) {
   await shelf.first().waitFor({ timeout: 20_000 })
   assert.deepEqual(await shelf.locator('.vsync-rowTitle').allTextContents(), ['Pride and Prejudice'])
   assert.match(await shelf.locator('.vsync-rowMeta').textContent(), /Jane Austen.*TXT/)
-  // The second browser acts as a page installed to the home screen: Save hands the file to the share sheet and the page stays.
-  await b.context.addInitScript(() => {
-    const realMatch = window.matchMedia.bind(window)
-    window.matchMedia = query => (query === '(display-mode: standalone)' ? { matches: true, media: query, addEventListener() {}, removeEventListener() {} } : realMatch(query))
-    window.__shared = []
-    navigator.share = async ({ files }) => { window.__shared.push(...await Promise.all(files.map(async one => ({ name: one.name, text: await one.text() })))) }
-    navigator.canShare = () => true
-  })
-  await b.page.goto(`${origin}/?vs-tab=library`)
-  await b.page.locator('.vsync-show').filter({ hasText: 'Pride and Prejudice' }).first().waitFor({ timeout: 20_000 })
-  const before = b.page.url()
-  await b.page.locator('.vsync-show').filter({ hasText: 'Pride and Prejudice' }).getByRole('button', { name: 'Save TXT' }).click()
-  await until('the book reaches the share sheet', async () => {
-    const shared = await b.page.evaluate(() => window.__shared)
-    return { ok: shared.length === 1, shared }
-  }, 10_000)
-  assert.deepEqual(await b.page.evaluate(() => window.__shared), [{ name: 'Pride and Prejudice.txt', text: 'Pride and Prejudice\nJane Austen\n' }])
-  assert.equal(b.page.url(), before, 'the installed page did not navigate to the file')
+  await iosSaveFlows({ b, origin })
   await shot(page, 'books-shelf')
   if (screenshots) {
     await page.setViewportSize({ width: 390, height: 844 })
@@ -897,6 +880,69 @@ async function hubFlows({ a, b, origin, home, show }) {
   await testShow.locator('.vsync-confirm').getByRole('button', { name: 'Delete' }).click()
   await until('the test show is deleted', async () => ({ ok: !existsSync(show) && await a.page.locator('.vsync-show', { hasText: 'Test show' }).count() === 0 }), 10_000)
   log('library: episode and show deleted')
+}
+
+/**
+ * The second browser acts as the page installed to an iPhone's home screen. There Save never navigates: the
+ * file is prepared in the page and handed to the share sheet, and the tap that opens the sheet never waits on
+ * a fetch (iOS refuses the sheet once the tap's moment has passed). A shelf entry takes a first tap that
+ * prepares it and turns the button into a ready one; a book just downloaded is prepared at once.
+ */
+async function iosSaveFlows({ b, origin }) {
+  await b.context.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgent', { get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' })
+    const realMatch = window.matchMedia.bind(window)
+    window.matchMedia = query => (query === '(display-mode: standalone)' ? { matches: true, media: query, addEventListener() {}, removeEventListener() {} } : realMatch(query))
+    window.__events = []
+    const realFetch = window.fetch.bind(window)
+    window.fetch = (input, init) => {
+      if (String(input?.url ?? input).includes('/shelf/file')) window.__events.push('fetch')
+      return realFetch(input, init)
+    }
+    document.addEventListener('click', () => window.__events.push('tap'), true)
+    navigator.canShare = () => true
+    navigator.share = async ({ files }) => {
+      // Like iOS: the sheet opens only if nothing was fetched since the tap that asked for it.
+      const events = window.__events
+      if (events.lastIndexOf('fetch') > events.lastIndexOf('tap')) throw new DOMException('not allowed', 'NotAllowedError')
+      events.push(...await Promise.all(files.map(async one => `share:${one.name}:${await one.text()}`)))
+    }
+  })
+  const events = () => b.page.evaluate(() => window.__events)
+  const shared = 'share:Pride and Prejudice.txt:Pride and Prejudice\nJane Austen\n'
+
+  // A shelf entry: the first tap prepares the file, the second opens the share sheet; the page never moves.
+  await b.page.goto(`${origin}/?vs-tab=library`)
+  const shelf = b.page.locator('.vsync-shelf')
+  await shelf.locator('.vsync-shelfEntry').first().waitFor({ timeout: 20_000 })
+  const at = b.page.url()
+  await shelf.getByRole('button', { name: 'Save TXT' }).click()
+  const ready = shelf.getByRole('button', { name: 'Ready: tap to save TXT' })
+  await ready.waitFor({ timeout: 10_000 })
+  assert.deepEqual(await events(), ['tap', 'fetch'], 'the first tap only prepares the file')
+  await ready.click()
+  await until('the shelf book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
+  assert.deepEqual(await events(), ['tap', 'fetch', 'tap', shared], 'the sharing tap fetched nothing')
+  assert.equal(b.page.url(), at, 'the installed page did not navigate to the file')
+
+  // A book just downloaded: prepared before Save shows, so one tap opens the share sheet.
+  await b.page.goto(`${origin}/?vs-tab=discover&vs-source=all&vs-kind=ebook`)
+  await b.page.locator('.vsync-searchField').waitFor({ timeout: 20_000 })
+  await dismissDialogs(b.page)
+  await b.page.evaluate(() => { window.__events.length = 0 })
+  await b.page.locator('.vsync-searchField').fill('pride')
+  await b.page.locator('.vsync-search button[type=submit]').click()
+  const pride = b.page.locator('.vsync-results > .vsync-book').filter({ hasText: 'Pride and Prejudice' })
+  await pride.waitFor({ timeout: 20_000 })
+  await pride.locator('select.vsync-pick').selectOption('txt')
+  await pride.getByRole('button', { name: 'Download' }).click()
+  const save = pride.getByRole('button', { name: 'Save TXT' })
+  await save.waitFor({ timeout: 20_000 })
+  await until('the new book is prepared', async () => ({ ok: (await events()).includes('fetch'), events: await events() }), 10_000)
+  await save.click()
+  await until('the new book reaches the share sheet', async () => ({ ok: (await events()).includes(shared), events: await events() }), 10_000)
+  assert.equal((await events()).at(-2), 'tap', 'the one tap opened the share sheet without a fetch')
+  await shot(b.page, 'books-save-ios')
 }
 
 async function main() {

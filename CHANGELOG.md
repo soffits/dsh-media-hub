@@ -2,7 +2,7 @@
 
 ## 0.15.7
 
-- In the home-screen app, a book just downloaded is fetched into the page right away, so one tap on *Save* opens the share sheet. When a tap has to fetch the file first (an older book on the shelf), the button turns into *Ready, tap to save* instead of silently waiting for a second tap.
+- Saving a book in the app installed to an iPhone's or iPad's home screen is one designed flow instead of 0.15.5 and 0.15.6's patches: the file is prepared inside the page, then handed to the share sheet (Save to Files, Books, other apps) by a tap that never waits on the network, so the sheet always opens and the page never leaves. A book just downloaded is prepared at once and needs one tap; an older book on the shelf takes a first tap that prepares it and turns the button green, *Ready: tap to save*. Other browsers, Android included, keep the plain download.
 
 ## 0.15.6
 
