@@ -34,3 +34,5 @@
 - A fetch that adds a show and then fails to open its room leaves the empty show in the library (no points are spent). *rare*
 - `web/ui.js` keeps React, the primitives and the kit as module-level `export let` set by `init()`, and `web/page.js` sets the words during render, so the page modules depend on call order and are hard to test alone.
 - `src/prepare.js` assumes `nice` is on PATH.
+
+- CI: `npm test` on Node 22 once hung past 10 min on main (run 45160605947, v0.15.5 merge) after passing on the PR; a rerun passed. Likely a test that leaves a handle open; find it if it happens again (rare).
