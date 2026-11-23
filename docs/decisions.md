@@ -82,6 +82,7 @@
 
 ## Web UI
 
+- **In the iOS home-screen app a book reaches other apps through a copy kept on the device** (`web/device-copy.js`): iOS shows any file the app navigates to full screen with no way back, and opens the share sheet only within a moment of a tap. So the person sees two states, not on this device (download, with progress) and on it (share sheet, or Safari), the copy lives in Cache Storage so the state holds across visits, and the sharing tap awaits nothing. The share sheet lists only apps with a share extension; Safari's own download view (`x-safari-https:`) lists every app that opens the file, at the cost of a separate sign-in in Safari. Other browsers keep a plain download link.
 - **Watching starts alone; a room opens to others when its person asks.** *Watch* and *Continue* open a room for the person (`together: false`), unlisted, so watching alone keeps progress, the watch log, resume and rating from the same code as watching together; *Watch together* opens that same room to others where it stands and copies its link. Rooms the assistant opens are shared, since it opens them to send a link, and rooms from before the choice were shared.
 
 - *Ask* goes through `ctx.uiActions.chat` from @soffits/dsh-ui-actions: one shared item card and model format for every plugin page, instead of each page writing its own Markdown draft. The hub keeps its own button for its card layout.
