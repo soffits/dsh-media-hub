@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { DAY_MS, dueFollows, newSeasons, nextCheckAt, seenAtStart } from '../src/follow.js'
@@ -108,8 +108,10 @@ test('following a new work adds an empty show; a season that appears later is ad
   assert.deepEqual([added.group, shows[0].group, !!added.follow, added.newSeason?.from], [shows[0].group, added.group, true, 'Show'])
   assert.deepEqual(shows.map(show => show.season), [1, 2], 'the seasons sit together, oldest first')
   assert.equal(added.episodes, 0, 'nothing was downloaded')
-  await until('the news was passed on', () => existsSync(note))
-  assert.equal(JSON.parse(readFileSync(note, 'utf8')).type, 'season')
+  // The notifier makes the file and then writes into it, so wait for the news itself, not for the file.
+  const news = () => { try { return JSON.parse(readFileSync(note, 'utf8')) } catch { return null } }
+  await until('the news was passed on', () => news() !== null)
+  assert.equal(news().type, 'season')
   const logged = readFileSync(join(dir, 'state', 'watch-log.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)).filter(line => line.type === 'library.newSeason')
   assert.deepEqual(logged.map(line => line.title), ['Show season 2'])
 
