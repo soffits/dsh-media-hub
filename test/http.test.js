@@ -3,7 +3,7 @@ import { createServer } from 'node:http'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { createHandler, resolveRange, within } from '../src/http.js'
+import { createHandler, resolveRange, webBuild, within } from '../src/http.js'
 import { fakeConnection, tempDir } from './helpers.js'
 
 test('Range headers resolve to one window', () => {
@@ -97,12 +97,22 @@ test('the room API maps service errors to statuses, and a failed site is never a
 
 test('the player modules are served, nothing else from the package', async (t) => {
   const get = await serve(t, {})
-  const module = await get('web/sync.js')
+  const { build } = await (await get('api/settings')).json()
+  const module = await get(`web/${build}/sync.js`)
   assert.equal(module.status, 200)
   assert.match(module.headers.get('content-type'), /javascript/)
-  assert.equal((await get('web/hls.mjs')).status, 200)
-  assert.equal((await get('web/..%2Findex.js')).status, 404)
-  assert.equal((await get('web/http.js')).status, 404)
+  assert.equal((await get(`web/${build}/hls.mjs`)).status, 200)
+  assert.equal((await get(`web/${build}/..%2Findex.js`)).status, 404)
+  assert.equal((await get(`web/${build}/http.js`)).status, 404)
+})
+
+test('the page files are named by a build that changes when one of them does, so an updated page loads new modules', async (t) => {
+  const get = await serve(t, {})
+  const { build } = await (await get('api/settings')).json()
+  assert.match(build, /^[0-9a-f]{12}$/)
+  assert.equal(build, webBuild())
+  // No fixed address: a module there would outlive every update in an open page.
+  assert.equal((await get('web/sync.js')).status, 404)
 })
 
 test('covers are served only to admitted owners, as the picture type they are', async (t) => {

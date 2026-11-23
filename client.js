@@ -26,7 +26,13 @@ window.__ModuleLoader__.load({
     const PANEL = 'dsh-media-hub'
     const STYLE_ID = 'dsh-media-hub'
     const LINK_PARAMS = ['media-room', 'videosync']
-    const web = name => new URL(`media-hub/web/${name}`, document.baseURI).href
+    /**
+     * The page's files, under the name of their build (the Host's `settings.build`): an update that swaps this
+     * half into an open page then loads the new modules and styles with it, since a browser keeps the first
+     * module it loaded from an address.
+     */
+    let build = null
+    const web = name => new URL(`media-hub/web/${build}/${name}`, document.baseURI).href
 
     function SidebarIcon({ size }) {
       const stroke = { stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }
@@ -70,11 +76,13 @@ window.__ModuleLoader__.load({
      * What the entry and the page need before they show: the words (one table per locale/<tag>.json, so a
      * language is added by adding its file), the `label` setting, and the language lookup for it.
      */
-    const loadStart = () => Promise.all([
-      getJson('media-hub/api/locales', {}),
-      getJson('media-hub/api/settings', {}),
-      import(web('i18n.js')),
-    ])
+    const loadStart = async () => {
+      const settings = await getJson('media-hub/api/settings', null)
+      if (typeof settings?.build !== 'string') throw new Error('the Host did not name its page files')
+      build = settings.build
+      const [words, { pick }] = await Promise.all([getJson('media-hub/api/locales', {}), import(web('i18n.js'))])
+      return { words, settings, pick }
+    }
 
     /** DSH's own components, shared through the page's module table. */
     const primitives = require('@deepseek-ai/dsh-client-ui-primitives')
@@ -111,7 +119,27 @@ window.__ModuleLoader__.load({
       history.replaceState(history.state, '', `${location.pathname}${query ? `?${query}` : ''}${location.hash}`)
     }
 
+    /**
+     * Which layout widths the panel is within, as `data-within` for panel.css (the numbers are its breakpoints).
+     * The layout follows the panel's own width, not the window's: a side bar or a split view leaves a wide
+     * window with a panel as narrow as a phone.
+     */
+    const LAYOUT_WIDTHS = [640, 767, 900]
+    function useWithin() {
+      const box = React.useRef(null)
+      React.useLayoutEffect(() => {
+        const node = box.current
+        const measure = () => { node.dataset.within = LAYOUT_WIDTHS.filter(width => node.clientWidth <= width).join(' ') }
+        measure()
+        const observer = new ResizeObserver(measure)
+        observer.observe(node)
+        return () => observer.disconnect()
+      }, [])
+      return box
+    }
+
     function MediaHubPage({ translate }) {
+      const box = useWithin()
       const language = React.useSyncExternalStore(subscribeLocale, activeLanguage)
       // A new function per language, so every view that keeps text derived from `t` builds it again;
       // `t.language` is the viewer's tag, for Intl and for texts given per language.
@@ -133,7 +161,7 @@ window.__ModuleLoader__.load({
         })
         return () => { live = false }
       }, [ready])
-      return h('div', { className: 'vsync-page' },
+      return h('div', { className: 'vsync-page', ref: box },
         page !== null && h(page.Boundary, { t }, h(page.Page, { t, initialRoom })),
         error && h('p', { className: 'vsync-error', role: 'alert', style: { padding: 24 } }, error))
     }
@@ -164,23 +192,19 @@ window.__ModuleLoader__.load({
           }, 'media-hub: ask')
         })
 
-        ctx.effect(() => {
-          if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return () => {}
-          const tag = document.createElement('link')
-          tag.id = STYLE_ID
-          tag.rel = 'stylesheet'
-          tag.href = web('panel.css')
-          tag.dataset.plugin = '@soffits/dsh-media-hub'
-          document.head.appendChild(tag)
-          return () => tag.remove()
-        }, 'media-hub: styles')
-
         // The words register first, so neither the entry nor the page ever shows a bare key.
         ctx.effect(() => {
           let live = true
           const disposers = []
-          loadStart().then(([words, settings, { pick }]) => {
+          loadStart().then(({ words, settings, pick }) => {
             if (!live) return
+            const styles = document.createElement('link')
+            styles.id = STYLE_ID
+            styles.rel = 'stylesheet'
+            styles.href = web('panel.css')
+            styles.dataset.plugin = '@soffits/dsh-media-hub'
+            document.head.appendChild(styles)
+            disposers.push(() => styles.remove())
             try {
               disposers.push(ctx.locale.register(NS, words))
             } catch (error) {
@@ -206,7 +230,7 @@ window.__ModuleLoader__.load({
             live = false
             for (const dispose of disposers.reverse()) dispose()
           }
-        }, 'media-hub: words and entries')
+        }, 'media-hub: words, styles and entries')
 
         // A link to a room, or to a tab, opens this panel once it is registered.
         ctx.effect(() => {

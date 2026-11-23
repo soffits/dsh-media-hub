@@ -12,8 +12,10 @@
  * within a moment of a tap, so nothing may be awaited in between. The share sheet lists only apps that take
  * shared files; "Open in Safari" (iOS 17's `x-safari-https:` link) opens the book in Safari itself, whose
  * download view offers every app that opens the file and has its own way back. Safari keeps its own sign-in.
+ * The download carries on after a dropped connection (web/resumable.js).
  */
-import { failureText, fill, h, Icon, IconButton, Pending, React } from './ui.js'
+import { fetchResumable } from './resumable.js'
+import { failureText, fill, h, Icon, IconButton, networkText, Pending, React } from './ui.js'
 
 const CACHE = 'media-hub-books'
 
@@ -44,24 +46,16 @@ async function download(t, entry, link) {
   const id = entry.entry
   put(id, { step: 'downloading', fraction: null })
   try {
-    const response = await fetch(link, { credentials: 'same-origin', cache: 'no-store' })
-    if (!response.ok) throw new Error(failureText(null, response.status))
-    const total = Number(response.headers.get('content-length')) || entry.bytes || 0
-    const reader = response.body.getReader()
-    const parts = []
-    let received = 0
-    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
-      parts.push(chunk.value)
-      received += chunk.value.length
-      if (total > 0) put(id, { step: 'downloading', fraction: Math.min(1, received / total) })
-    }
-    const type = response.headers.get('content-type')?.split(';')[0].trim() || 'application/octet-stream'
-    const blob = new Blob(parts, { type })
+    const blob = await fetchResumable(link, {
+      bytes: entry.bytes ?? 0,
+      refusal: status => failureText(null, status),
+      onProgress: fraction => put(id, { step: 'downloading', fraction }),
+    }).catch((error) => { throw error instanceof TypeError ? new Error(networkText(error)) : error })
     const file = toFile(entry, blob)
     if (navigator.canShare?.({ files: [file] }) === false) throw new Error(t('book.cannotShare'))
     // Kept for later visits when the page may store it; without storage the copy lasts while the app is open.
     const store = await cache().catch(() => null)
-    await store?.put(link, new Response(blob, { headers: { 'content-type': type } }))
+    await store?.put(link, new Response(blob, { headers: { 'content-type': blob.type } }))
     put(id, { step: 'here', file })
   } catch (error) {
     put(id, { step: 'failed', message: error?.message ?? String(error) })

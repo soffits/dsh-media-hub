@@ -19,7 +19,7 @@
  *   POST   /media-hub/api/follow               { source, id, follow }: follow a work (an empty show when it is new), or stop
  *   POST   /media-hub/api/library/seen         { path }: the news of a followed show (new season, new episodes) was seen
  *   POST   /media-hub/api/library/pin           { path, pinned, by? }: keep the whole show offline, or back to the rolling cache
- *   GET    /media-hub/api/settings             { label, presence }: the sidebar entry's configured name, which parts of Watching show
+ *   GET    /media-hub/api/settings             { label, presence, build }: the sidebar entry's configured name, which parts of Watching show, the name of the page's files (webBuild)
  *   GET    /media-hub/api/locales              { <tag>: { <key>: text } }: the page's words, one table per locale/<tag>.json
  *   GET    /media-hub/api/sources              searchable sources, their kinds (with media) and filters
  *   GET    /media-hub/api/trending?source=&kind=   { trending: [{ source, at, lists }], loading }: what the sources put forward, from the saved copy (asked again in the background when old); source `all` merges every source with the kind
@@ -33,7 +33,8 @@
  * DSH's own /api instead, where the sign-in plugin says who is asking
  * (src/person-routes.js, src/shelf-routes.js).
  */
-import { createReadStream, existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { createReadStream, existsSync, readFileSync, readdirSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, extname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { createRequire } from 'node:module'
@@ -88,11 +89,24 @@ function vendoredFile(name) {
   return resolve(dirname(createRequire(import.meta.url).resolve(`${pkg}/package.json`)), file)
 }
 
-/** The file behind /media-hub/web/<name>, or undefined. */
+/** The file behind /media-hub/web/<build>/<name>, or undefined. */
 export function webFile(name) {
   if (Object.hasOwn(VENDORED, name)) return vendoredFile(name)
   if (MODULES[name] !== undefined) return MODULES[name]
   return /^[a-z0-9-]+\.(js|css)$/.test(name) ? resolve(WEB_DIR, name) : undefined
+}
+
+/**
+ * A name for the page's files as they are now: it changes exactly when one of them does. The page loads them from
+ * /media-hub/web/<build>/, because a browser keeps the first module it loaded from an address for as long as the
+ * page lives: under one fixed address, an update that swaps the plugin's browser half into an open page would
+ * leave the old page code running with the new Host and its new words.
+ */
+export function webBuild() {
+  const hash = createHash('sha256')
+  const files = [...readdirSync(WEB_DIR).sort().map(name => resolve(WEB_DIR, name)), ...Object.values(MODULES)]
+  for (const file of files) hash.update(file.slice(dirname(WEB_DIR).length)).update(readFileSync(file))
+  return hash.digest('hex').slice(0, 12)
 }
 
 /**
@@ -225,7 +239,7 @@ export const API = Object.freeze([
   ['POST', 'library/seen', async ({ hub, body }) => hub.dismissNews((await body()).path)],
   ['POST', 'library/cancel', async ({ hub, body }) => hub.cancelDownload((await body()).path)],
   ['POST', 'follow', async ({ hub, body }) => hub.followWork(pick(await body(), ['source', 'id', 'follow']))],
-  ['GET', 'settings', ({ settings }) => settings()],
+  ['GET', 'settings', ({ settings, build }) => ({ ...settings(), build })],
   ['GET', 'locales', ({ localeDir, logger }) => readWords(localeDir, logger)],
   ['GET', 'sources', async ({ hub }) => ({ sources: await hub.sources() })],
   ['GET', 'trending', ({ hub, query }) => hub.trending(query('source'), query('kind'))],
@@ -260,6 +274,7 @@ export const errorBody = error => ({ error: { code: error?.code ?? 'error', ...(
  * @param {{ connection: object, service: () => object | undefined }} options - `service` answers the running room service
  */
 export function createHandler({ connection, service, settings = () => ({ label: '', presence: {} }), localeDir = LOCALE_DIR, logger }) {
+  const build = webBuild()
   return async (req, res) => {
     const admitted = admitOwner(connection, req)
     if (!admitted.ok) return sendText(res, admitted.status, admitted.status === 401 ? 'Sign in to DSH first.' : 'Forbidden.')
@@ -273,8 +288,9 @@ export function createHandler({ connection, service, settings = () => ({ label: 
       } catch {
         return sendText(res, 400, 'Bad address.')
       }
-      if (parts[0] === 'web' && parts.length === 2 && req.method === 'GET') {
-        const file = webFile(parts[1])
+      // The build segment only names the address (see webBuild); the file served is the current one.
+      if (parts[0] === 'web' && parts.length === 3 && req.method === 'GET') {
+        const file = webFile(parts[2])
         const body = file === undefined ? null : await readFile(file).catch(() => null)
         if (body === null) return sendText(res, 404, 'Not found.')
         res.writeHead(200, { ...SECURITY_HEADERS, 'cache-control': 'no-cache', 'content-type': WEB_TYPES[extname(file)], 'content-length': body.length }).end(body)
@@ -303,7 +319,7 @@ export function createHandler({ connection, service, settings = () => ({ label: 
         const found = matchApi(req.method, parts.slice(1))
         if (found !== null) {
           const query = name => url.searchParams.get(name) ?? ''
-          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, localeDir, logger }))
+          return sendJson(res, 200, await found.answer({ hub, params: found.params, query, body: () => readJson(req), settings, build, localeDir, logger }))
         }
       }
       return sendText(res, 404, 'Not found.')
