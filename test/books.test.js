@@ -170,6 +170,41 @@ test('shelf routes answer for the asking person only and serve the file as an at
   assert.equal(bad.status, 404)
 })
 
+test('a shelf is found by the sign-in id or name its person used on their own requests, after a restart too', async (t) => {
+  const { dir, books, source } = setup(t)
+  await books.load()
+  assert.equal(books.shelfOf(''), 'owner', 'with nobody seen and no shelves, the single owner')
+  let who = { issuer: 'i', id: 'sub-1', name: 'Ann' }
+  const routes = createShelfRoutes({ books: () => books, identity: () => ({ current: () => who }) })
+  const list = () => routes.find(one => one.path === '/api/media-hub/shelf').fetch(new Request('http://dsh.invalid/api/media-hub/shelf'))
+  await list()
+  const ann = personOf({ current: () => who }).key
+  assert.equal(books.shelfOf(''), ann, 'one person seen needs no name')
+  who = { issuer: 'i', id: 'sub-2', name: 'Bea' }
+  await list()
+  const bea = personOf({ current: () => who }).key
+  assert.deepEqual([books.shelfOf('ann'), books.shelfOf(' BEA '), books.shelfOf('sub-2')], [ann, bea, bea])
+  assert.throws(() => books.shelfOf(''), { code: 'invalid' })
+  assert.throws(() => books.shelfOf('carl'), { code: 'not_found' })
+  who = { issuer: 'i', id: 'sub-3', name: 'Ann' }
+  await list()
+  assert.throws(() => books.shelfOf('ann'), { code: 'invalid' }, 'a name two people share needs the id')
+  assert.equal(books.shelfOf('sub-1'), ann)
+
+  await books.dispose()
+  const reopened = createBooks({ dir: join(dir, 'books'), sources: new Map([['lib', source]]), converter: { command: '', available: async () => false }, covers, logger: quiet })
+  t.after(() => reopened.dispose())
+  await reopened.load()
+  assert.equal(reopened.shelfOf('Bea'), bea)
+})
+
+test('shelves of signed-in people with nobody named yet are not mistaken for the owner\'s', async (t) => {
+  const { books } = setup(t)
+  await books.load()
+  await books.add('0123456789abcdef0123', { source: 'lib', id: 'pg-1342', format: 'epub' })
+  assert.throws(() => books.shelfOf(''), { code: 'not_found' })
+})
+
 test('a shelves file that cannot be read is set aside and the downloaded books stay, then and after a restart', async (t) => {
   const { dir, books, source } = setup(t)
   const reopen = () => {

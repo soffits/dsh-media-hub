@@ -14,7 +14,10 @@
  * installed; otherwise only the source's own formats are offered.
  *
  * `books.json` keeps the shelves and files; it is written whole, through a
- * temporary file, after every change.
+ * temporary file, after every change. It also keeps who each shelf belongs
+ * to (`people`: shelf key → the sign-in id and name last seen on it), learned
+ * from the person's own requests, so the assistant can name a person whose
+ * shelf is keyed by a hash it cannot compute.
  */
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
@@ -23,6 +26,7 @@ import { extname, join } from 'node:path'
 import { codedError } from './errors.js'
 import { convertBase } from './formats.js'
 import { createJsonSaver, readJson } from './json-file.js'
+import { OWNER } from './people.js'
 import { sha256Of } from './sha256.js'
 
 export const BOOK_TYPES = Object.freeze({
@@ -77,7 +81,7 @@ function runConverter(command, input, output) {
  * @param {() => void} [options.changed] - told whenever the shelves change, so open pages re-read
  */
 export function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, changed = () => {}, now = Date.now }) {
-  let state = { files: {}, shelves: {} }
+  let state = { files: {}, shelves: {}, people: {} }
   const stateFile = join(dir, STATE_FILE)
   const saver = createJsonSaver(stateFile, logger)
   const running = new Map()
@@ -202,7 +206,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
   return {
     async load() {
       const { value } = await readJson(stateFile, { logger, valid: loaded => typeof loaded?.files === 'object' && loaded.files !== null && typeof loaded.shelves === 'object' && loaded.shelves !== null })
-      if (value !== undefined) state = value
+      if (value !== undefined) state = { people: {}, ...value }
       // A fetch cut by a restart starts again; a file that vanished from disk is marked removed.
       for (const [key, file] of Object.entries(state.files)) {
         if (file.state === 'fetching') start(key, file)
@@ -224,6 +228,42 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
         const folder = join(dir, 'files', name)
         if (await stat(folder).then(info => info.mtimeMs > savedAt, () => false)) await rm(folder, { recursive: true, force: true })
       }
+    },
+
+    /**
+     * Note who a verified person is, so their shelf can be found by name; saved only when it changed.
+     * @param {{ key: string, id: string, name: string, verified: boolean }} person - from `personOf`
+     */
+    async seen(person) {
+      if (!person.verified) return
+      const known = state.people[person.key]
+      if (known?.id === person.id && known?.name === person.name) return
+      state.people[person.key] = { id: person.id, name: person.name }
+      await save()
+    },
+
+    /**
+     * The shelf key of a named person: their sign-in id, or the name they sign in with (any case), as seen on
+     * their own requests. Without anyone seen and no one's shelf but the owner's, the single owner's shelf; an empty
+     * name is the only person seen.
+     */
+    shelfOf(name = '') {
+      const people = Object.entries(state.people)
+      const known = people.map(([, person]) => (person.name ? `${person.name} (${person.id})` : person.id)).join(', ')
+      if (people.length === 0) {
+        if (Object.keys(state.shelves).every(key => key === OWNER)) return OWNER
+        throw codedError('not_found', 'no shelf has been opened signed in since the hub learned names; ask the person to open the Books tab once')
+      }
+      const wanted = String(name).trim().normalize('NFKC').toLowerCase()
+      if (wanted === '') {
+        if (people.length === 1) return people[0][0]
+        throw codedError('invalid', `name the person: ${known}`)
+      }
+      const byId = people.filter(([, person]) => person.id.toLowerCase() === wanted)
+      const matches = byId.length > 0 ? byId : people.filter(([, person]) => person.name.normalize('NFKC').toLowerCase() === wanted)
+      if (matches.length === 1) return matches[0][0]
+      if (matches.length > 1) throw codedError('invalid', `${name} names several people; use their sign-in id: ${known}`)
+      throw codedError('not_found', `no shelf known for ${name}; a person's shelf is known once they have opened it signed in. Known: ${known}`)
     },
 
     async list(person) {

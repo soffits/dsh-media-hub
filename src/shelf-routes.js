@@ -1,7 +1,8 @@
 /**
  * The shelf's routes: exact Fetch routes under DSH's `/api`, so DSH admits
  * the browser first and a `requestIdentity` provider knows who is asking.
- * Every answer is about the asking person's own shelf.
+ * Every answer is about the asking person's own shelf; each request also
+ * tells the shelves who that person is (`seen`), for the assistant's tool.
  *
  *   GET  /api/media-hub/shelf                 the person's books, disk use, whether conversion is on
  *   POST /api/media-hub/shelf/add             { source, id, format, title?, author? }
@@ -38,7 +39,9 @@ export function createShelfRoutes({ books, identity }) {
     const shelves = books()
     if (shelves === undefined) return json(503, { error: { code: 'unavailable', message: 'The shelf is starting.' } })
     try {
-      return await fn(request, shelves, personOf(identity()))
+      const person = personOf(identity())
+      await shelves.seen(person)
+      return await fn(request, shelves, person)
     } catch (error) {
       return failure(error)
     }

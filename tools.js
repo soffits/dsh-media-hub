@@ -1,7 +1,9 @@
 /**
  * The assistant's Video Sync tool: open a room on local media, a library show,
  * a web video or playlist (Link, through yt-dlp) or a work from a configured source and get the link to send; list and close rooms;
- * list the library; read what was watched (the watch log).
+ * list the library; read what was watched (the watch log); list a person's
+ * book shelf or put a book on it, through the running shelves so the write
+ * takes its turn with the page's.
  *
  * A separate plugin entry from the room service (index.js), so reloading
  * that row never unregisters the tool: the service is looked up as
@@ -23,15 +25,17 @@ export const Config = z.object({
 export const PARAMETERS = Object.freeze({
   type: 'object',
   properties: {
-    action: { type: 'string', enum: ['start', 'list', 'close', 'library', 'history', 'annotate'], description: 'start opens a room and returns its link; list shows open rooms; close ends one; library lists the shows in the library; annotate keeps a recap or suggested next steps with a library show (by path), shown on the page\'s Continue card; history says what was watched, with whom, and where each viewer stopped.' },
-    source: { type: 'string', description: 'start: local (files on this machine; a library show continues where its viewers stopped), link (a web video or playlist yt-dlp can read, by url), or the id of a configured source (see the panel\'s search tabs) to watch one of its works by id. For link and sources the room opens at once, the episode being watched is downloaded first, then the next few.' },
-    id: { type: 'string', description: 'start, a source: the work id (from that source\'s search).' },
+    action: { type: 'string', enum: ['start', 'list', 'close', 'library', 'history', 'annotate', 'shelf'], description: 'start opens a room and returns its link; list shows open rooms; close ends one; library lists the shows in the library; annotate keeps a recap or suggested next steps with a library show (by path), shown on the page\'s Continue card; history says what was watched, with whom, and where each viewer stopped; shelf lists a person\'s books, and with source, id and format first puts that book on their shelf (fetched in the background; one book per call, so a series is one call per volume).' },
+    person: { type: 'string', description: 'shelf: whose shelf, by their sign-in id or the name they sign in with. May be left out when only one person has a shelf.' },
+    format: { type: 'string', description: 'shelf: the file format to put on the shelf (epub, pdf, azw3...), one the source offers or one the converter makes from it.' },
+    source: { type: 'string', description: 'shelf: the book source\'s id, with id and format to add a book. start: local (files on this machine; a library show continues where its viewers stopped), link (a web video or playlist yt-dlp can read, by url), or the id of a configured source (see the panel\'s search tabs) to watch one of its works by id. For link and sources the room opens at once, the episode being watched is downloaded first, then the next few.' },
+    id: { type: 'string', description: 'start, a source, and shelf: the work id (from that source\'s search).' },
     offline: { type: 'boolean', description: 'start, a source: keep every episode on disk (large). By default only the episode being watched and the next few are kept, and watched ones are deleted as the room moves on.' },
     days: { type: 'integer', minimum: 1, description: 'history: how far back, default 30.' },
     path: { type: 'string', description: 'start, local: absolute path of one video or of a folder of episodes (numbered files play in natural order). Subtitles next to a video with the same name (.srt, .ass, .vtt, also name.zh.srt) are added. Videos browsers cannot play or seek well are remuxed or transcoded first. annotate: the show\'s path as library lists it.' },
     url: { type: 'string', description: 'start, link: the page of a video, or of a playlist whose videos become episodes. A video inside a playlist plays alone.' },
     quality: { type: 'string', description: 'start, link: auto (default: the best up to the hub\'s height limit), a height such as 720, or audio.' },
-    title: { type: 'string', description: 'start: room title; defaults to the video or folder name.' },
+    title: { type: 'string', description: 'start: room title; defaults to the video or folder name. shelf: the book\'s title, shown until the source gives its own.' },
     room: { type: 'string', description: 'close: the room id.' },
     recap: {
       type: ['object', 'null'],
@@ -56,7 +60,7 @@ export const PARAMETERS = Object.freeze({
   additionalProperties: false,
 })
 
-const DESCRIPTION = 'Video Sync: watch a video together. Each viewer streams their own copy in the DSH Web UI\'s Video Sync page, and play, pause, seek and episode changes stay in sync. start opens a room (a local file or episode folder, a library show, a web video or playlist, or a work from a configured source) and returns a link anyone signed in to this DSH can open; send it to them. history reads the watch log: shows watched, episodes finished, where each viewer stopped, with whom and when. annotate keeps a spoiler-free recap or suggested next steps with a library show.'
+const DESCRIPTION = 'Video Sync: watch a video together. Each viewer streams their own copy in the DSH Web UI\'s Video Sync page, and play, pause, seek and episode changes stay in sync. start opens a room (a local file or episode folder, a library show, a web video or playlist, or a work from a configured source) and returns a link anyone signed in to this DSH can open; send it to them. history reads the watch log: shows watched, episodes finished, where each viewer stopped, with whom and when. annotate keeps a spoiler-free recap or suggested next steps with a library show. shelf lists the books on a person\'s shelf in the Books tab, or puts a book there for them.'
 
 const failure = (code, message) => ({ ok: false, error: { code, message } })
 
@@ -107,6 +111,37 @@ function libraryView(library) {
   }
 }
 
+/** A person's shelf for the assistant: each book with where its file stands. */
+export function shelfView(person, shelf) {
+  return {
+    person,
+    used: shelf.usedBytes,
+    books: shelf.entries.map(entry => ({
+      title: entry.title,
+      ...(entry.author ? { author: entry.author } : {}),
+      format: entry.format,
+      source: entry.source,
+      id: entry.id,
+      state: entry.state,
+      ...(entry.error ? { error: entry.error } : {}),
+      ...(entry.bytes ? { bytes: entry.bytes } : {}),
+      ...(entry.converted ? { converted: true } : {}),
+    })),
+  }
+}
+
+async function shelfAction(service, args, agentName) {
+  const books = service.books
+  const key = books.shelfOf(args.person ?? '')
+  const adding = args.id !== undefined || args.format !== undefined
+  let added
+  if (adding) {
+    if (typeof args.source !== 'string' || typeof args.id !== 'string' || typeof args.format !== 'string') return failure('invalid_arguments', 'shelf adds a book with source, id and format together')
+    added = await books.add(key, { source: args.source, id: args.id, format: args.format.toLowerCase(), title: args.title ?? '', by: agentName })
+  }
+  return { ok: true, ...(added ? { added: { title: added.title, format: added.format, state: added.state } } : {}), ...shelfView(args.person ?? '', await books.list(key)) }
+}
+
 /** @returns {object} the tool definition */
 export function createTool({ getService, agentName = '', waitSeconds = 120 }) {
   return {
@@ -129,7 +164,8 @@ export function createTool({ getService, agentName = '', waitSeconds = 120 }) {
           if (typeof args.path !== 'string') return failure('invalid_arguments', 'annotate needs path, a show in the library')
           return service.annotate(args.path, { recap: args.recap, steps: args.steps })
         }
-        if (args.action !== 'start') return failure('invalid_arguments', 'action must be start, list, close, library, history or annotate')
+        if (args.action === 'shelf') return await shelfAction(service, args, agentName)
+        if (args.action !== 'start') return failure('invalid_arguments', 'action must be start, list, close, library, history, annotate or shelf')
         let room
         if (args.source === undefined || args.source === 'local') {
           ({ room } = await service.createRoom({ path: args.path, title: args.title, by: agentName, together: true }))

@@ -12601,7 +12601,7 @@ Content-Length: 0\r
 
 // src/media.js
 import { spawn as spawn5 } from "node:child_process";
-import { createHash as createHash7 } from "node:crypto";
+import { createHash as createHash8 } from "node:crypto";
 import { statfs as statfs2, stat as stat10 } from "node:fs/promises";
 import { join as join17, resolve as resolve7 } from "node:path";
 
@@ -12967,7 +12967,7 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
 
 // src/books.js
 import { spawn as spawn4 } from "node:child_process";
-import { createHash as createHash5, randomUUID } from "node:crypto";
+import { createHash as createHash6, randomUUID } from "node:crypto";
 import { mkdir as mkdir7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat7 } from "node:fs/promises";
 import { extname as extname6, join as join12 } from "node:path";
 
@@ -12977,6 +12977,17 @@ var CONVERT_INPUTS = Object.freeze(["epub", "azw3", "mobi", "fb2", "docx", "txt"
 function convertBase(formats) {
   const have = new Set((formats ?? []).map((entry) => entry.format));
   return CONVERT_INPUTS.find((format) => have.has(format)) ?? null;
+}
+
+// src/people.js
+import { createHash as createHash5 } from "node:crypto";
+var OWNER = "owner";
+function personOf(identityService) {
+  const identity = typeof identityService?.current === "function" ? identityService.current() : null;
+  if (identity === null || typeof identity?.id !== "string" || identity.id === "") return { key: OWNER, id: "", name: "", verified: false };
+  const key = createHash5("sha256").update(`${identity.issuer ?? ""}
+${identity.id}`).digest("hex").slice(0, 20);
+  return { key, id: identity.id, name: typeof identity.name === "string" ? identity.name.slice(0, 80) : "", verified: true };
 }
 
 // src/books.js
@@ -12996,7 +13007,7 @@ var MAX_ENTRIES = 2e3;
 var CONVERT_TIMEOUT_MS = 10 * 6e4;
 var CONCURRENCY = 2;
 var ENTRY = /^[0-9a-f-]{36}$/;
-var fileKey = (source, id, format) => createHash5("sha256").update(`${source}
+var fileKey = (source, id, format) => createHash6("sha256").update(`${source}
 ${id}
 ${format}`).digest("hex").slice(0, 24);
 function attachment(name2) {
@@ -13029,7 +13040,7 @@ function runConverter(command, input, output) {
 }
 function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, changed = () => {
 }, now = Date.now }) {
-  let state = { files: {}, shelves: {} };
+  let state = { files: {}, shelves: {}, people: {} };
   const stateFile = join12(dir, STATE_FILE);
   const saver = createJsonSaver(stateFile, logger);
   const running = /* @__PURE__ */ new Map();
@@ -13143,7 +13154,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
   return {
     async load() {
       const { value } = await readJson2(stateFile, { logger, valid: (loaded) => typeof loaded?.files === "object" && loaded.files !== null && typeof loaded.shelves === "object" && loaded.shelves !== null });
-      if (value !== void 0) state = value;
+      if (value !== void 0) state = { people: {}, ...value };
       for (const [key, file] of Object.entries(state.files)) {
         if (file.state === "fetching") start(key, file);
         else if (file.state === "ready" && !await stat7(join12(dir, "files", key, file.name ?? "")).then((info) => info.isFile(), () => false)) state.files[key] = { ...file, state: "removed", name: null };
@@ -13163,6 +13174,40 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
         const folder = join12(dir, "files", name2);
         if (await stat7(folder).then((info) => info.mtimeMs > savedAt, () => false)) await rm6(folder, { recursive: true, force: true });
       }
+    },
+    /**
+     * Note who a verified person is, so their shelf can be found by name; saved only when it changed.
+     * @param {{ key: string, id: string, name: string, verified: boolean }} person - from `personOf`
+     */
+    async seen(person) {
+      if (!person.verified) return;
+      const known2 = state.people[person.key];
+      if (known2?.id === person.id && known2?.name === person.name) return;
+      state.people[person.key] = { id: person.id, name: person.name };
+      await save();
+    },
+    /**
+     * The shelf key of a named person: their sign-in id, or the name they sign in with (any case), as seen on
+     * their own requests. Without anyone seen and no one's shelf but the owner's, the single owner's shelf; an empty
+     * name is the only person seen.
+     */
+    shelfOf(name2 = "") {
+      const people = Object.entries(state.people);
+      const known2 = people.map(([, person]) => person.name ? `${person.name} (${person.id})` : person.id).join(", ");
+      if (people.length === 0) {
+        if (Object.keys(state.shelves).every((key) => key === OWNER)) return OWNER;
+        throw codedError("not_found", "no shelf has been opened signed in since the hub learned names; ask the person to open the Books tab once");
+      }
+      const wanted = String(name2).trim().normalize("NFKC").toLowerCase();
+      if (wanted === "") {
+        if (people.length === 1) return people[0][0];
+        throw codedError("invalid", `name the person: ${known2}`);
+      }
+      const byId = people.filter(([, person]) => person.id.toLowerCase() === wanted);
+      const matches2 = byId.length > 0 ? byId : people.filter(([, person]) => person.name.normalize("NFKC").toLowerCase() === wanted);
+      if (matches2.length === 1) return matches2[0][0];
+      if (matches2.length > 1) throw codedError("invalid", `${name2} names several people; use their sign-in id: ${known2}`);
+      throw codedError("not_found", `no shelf known for ${name2}; a person's shelf is known once they have opened it signed in. Known: ${known2}`);
     },
     async list(person) {
       return {
@@ -13239,7 +13284,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
 }
 
 // src/covers.js
-import { createHash as createHash6 } from "node:crypto";
+import { createHash as createHash7 } from "node:crypto";
 import { mkdir as mkdir8, open as open3, readdir as readdir6, rename as rename5, rm as rm7, stat as stat8, utimes } from "node:fs/promises";
 import { join as join13 } from "node:path";
 
@@ -13274,7 +13319,7 @@ function imageType(head) {
   if (head.length >= 12 && head.subarray(0, 4).toString("latin1") === "RIFF" && head.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
   return null;
 }
-var keyOf2 = (...parts) => createHash6("sha256").update(parts.join("\n")).digest("hex").slice(0, 32);
+var keyOf2 = (...parts) => createHash7("sha256").update(parts.join("\n")).digest("hex").slice(0, 32);
 var coverKey = (sourceId, url) => keyOf2(sourceId, url);
 async function grabFrame(input, output, at, { ffmpeg }) {
   const frame = ["-map", "0:V:0", "-frames:v", "1", "-vf", `scale=-2:${FRAME_HEIGHT}`, "-q:v", "5", "-f", "image2", "-c:v", "mjpeg", output];
@@ -15376,7 +15421,7 @@ ${work.id}`) || foldersFor(sourceId, work).some((path) => logged.has(path)));
   }
   function foldersFor(sourceId, work) {
     const name2 = cleanName(work.title ?? "");
-    const mark = createHash7("sha256").update(`${sourceId}
+    const mark = createHash8("sha256").update(`${sourceId}
 ${work.id}`).digest("hex").slice(0, 8);
     return [name2, `${name2} (${mark})`].map((candidate) => join17(libraryRoots[0], candidate));
   }
@@ -15636,17 +15681,6 @@ ${work.id}`).digest("hex").slice(0, 8);
   };
 }
 
-// src/people.js
-import { createHash as createHash8 } from "node:crypto";
-var OWNER = "owner";
-function personOf(identityService) {
-  const identity = typeof identityService?.current === "function" ? identityService.current() : null;
-  if (identity === null || typeof identity?.id !== "string" || identity.id === "") return { key: OWNER, id: "", name: "", verified: false };
-  const key = createHash8("sha256").update(`${identity.issuer ?? ""}
-${identity.id}`).digest("hex").slice(0, 20);
-  return { key, id: identity.id, name: typeof identity.name === "string" ? identity.name.slice(0, 80) : "", verified: true };
-}
-
 // src/person-routes.js
 var PERSON_PATH = "/api/media-hub";
 var json = (status, body2) => new Response(JSON.stringify(body2), { status, headers: { ...SECURITY_HEADERS, "content-type": "application/json; charset=utf-8" } });
@@ -15753,7 +15787,9 @@ function createShelfRoutes({ books, identity }) {
     const shelves = books();
     if (shelves === void 0) return json(503, { error: { code: "unavailable", message: "The shelf is starting." } });
     try {
-      return await fn(request, shelves, personOf(identity()));
+      const person = personOf(identity());
+      await shelves.seen(person);
+      return await fn(request, shelves, person);
     } catch (error) {
       return failure2(error);
     }
