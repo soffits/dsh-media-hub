@@ -78,3 +78,24 @@ test('the history speaks of a single video without episodes', () => {
   assert.deepEqual(done.stopped, { Ana: 'finished' })
   assert.deepEqual(historyView({ ...base, episodes: 9, episodesFinished: [1, 2], stoppedAt: { Ana: { episode: 3, position: 60, finished: false } } }).stopped, { Ana: 'ep 3 at 1:00' })
 })
+
+test('shelf lists a named person\'s books, and adds one first when given source, id and format', async () => {
+  const calls = []
+  const entries = [{ entry: 'e1', title: 'Book', author: 'A', format: 'epub', source: 'lib', id: 'w1', state: 'ready', error: null, bytes: 10, converted: false }]
+  const books = {
+    shelfOf: (name) => {
+      calls.push(['shelfOf', name])
+      if (name === 'nobody') throw Object.assign(new Error('no shelf known for nobody'), { code: 'not_found' })
+      return 'key-ann'
+    },
+    add: async (key, input) => { calls.push(['add', key, input]); return { title: 'Book 2', format: 'pdf', state: 'fetching' } },
+    list: async (key) => { calls.push(['list', key]); return { entries, usedBytes: 10 } },
+  }
+  const tool = createTool({ getService: () => ({ books }), agentName: 'Helper' })
+  assert.deepEqual(await tool.execute({ action: 'shelf', person: 'Ann' }), { ok: true, person: 'Ann', used: 10, books: [{ title: 'Book', author: 'A', format: 'epub', source: 'lib', id: 'w1', state: 'ready', bytes: 10 }] })
+  const added = await tool.execute({ action: 'shelf', person: 'Ann', source: 'lib', id: 'w2', format: 'PDF', title: 'Book 2' })
+  assert.deepEqual(added.added, { title: 'Book 2', format: 'pdf', state: 'fetching' })
+  assert.deepEqual(calls.find(call => call[0] === 'add'), ['add', 'key-ann', { source: 'lib', id: 'w2', format: 'pdf', title: 'Book 2', by: 'Helper' }])
+  assert.equal((await tool.execute({ action: 'shelf', person: 'Ann', id: 'w2' })).error.code, 'invalid_arguments')
+  assert.equal((await tool.execute({ action: 'shelf', person: 'nobody' })).error.code, 'not_found')
+})

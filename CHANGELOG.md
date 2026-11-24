@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0
+
+- The assistant can list a person's book shelf and put a book on it: `videosync` with `action: shelf`, the person's sign-in id or name, and optionally a book's source, id and format. It goes through the hub like a tap in the page, so it never races the page's own saves. A person's shelf is known by name once they have opened it signed in.
+
 ## 0.16.4
 
 - An update now reaches a page that is already open, as 0.16.2 meant it to: the page swaps to the new version within a second, stays on the tab or room it showed, and never runs old and new code side by side. 0.16.2's version of this waited for parts of the plugin that an update touching only the page never reloads, so open pages (an iPhone home-screen app most of all, which is rarely restarted) kept the old version until a reload.
