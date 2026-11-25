@@ -69,8 +69,8 @@ async function bootDsh() {
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_SOURCE_SAMPLE: sample, FAKE_YTDLP_SAMPLE: sample, FAKE_YTDLP_LOG: join(root, 'yt-dlp-calls.jsonl'), FAKE_SOURCE_DELAY_MS: '2500', FAKE_SOURCE_SLOW_KIND: 'drama', FAKE_SOURCE_SLOW_MS: '3000', DSH_HOME: join(root, 'home'), DSH_TELEMETRY_DISABLED: '1', DEEPSEEK_API_KEY: 'sk-placeholder' }
   execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `link:${plugin}`], { env, cwd: root, stdio: 'ignore' })
   // The page draws with the shared kit (client.js injects `uiKit` and waits for it), so the kit is installed at the version this checkout is built against.
-  const kitVersion = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).devDependencies['@soffits/dsh-ui-kit']
-  execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `@soffits/dsh-ui-kit@${kitVersion}`], { env, cwd: root, stdio: 'ignore' })
+  const kitVersion = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).devDependencies['@soffits/dsh-plugin-sdk']
+  execFileSync('dsh', ['plugin', '--profile', 'web', 'add', `@soffits/dsh-plugin-sdk@${kitVersion}`], { env, cwd: root, stdio: 'ignore' })
   // Every outbound request and yt-dlp call goes to a proxy that is down: nothing in the test reaches the network.
   writeFileSync(join(env.DSH_HOME, 'profiles/web/cordis.patch.yml'), JSON.stringify([{ id: 'media-hub', config: { proxies: [{ url: DEAD_PROXY, hosts: ['*'] }] } }]))
   const port = 40000 + Math.floor(Math.random() * 20000)

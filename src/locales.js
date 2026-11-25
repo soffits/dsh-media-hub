@@ -1,7 +1,7 @@
 /** The page's words, read from `locale/<tag>.json` by the shared kit: every file there is a language, so adding one needs no code. */
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readLocales } from '@soffits/dsh-host-kit'
+import { readLocales } from '@soffits/dsh-plugin-sdk/host'
 
 /** The plugin's locale folder, beside src/ and dist/ alike. */
 export const LOCALE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../locale')

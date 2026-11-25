@@ -9,7 +9,7 @@
  * service, which the assistant's tool (tools.js) looks up at call time.
  */
 import { join, resolve } from 'node:path'
-import { createEventStreams } from '@soffits/dsh-host-kit'
+import { createEventStreams } from '@soffits/dsh-plugin-sdk/host'
 import { WebSocketServer } from 'ws'
 import { Config } from './src/config.js'
 import { createDelivery } from './src/delivery.js'

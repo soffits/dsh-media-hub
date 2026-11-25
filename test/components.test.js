@@ -18,12 +18,15 @@ test('every DSH component the page takes exists in the oldest DSH it supports', 
 
 test('every kit piece the page takes is in the kit version it needs, and every icon it names is bundled', () => {
   let registration
-  vm.runInNewContext(read('../node_modules/@soffits/dsh-ui-kit/client.js'), { window: { __ModuleLoader__: { load: (value) => { registration = value } } }, console })
+  vm.runInNewContext(read('../node_modules/@soffits/dsh-plugin-sdk/client.js'), { window: { __ModuleLoader__: { load: (value) => { registration = value } } }, console })
   const react = { createElement: () => null, useState: v => [v, () => {}], useEffect: () => {}, useRef: v => ({ current: v }), useLayoutEffect: () => {}, useCallback: f => f, useSyncExternalStore: (s, get) => get() }
   const kitModule = registration.factory(id => (id === 'react' ? react : new Proxy({}, { get: (_, name) => name })))
   let kit
-  kitModule.apply({ effect: () => {}, locale: { register: () => () => {}, bind: () => key => key, subscribe: () => () => {}, getSnapshot: () => ({ active: 'en' }) }, provide: (name, value) => { kit = value }, inject: () => {} })
-  for (const name of used('K')) assert.ok(name in kit, `${name} is not in @soffits/dsh-ui-kit`)
+  // The SDK's browser module starts its parts as child plugins; uiKit is the one this page takes.
+  const ctx = { effect: () => {}, slots: { inject: () => {}, register: () => () => {} }, locale: { register: () => () => {}, bind: () => key => key, subscribe: () => () => {}, getSnapshot: () => ({ active: 'en' }) }, provide: (name, value) => { if (name === 'uiKit') kit = value }, inject: () => {} }
+  ctx.plugin = part => part.apply(ctx)
+  kitModule.apply(ctx)
+  for (const name of used('K')) assert.ok(name in kit, `${name} is not in @soffits/dsh-plugin-sdk`)
   const icons = [...new Set([...page.matchAll(/K\.Icon, \{ name: '([a-z0-9-]+)'/g), ...page.matchAll(/K\.Tile, \{ icon: '([a-z0-9-]+)'/g), ...page.matchAll(/'(bell-ring|bell-plus)'/g)].map(m => m[1]))]
   assert.ok(icons.length > 3)
   for (const icon of icons) assert.ok(kit.ICON_NAMES.includes(icon), `the kit bundles no ${icon} icon`)
