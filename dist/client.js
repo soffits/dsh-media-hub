@@ -32,7 +32,7 @@ window.__ModuleLoader__.load({
      * browser keeps the first module it loaded from an address for the life of the page. Being part of this bundle,
      * it makes an update of any page file an update of the browser half, which DSH swaps into open pages.
      */
-    const BUILD = "c129d671d993"
+    const BUILD = "e421058c6e1b"
     const web = name => new URL(`media-hub/web/${BUILD}/${name}`, document.baseURI).href
 
     /**
@@ -55,7 +55,7 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * "Ask" through @soffits/dsh-ui-actions (ctx.uiActions), when it is installed: a new conversation with the
+     * "Ask" through @soffits/dsh-plugin-sdk (ctx.uiActions), when it is installed: a new conversation with the
      * item attached as a card. `source` names this plugin on the card; set in apply.
      */
     let uiActions = null

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.1
+
+- The page pieces and shared helpers now come from `@soffits/dsh-plugin-sdk`, which replaced `@soffits/dsh-ui-kit`, `@soffits/dsh-ui-actions` and `@soffits/dsh-host-kit`; the page asks the profile for that package first. Install `@soffits/dsh-plugin-sdk` in the profile alongside this plugin.
+
 ## 0.17.0
 
 - The assistant can list a person's book shelf and put a book on it: `videosync` with `action: shelf`, the person's sign-in id or name, and optionally a book's source, id and format. It goes through the hub like a tap in the page, so it never races the page's own saves. A person's shelf is known by name once they have opened it signed in.

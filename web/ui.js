@@ -15,7 +15,7 @@ export let Changes
 export let Known
 /** DSH's own components (@deepseek-ai/dsh-client-ui-primitives): Button, Tag, StateDot, SegmentedTabs, icons. */
 export let P
-/** The shared kit (@soffits/dsh-ui-kit, ctx.uiKit): Surface, Segments, Tile, Icon, TimeAgo, Suggested, TOUCH. */
+/** The shared kit (@soffits/dsh-plugin-sdk, ctx.uiKit): Surface, Segments, Tile, Icon, TimeAgo, Suggested, TOUCH. */
 export let K
 
 /** Called once by client.js with the page's React, DSH's components and the kit before any view renders. */
@@ -95,7 +95,7 @@ export async function asPersonPaying(path, body) {
 export const shelfUrl = (path = '') => personUrl(`shelf${path}`)
 export const shelf = (path = '', body) => request(shelfUrl(path), body === undefined ? {} : { method: 'POST', body: JSON.stringify(body) })
 
-/** Opens a conversation about an item (set by client.js; `available` is false without @soffits/dsh-ui-actions). */
+/** Opens a conversation about an item (set by client.js; `available` is false without @soffits/dsh-plugin-sdk). */
 let chat = null
 export function setChat(value) { chat = value }
 export const canChat = () => chat?.available() === true

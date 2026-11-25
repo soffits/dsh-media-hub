@@ -8972,7 +8972,7 @@ var require_build = __commonJS({
 // index.js
 import { join as join18, resolve as resolve8 } from "node:path";
 
-// node_modules/@soffits/dsh-host-kit/src/locales.js
+// node_modules/@soffits/dsh-plugin-sdk/host/src/locales.js
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 var BASE = "en";
@@ -8998,7 +8998,7 @@ async function readLocales(dir, { warn = () => {
   return locales;
 }
 
-// node_modules/@soffits/dsh-host-kit/src/notices.js
+// node_modules/@soffits/dsh-plugin-sdk/host/src/notices.js
 function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
   const listeners = /* @__PURE__ */ new Set();
   let pending = [];
@@ -9050,7 +9050,7 @@ function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
   };
 }
 
-// node_modules/@soffits/dsh-host-kit/src/event-streams.js
+// node_modules/@soffits/dsh-plugin-sdk/host/src/event-streams.js
 function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
   const open4 = /* @__PURE__ */ new Set();
   function respond(request, start) {

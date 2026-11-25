@@ -55,7 +55,7 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * "Ask" through @soffits/dsh-ui-actions (ctx.uiActions), when it is installed: a new conversation with the
+     * "Ask" through @soffits/dsh-plugin-sdk (ctx.uiActions), when it is installed: a new conversation with the
      * item attached as a card. `source` names this plugin on the card; set in apply.
      */
     let uiActions = null

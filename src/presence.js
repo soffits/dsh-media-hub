@@ -7,7 +7,7 @@
  *   recap    a summary without spoilers kept with a show, written from outside (the tool's `annotate`)
  *
  * and the suggested next steps kept with a show (also written through `annotate`), drawn by
- * @soffits/dsh-ui-actions. The parsing and choosing here is pure; `recommend` runs the extension.
+ * @soffits/dsh-plugin-sdk. The parsing and choosing here is pure; `recommend` runs the extension.
  */
 import { resultOf } from './sources/command.js'
 import { codedError } from './errors.js'

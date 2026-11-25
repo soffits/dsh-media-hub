@@ -9,7 +9,7 @@ import { json } from './person-routes.js'
 export const EVENTS_PATH = '/api/media-hub/events'
 
 /**
- * @param {{ hub: () => { listenChanges: Function } | undefined, streams: ReturnType<import('@soffits/dsh-host-kit').createEventStreams> }} options
+ * @param {{ hub: () => { listenChanges: Function } | undefined, streams: ReturnType<import('@soffits/dsh-plugin-sdk/host').createEventStreams> }} options
  *   streams: the open event streams, ended when the plugin unloads
  */
 export function createEventsRoute({ hub, streams }) {
