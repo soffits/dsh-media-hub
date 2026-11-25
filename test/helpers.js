@@ -107,7 +107,7 @@ export async function viewer(url, clientId, name) {
 }
 
 /**
- * The points plugin's `points` service as the hub sees it (@soffits/dsh-points): `players` maps a person to their
+ * The points plugin's `points` service as the hub sees it (the points page of @soffits/dsh-companion-pages): `players` maps a person to their
  * balance; `buy` stands for the person's yes in the plugin's dialog. Every call is in `calls`.
  */
 export function fakePoints(players) {

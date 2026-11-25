@@ -1,5 +1,5 @@
 /**
- * Extras a person's points pay for. Watching stays free; with the points plugin (@soffits/dsh-points) installed,
+ * Extras a person's points pay for. Watching stays free; with the points plugin (the points page of @soffits/dsh-companion-pages) installed,
  * two extras cost points for the people it plays with:
  *
  * - a new series: a series (more than one episode) the hub has never had, neither in the library nor in the watch

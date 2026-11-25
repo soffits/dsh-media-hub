@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.2
+
+- The page loads after `@soffits/dsh-companion-pages`, which now carries the points dialog (the `points` service keeps its name).
+
 ## 0.17.1
 
 - The page pieces and shared helpers now come from `@soffits/dsh-plugin-sdk`, which replaced `@soffits/dsh-ui-kit`, `@soffits/dsh-ui-actions` and `@soffits/dsh-host-kit`; the page asks the profile for that package first. Install `@soffits/dsh-plugin-sdk` in the profile alongside this plugin.

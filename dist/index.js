@@ -12260,7 +12260,7 @@ var Config = Schema.object({
   notifyCommand: Schema.array(Schema.string()).default([]).description("A command (program and fixed arguments) run when a followed work gets a new season or new episodes, with one line of JSON describing it on its standard input. Empty means nothing is run."),
   presence: Presence.default({ continue: true, recap: false, ratings: false, picks: false }).description("What the Watching tab shows besides the open rooms and the library. Each part can be switched on or off."),
   recommender: Recommender.default({ command: [], env: {} }).description("Where picks come from: a recommender extension. The hub has no taste of its own."),
-  bingeNight: BingeNight.default({ from: "01:00", to: "06:00" }).description("Starting to watch in this window is a binge night, an extra that costs points for the people the points plugin (@soffits/dsh-points) plays with, like starting a series new to the hub. Without that plugin every extra is free."),
+  bingeNight: BingeNight.default({ from: "01:00", to: "06:00" }).description("Starting to watch in this window is a binge night, an extra that costs points for the people the points plugin (the points page of @soffits/dsh-companion-pages) plays with, like starting a series new to the hub. Without that plugin every extra is free."),
   ffmpeg: Schema.string().default("ffmpeg").description("ffmpeg command."),
   ffprobe: Schema.string().default("ffprobe").description("ffprobe command."),
   ytDlp: Schema.string().default("yt-dlp").description("yt-dlp command. Link reads and downloads web videos and playlists with it; without it Link is hidden. Its own config file applies."),

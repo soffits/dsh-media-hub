@@ -64,7 +64,7 @@ window.__ModuleLoader__.load({
       available: () => uiActions !== null,
       start: about => uiActions?.chat({ source: '@soffits/dsh-media-hub', sourceName: sourceName(), ...about }),
     }
-    /** The points plugin's offer (ctx.points from @soffits/dsh-points), when it is installed. */
+    /** The points plugin's offer (ctx.points from the points page of @soffits/dsh-companion-pages), when it is installed. */
     let pointsService = null
     const points = {
       available: () => pointsService !== null,

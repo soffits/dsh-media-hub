@@ -73,7 +73,7 @@ export const post = (path, body) => api(path, { method: 'POST', body: JSON.strin
 const personUrl = path => new URL(`api/media-hub/${path}`, document.baseURI)
 export const asPerson = (path, body, init = {}) => request(personUrl(path), body === undefined ? init : { ...init, method: 'POST', body: JSON.stringify(body) })
 
-/** The points plugin's offer (ctx.points from @soffits/dsh-points, set by client.js; `available` is false without it). */
+/** The points plugin's offer (ctx.points from the points page of @soffits/dsh-companion-pages, set by client.js; `available` is false without it). */
 let points = null
 export function setPoints(value) { points = value }
 

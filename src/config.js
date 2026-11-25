@@ -168,7 +168,7 @@ export const Config = z.object({
   recommender: Recommender.default({ command: [], env: {} })
     .description('Where picks come from: a recommender extension. The hub has no taste of its own.'),
   bingeNight: BingeNight.default({ from: '01:00', to: '06:00' })
-    .description('Starting to watch in this window is a binge night, an extra that costs points for the people the points plugin (@soffits/dsh-points) plays with, like starting a series new to the hub. Without that plugin every extra is free.'),
+    .description('Starting to watch in this window is a binge night, an extra that costs points for the people the points plugin (the points page of @soffits/dsh-companion-pages) plays with, like starting a series new to the hub. Without that plugin every extra is free.'),
   ffmpeg: z.string().default('ffmpeg').description('ffmpeg command.'),
   ffprobe: z.string().default('ffprobe').description('ffprobe command.'),
   ytDlp: z.string().default('yt-dlp')
