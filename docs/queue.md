@@ -39,3 +39,4 @@
 - A book being brought to the device when an update swaps the page in shows as not on the device in the new page; the download carries on in the old code and lands in Cache Storage, so the book shows as on the device the next time the page opens. *rare*
 - A page handed over in a swap reopens its panel through the same 5 s retry as a room link; a phone that needs longer to fetch the new build's words is left on the conversation. *rare*
 - A page whose network is down at the moment DSH tells it of an update (the `rebuilt` frame arrives, the bundle fetch fails) keeps the old build until its event stream reconnects or the page reloads: DSH does not retry a failed reload of a browser half. Upstream (dsh-client-modules). *rare*
+- A text file of chapter titles and no body is not called blank (only whitespace is); a book source that writes such shells needs its own check. *rare*

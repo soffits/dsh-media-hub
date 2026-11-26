@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.2
+
+- A book that arrives empty is no longer counted as finished and no longer stays on the shelf. A source that fails quietly (a zero-byte file, a text file of only whitespace, an epub whose chapters hold nothing but titles) now leaves the entry marked failed with the reason, nothing on disk, and the retry button to fetch it again. A copy already saved that turns out to be empty is cleared the same way when the plugin starts.
+
 ## 0.17.1
 
 - The page pieces and shared helpers now come from `@soffits/dsh-plugin-sdk`, which replaced `@soffits/dsh-ui-kit`, `@soffits/dsh-ui-actions` and `@soffits/dsh-host-kit`; the page asks the profile for that package first. Install `@soffits/dsh-plugin-sdk` in the profile alongside this plugin.

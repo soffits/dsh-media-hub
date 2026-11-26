@@ -24,7 +24,7 @@
  * epub and txt, one only in txt) and appends its filter flags to
  * FAKE_SOURCE_LOG; `info` of a book id lists its formats; `download
  * --format F` writes one small file `<title>.<F>` (an epub is a zip, so it
- * starts with PK).
+ * starts with PK). FAKE_SOURCE_BLANK makes it write a zero-byte file, as a source does that fails quietly.
  */
 import { createHash } from 'node:crypto'
 import { deflateSync, crc32 } from 'node:zlib'
@@ -109,7 +109,7 @@ if (command === 'search' && BOOK_KINDS.includes(flag('--kind'))) {
   mkdirSync(dir, { recursive: true })
   await sleep(delay)
   const name = `${book.title}.${format}`
-  const body = format === 'epub' ? Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(`epub of ${book.title}`)]) : Buffer.from(`${book.title}\n${book.author}\n`)
+  const body = process.env.FAKE_SOURCE_BLANK ? Buffer.alloc(0) : format === 'epub' ? Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.from(`epub of ${book.title}`)]) : Buffer.from(`${book.title}\n${book.author}\n`)
   writeFileSync(join(dir, `.${name}.part`), body)
   renameSync(join(dir, `.${name}.part`), join(dir, name))
   const file = { name, bytes: body.length, sha256: createHash('sha256').update(body).digest('hex') }

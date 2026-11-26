@@ -3277,7 +3277,7 @@ var require_stream = __commonJS({
       };
       duplex._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open4() {
+          ws.once("open", function open5() {
             duplex._final(callback);
           });
           return;
@@ -3298,7 +3298,7 @@ var require_stream = __commonJS({
       };
       duplex._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open4() {
+          ws.once("open", function open5() {
             duplex._write(chunk, encoding, callback);
           });
           return;
@@ -9052,7 +9052,7 @@ function createNotices({ settleMs = 0, spacingMs = 0 } = {}) {
 
 // node_modules/@soffits/dsh-plugin-sdk/host/src/event-streams.js
 function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
-  const open4 = /* @__PURE__ */ new Set();
+  const open5 = /* @__PURE__ */ new Set();
   function respond(request, start) {
     const encoder = new TextEncoder();
     let finish = () => {
@@ -9075,7 +9075,7 @@ function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
           if (!live) return;
           live = false;
           clearInterval(beat);
-          open4.delete(end);
+          open5.delete(end);
           request.signal?.removeEventListener?.("abort", end);
           stop();
         };
@@ -9086,7 +9086,7 @@ function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
           } catch {
           }
         };
-        open4.add(end);
+        open5.add(end);
         request.signal?.addEventListener?.("abort", end, { once: true });
         if (request.signal?.aborted) return end();
         write2("retry: 5000\n: open\n\n");
@@ -9117,7 +9117,7 @@ function createEventStreams({ heartbeatMs = 25e3, headers = {} } = {}) {
     respond,
     /** End every open stream (the plugin is going away). */
     close() {
-      for (const end of [...open4]) end();
+      for (const end of [...open5]) end();
     }
   };
 }
@@ -12602,7 +12602,7 @@ Content-Length: 0\r
 // src/media.js
 import { spawn as spawn5 } from "node:child_process";
 import { createHash as createHash8 } from "node:crypto";
-import { statfs as statfs2, stat as stat10 } from "node:fs/promises";
+import { statfs as statfs2, stat as stat11 } from "node:fs/promises";
 import { join as join17, resolve as resolve7 } from "node:path";
 
 // src/downloads.js
@@ -12968,8 +12968,80 @@ function createCache({ library, downloads, rooms, window: size, logger }) {
 // src/books.js
 import { spawn as spawn4 } from "node:child_process";
 import { createHash as createHash6, randomUUID } from "node:crypto";
-import { mkdir as mkdir7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat7 } from "node:fs/promises";
+import { mkdir as mkdir7, readdir as readdir5, rename as rename4, rm as rm6, stat as stat8 } from "node:fs/promises";
 import { extname as extname6, join as join12 } from "node:path";
+
+// src/blank.js
+import { open as open3, readFile as readFile7, stat as stat7 } from "node:fs/promises";
+import { inflateRawSync } from "node:zlib";
+var MIN_TEXT_CHARS = 200;
+var MAX_ZIP_BYTES = 64 * 1024 * 1024;
+var END_OF_DIRECTORY = 101010256;
+var DIRECTORY_ENTRY = 33639248;
+var PARTS = /\.(?:x?html?)$/i;
+var IMAGES = /\.(?:jpe?g|png|gif|webp)$/i;
+var PICTURE_BOOK_IMAGES = 4;
+var readableLength = (text3) => text3.replace(/<[^>]*>/g, "").replace(/&#?\w+;/g, " ").replace(/\s+/g, "").length;
+function zipEntries(buffer) {
+  let end = -1;
+  for (let at2 = buffer.length - 22; at2 >= Math.max(0, buffer.length - 22 - 65535); at2--) {
+    if (buffer.readUInt32LE(at2) === END_OF_DIRECTORY) {
+      end = at2;
+      break;
+    }
+  }
+  if (end === -1) return null;
+  const count2 = buffer.readUInt16LE(end + 10);
+  let at = buffer.readUInt32LE(end + 16);
+  const entries = [];
+  for (let i = 0; i < count2; i++) {
+    if (at + 46 > buffer.length || buffer.readUInt32LE(at) !== DIRECTORY_ENTRY) return null;
+    const method = buffer.readUInt16LE(at + 10);
+    const size = buffer.readUInt32LE(at + 20);
+    const local = buffer.readUInt32LE(at + 42);
+    const nameLength = buffer.readUInt16LE(at + 28);
+    const name2 = buffer.toString("utf8", at + 46, at + 46 + nameLength);
+    entries.push({
+      name: name2,
+      read() {
+        const data = local + 30 + buffer.readUInt16LE(local + 26) + buffer.readUInt16LE(local + 28);
+        const body2 = buffer.subarray(data, data + size);
+        return method === 0 ? body2 : inflateRawSync(body2);
+      }
+    });
+    at += 46 + nameLength + buffer.readUInt16LE(at + 30) + buffer.readUInt16LE(at + 32);
+  }
+  return entries;
+}
+async function epubIsBlank(path) {
+  try {
+    const entries = zipEntries(await readFile7(path));
+    if (entries === null || entries.filter((entry) => IMAGES.test(entry.name)).length >= PICTURE_BOOK_IMAGES) return false;
+    return !entries.filter((entry) => PARTS.test(entry.name)).some((part) => readableLength(part.read().toString("utf8")) >= MIN_TEXT_CHARS);
+  } catch {
+    return false;
+  }
+}
+async function textIsBlank(path) {
+  const handle = await open3(path);
+  try {
+    const chunk = Buffer.alloc(64 * 1024);
+    for (let position = 0; ; position += chunk.length) {
+      const { bytesRead } = await handle.read(chunk, 0, chunk.length, position);
+      if (bytesRead === 0) return true;
+      if (/\S/.test(chunk.toString("utf8", 0, bytesRead))) return false;
+    }
+  } finally {
+    await handle.close();
+  }
+}
+async function isBlankBook(path, format) {
+  const { size } = await stat7(path);
+  if (size === 0) return true;
+  if (format === "txt") return textIsBlank(path);
+  if (format === "epub" && size <= MAX_ZIP_BYTES) return epubIsBlank(path);
+  return false;
+}
 
 // src/formats.js
 var CONVERT_TARGETS = Object.freeze(["epub", "azw3", "mobi", "pdf", "txt", "docx", "fb2"]);
@@ -13106,14 +13178,25 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
         await rm6(join12(scratch, downloaded), { force: true });
         converted = true;
       }
+      if (await isBlankBook(join12(scratch, name2), format)) throw codedError("empty", `${work.title || id} came back as ${format} with nothing to read in it; the source gave an empty book`);
       const target = join12(dir, "files", key);
       await rm6(target, { recursive: true, force: true });
       await mkdir7(join12(dir, "files"), { recursive: true });
       await rename4(scratch, target);
       const path = join12(target, name2);
-      return { name: name2, bytes: (await stat7(path)).size, sha256: await sha256Of(path), converted, title: work.title, author: work.author, cover: work.cover };
+      return { name: name2, bytes: (await stat8(path)).size, sha256: await sha256Of(path), converted, title: work.title, author: work.author, cover: work.cover };
     } finally {
       await rm6(scratch, { recursive: true, force: true });
+    }
+  }
+  async function checkReady(key, file) {
+    const path = join12(dir, "files", key, file.name ?? "");
+    if (!await stat8(path).then((info) => info.isFile(), () => false)) {
+      state.files[key] = { ...file, state: "removed", name: null };
+    } else if (await isBlankBook(path, file.format ?? extname6(path).slice(1))) {
+      logger.warn("books: %s:%s kept an empty %s; removed it", file.source, file.id, file.format);
+      await rm6(join12(dir, "files", key), { recursive: true, force: true });
+      state.files[key] = { ...file, state: "failed", error: "the saved book had nothing to read in it; fetch it again", name: null, bytes: null, sha256: null };
     }
   }
   function pump() {
@@ -13157,7 +13240,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
       if (value !== void 0) state = { people: {}, ...value };
       for (const [key, file] of Object.entries(state.files)) {
         if (file.state === "fetching") start(key, file);
-        else if (file.state === "ready" && !await stat7(join12(dir, "files", key, file.name ?? "")).then((info) => info.isFile(), () => false)) state.files[key] = { ...file, state: "removed", name: null };
+        else if (file.state === "ready") await checkReady(key, file);
       }
       await rm6(join12(dir, "tmp"), { recursive: true, force: true });
       await this.sweep();
@@ -13167,12 +13250,12 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
      * before its save: deleted. An older one stays: its record was lost with a damaged shelves file, set aside to restore.
      */
     async sweep() {
-      const savedAt = await stat7(stateFile).then((info) => info.mtimeMs, () => null);
+      const savedAt = await stat8(stateFile).then((info) => info.mtimeMs, () => null);
       if (savedAt === null) return;
       for (const name2 of await readdir5(join12(dir, "files")).catch(() => [])) {
         if (state.files[name2] !== void 0) continue;
         const folder = join12(dir, "files", name2);
-        if (await stat7(folder).then((info) => info.mtimeMs > savedAt, () => false)) await rm6(folder, { recursive: true, force: true });
+        if (await stat8(folder).then((info) => info.mtimeMs > savedAt, () => false)) await rm6(folder, { recursive: true, force: true });
       }
     },
     /**
@@ -13285,7 +13368,7 @@ function createBooks({ dir, sources, capBytes = 0, converter, covers, logger, ch
 
 // src/covers.js
 import { createHash as createHash7 } from "node:crypto";
-import { mkdir as mkdir8, open as open3, readdir as readdir6, rename as rename5, rm as rm7, stat as stat8, utimes } from "node:fs/promises";
+import { mkdir as mkdir8, open as open4, readdir as readdir6, rename as rename5, rm as rm7, stat as stat9, utimes } from "node:fs/promises";
 import { join as join13 } from "node:path";
 
 // src/limit.js
@@ -13359,7 +13442,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
     const files = [];
     for (const name2 of await readdir6(dir).catch(() => [])) {
       if (!name2.endsWith(".img")) continue;
-      const info = await stat8(join13(dir, name2)).catch(() => null);
+      const info = await stat9(join13(dir, name2)).catch(() => null);
       if (info !== null) files.push({ name: name2, size: info.size, used: info.mtimeMs });
     }
     let total = files.reduce((sum, file) => sum + file.size, 0);
@@ -13374,9 +13457,9 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
     const partial = join13(dir, `.${key}.part`);
     try {
       await makers[entry.by](entry, partial);
-      const info = await stat8(partial);
+      const info = await stat9(partial);
       if (info.size === 0 || info.size > maxFileBytes) throw new Error(`the picture is ${info.size} bytes`);
-      const handle = await open3(partial, "r");
+      const handle = await open4(partial, "r");
       const head = Buffer.alloc(12);
       try {
         await handle.read(head, 0, 12, 0);
@@ -13402,7 +13485,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
     },
     /** The route of a still of the media file `file`, `at` seconds in; a changed file gets a new one. */
     async ofFrame(file, at = 3) {
-      const info = await stat8(file).catch(() => null);
+      const info = await stat9(file).catch(() => null);
       if (info === null || !info.isFile()) return null;
       return remember(keyOf2("frame", file, info.size, info.mtimeMs, at), { by: "frame", file, at });
     },
@@ -13414,7 +13497,7 @@ function createCovers({ dir, capBytes = 5e7, maxFileBytes = 2e6, concurrency = 3
       if (!KEY.test(key)) return null;
       const file = join13(dir, `${key}.img`);
       const cached = async () => {
-        const handle = await open3(file, "r").catch(() => null);
+        const handle = await open4(file, "r").catch(() => null);
         if (handle === null) return null;
         try {
           const head = Buffer.alloc(12);
@@ -14201,7 +14284,7 @@ function createRoomService(options) {
 }
 
 // src/watchlog.js
-import { appendFile, readFile as readFile7 } from "node:fs/promises";
+import { appendFile, readFile as readFile8 } from "node:fs/promises";
 var LOG_NAME = "watch-log.jsonl";
 var isWatching = (type) => /^(?:room|viewer|episode)\./.test(type) || type === "position";
 function isNearEnd(position, duration) {
@@ -14220,7 +14303,7 @@ function createWatchLog({ file, now = Date.now, logger }) {
     await tail;
     let text3 = "";
     try {
-      text3 = await readFile7(file, "utf8");
+      text3 = await readFile8(file, "utf8");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -14330,7 +14413,7 @@ function createJournal({ log, library, now = Date.now }) {
 }
 
 // src/shows.js
-import { mkdir as mkdir10, readFile as readFile8, readdir as readdir7, rename as rename6, rm as rm8, stat as stat9, statfs, writeFile as writeFile4 } from "node:fs/promises";
+import { mkdir as mkdir10, readFile as readFile9, readdir as readdir7, rename as rename6, rm as rm8, stat as stat10, statfs, writeFile as writeFile4 } from "node:fs/promises";
 import { basename as basename5, dirname as dirname8, extname as extname7, join as join15, resolve as resolve6 } from "node:path";
 
 // src/presence.js
@@ -14492,13 +14575,13 @@ function createLibrary(options) {
     return showPath(episodePath) ?? showPath(dirname8(episodePath));
   }
   async function episodeFiles(path) {
-    const info = await stat9(path).catch(() => null);
+    const info = await stat10(path).catch(() => null);
     if (info === null) return null;
     if (info.isFile()) return isMedia(basename5(path)) ? [{ name: basename5(path), size: info.size, mtimeMs: info.mtimeMs }] : null;
     const files = [];
     for (const name2 of naturalSort(await readdir7(path).catch(() => []))) {
       if (!isMedia(name2)) continue;
-      const file = await stat9(join15(path, name2)).catch(() => null);
+      const file = await stat10(join15(path, name2)).catch(() => null);
       if (file?.isFile()) files.push({ name: name2, size: file.size, mtimeMs: file.mtimeMs });
     }
     return files;
@@ -14511,16 +14594,16 @@ function createLibrary(options) {
     options.changed?.();
   }
   async function folderBytes(path) {
-    const info = await stat9(path).catch(() => null);
+    const info = await stat10(path).catch(() => null);
     if (info === null) return 0;
     if (info.isFile()) return info.size;
     let total = 0;
-    for (const name2 of await readdir7(path).catch(() => [])) total += (await stat9(join15(path, name2)).catch(() => null))?.size ?? 0;
+    for (const name2 of await readdir7(path).catch(() => [])) total += (await stat10(join15(path, name2)).catch(() => null))?.size ?? 0;
     return total;
   }
   async function forgetSum(show, file) {
     const sums = join15(show, SUMS);
-    const text3 = await readFile8(sums, "utf8").catch(() => null);
+    const text3 = await readFile9(sums, "utf8").catch(() => null);
     if (text3 !== null) await writeFile4(sums, text3.split("\n").filter((line) => !line.endsWith(`  ${file}`) && !line.endsWith(` *${file}`)).join("\n"));
   }
   const note = (type, path, fields = {}) => options.record?.(type, { show: path, title: basename5(path), ...fields });
@@ -14576,7 +14659,7 @@ function createLibrary(options) {
     return slots[index].n;
   }
   async function describe(path) {
-    const info = await stat9(path).catch(() => null);
+    const info = await stat10(path).catch(() => null);
     if (info === null) return null;
     const files = await episodeFiles(path);
     const state = download(path);
@@ -14809,7 +14892,7 @@ function createLibrary(options) {
     },
     async removeEpisode(path, name2, { by = null } = {}) {
       const target = requireShow(path);
-      if ((await stat9(target)).isFile()) return this.remove(target, { by });
+      if ((await stat10(target)).isFile()) return this.remove(target, { by });
       if (inUse(target)) throw codedError("in_use", "a room is playing this show; close the room first");
       const file = cleanName(name2);
       if (!isMedia(file)) throw codedError("invalid", "not an episode");
@@ -14825,11 +14908,11 @@ function createLibrary(options) {
       const target = requireShow(path);
       if (inUse(target)) throw codedError("in_use", "a room is playing this show; close the room first");
       if (download(target)?.active) throw codedError("in_use", "this show is still downloading");
-      const isFile = (await stat9(target)).isFile();
+      const isFile = (await stat10(target)).isFile();
       const clean = cleanName(name2);
       const next = join15(dirname8(target), isFile && extname7(clean) === "" ? `${clean}${extname7(target)}` : clean);
       if (next === target) return { path: target };
-      if (await stat9(next).then(() => true, () => false)) throw codedError("exists", "a show with that name is already in the library");
+      if (await stat10(next).then(() => true, () => false)) throw codedError("exists", "a show with that name is already in the library");
       await rename6(target, next);
       if (meta[target] !== void 0) {
         meta[next] = meta[target];
@@ -14896,7 +14979,7 @@ function createLibrary(options) {
       for (const path of Object.keys(meta)) {
         const due = deletesAt(path);
         if (due === null || due > now() || inUse(path) || download(path)?.active) continue;
-        if (!await stat9(path).then(() => true, () => false)) {
+        if (!await stat10(path).then(() => true, () => false)) {
           delete meta[path];
           save();
           continue;
@@ -14909,7 +14992,7 @@ function createLibrary(options) {
 }
 
 // src/remarks.js
-import { readFile as readFile9 } from "node:fs/promises";
+import { readFile as readFile10 } from "node:fs/promises";
 import { join as join16 } from "node:path";
 var HOUR_MS = 36e5;
 var DAY_MS2 = 24 * HOUR_MS;
@@ -14918,7 +15001,7 @@ function createRemarks({ source, logger, now = Date.now, danmakuMaxAgeMs = DAY_M
   const flying = /* @__PURE__ */ new Map();
   async function read(file) {
     try {
-      const copy = JSON.parse(await readFile9(file, "utf8"));
+      const copy = JSON.parse(await readFile10(file, "utf8"));
       return Number.isFinite(copy?.at) ? copy : null;
     } catch {
       return null;
@@ -15427,7 +15510,7 @@ ${work.id}`).digest("hex").slice(0, 8);
   }
   async function folderFor(sourceId, item) {
     for (const path of foldersFor(sourceId, item)) {
-      const exists2 = await stat10(path).then(() => true, () => false);
+      const exists2 = await stat11(path).then(() => true, () => false);
       const shows = (await library.list()).shows;
       const owner = shows.find((show) => show.path === path);
       if (!exists2 || owner?.source?.source === sourceId && owner.source.id === item.id) return path;
@@ -15771,11 +15854,11 @@ function createEventsRoute({ hub, streams }) {
 
 // src/shelf-routes.js
 import { createReadStream as createReadStream3 } from "node:fs";
-import { stat as stat11 } from "node:fs/promises";
+import { stat as stat12 } from "node:fs/promises";
 import { Readable as Readable2 } from "node:stream";
 var SHELF_PATH = "/api/media-hub/shelf";
 async function fileResponse(request, { path, name: name2, type }) {
-  const info = await stat11(path).catch(() => null);
+  const info = await stat12(path).catch(() => null);
   if (info === null || !info.isFile()) return json(404, { error: { code: "not_found", message: "the file is gone" } });
   const plan = rangePlan(request.headers.get("range"), info.size);
   const headers = { ...SECURITY_HEADERS, "content-type": type, "content-disposition": attachment(name2), "accept-ranges": "bytes", ...plan.headers };

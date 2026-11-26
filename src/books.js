@@ -23,6 +23,7 @@ import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
+import { isBlankBook } from './blank.js'
 import { codedError } from './errors.js'
 import { convertBase } from './formats.js'
 import { createJsonSaver, readJson } from './json-file.js'
@@ -155,6 +156,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
         await rm(join(scratch, downloaded), { force: true })
         converted = true
       }
+      if (await isBlankBook(join(scratch, name), format)) throw codedError('empty', `${work.title || id} came back as ${format} with nothing to read in it; the source gave an empty book`)
       const target = join(dir, 'files', key)
       await rm(target, { recursive: true, force: true })
       await mkdir(join(dir, 'files'), { recursive: true })
@@ -163,6 +165,18 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
       return { name, bytes: (await stat(path)).size, sha256: await sha256Of(path), converted, title: work.title, author: work.author, cover: work.cover }
     } finally {
       await rm(scratch, { recursive: true, force: true })
+    }
+  }
+
+  /** A ready file that vanished from disk is `removed` (fetched again with a tap); one with nothing to read is `failed`, and deleted. */
+  async function checkReady(key, file) {
+    const path = join(dir, 'files', key, file.name ?? '')
+    if (!await stat(path).then(info => info.isFile(), () => false)) {
+      state.files[key] = { ...file, state: 'removed', name: null }
+    } else if (await isBlankBook(path, file.format ?? extname(path).slice(1))) {
+      logger.warn('books: %s:%s kept an empty %s; removed it', file.source, file.id, file.format)
+      await rm(join(dir, 'files', key), { recursive: true, force: true })
+      state.files[key] = { ...file, state: 'failed', error: 'the saved book had nothing to read in it; fetch it again', name: null, bytes: null, sha256: null }
     }
   }
 
@@ -210,7 +224,7 @@ export function createBooks({ dir, sources, capBytes = 0, converter, covers, log
       // A fetch cut by a restart starts again; a file that vanished from disk is marked removed.
       for (const [key, file] of Object.entries(state.files)) {
         if (file.state === 'fetching') start(key, file)
-        else if (file.state === 'ready' && !await stat(join(dir, 'files', key, file.name ?? '')).then(info => info.isFile(), () => false)) state.files[key] = { ...file, state: 'removed', name: null }
+        else if (file.state === 'ready') await checkReady(key, file)
       }
       await rm(join(dir, 'tmp'), { recursive: true, force: true })
       await this.sweep()
