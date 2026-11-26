@@ -15,9 +15,9 @@ const FAKE = fileURLToPath(new URL('./fixtures/fake-source.mjs', import.meta.url
 const quiet = { warn() {} }
 const covers = { ofSource: (source, url) => (url ? `covers/${source}-x` : null) }
 
-function setup(t, { capBytes = 0, convert = false, log } = {}) {
+function setup(t, { capBytes = 0, convert = false, log, env = {} } = {}) {
   const dir = tempDir()
-  const source = createCommandSource({ id: 'lib', label: 'Lib', kinds: [{ id: 'book', label: 'Books', media: 'book' }], filters: ['language', 'year'], command: [process.execPath, FAKE], env: { FAKE_SOURCE_DELAY_MS: '5', ...(log ? { FAKE_SOURCE_LOG: log } : {}) } }, { logger: quiet, cwd: join(dir, 'cwd') })
+  const source = createCommandSource({ id: 'lib', label: 'Lib', kinds: [{ id: 'book', label: 'Books', media: 'book' }], filters: ['language', 'year'], command: [process.execPath, FAKE], env: { FAKE_SOURCE_DELAY_MS: '5', ...(log ? { FAKE_SOURCE_LOG: log } : {}), ...env } }, { logger: quiet, cwd: join(dir, 'cwd') })
   let converter = { command: '', available: async () => false }
   if (convert) {
     const script = join(dir, 'fake-convert')
@@ -92,6 +92,46 @@ test('past the cap the least recently used files go; their entries stay and can 
   assert.equal(entries.find(one => one.entry === third.entry).state, 'ready')
   await books.retry('ann', first.entry)
   assert.equal((await settled(books, 'ann', first.entry)).state, 'ready')
+})
+
+test('a book that came back empty fails with its reason and leaves nothing on disk; a retry once the source is fine fetches it', async (t) => {
+  const { dir, books } = setup(t, { env: { FAKE_SOURCE_BLANK: '1' } })
+  await books.load()
+  const added = await books.add('ann', { source: 'lib', id: 'zh-1', format: 'txt' })
+  const failed = await settled(books, 'ann', added.entry)
+  assert.equal(failed.state, 'failed')
+  assert.match(failed.error, /nothing to read/)
+  assert.equal(failed.bytes, null)
+  assert.equal((await books.list('ann')).usedBytes, 0)
+  assert.equal(await books.file('ann', added.entry), null)
+  assert.ok(!existsSync(join(dir, 'books', 'files')), 'no copy of an empty book stays')
+  assert.deepEqual(readdirSync(join(dir, 'books', 'tmp')), [], 'no scratch folder stays')
+
+  const fine = createBooks({ dir: join(dir, 'books'), sources: new Map([['lib', createCommandSource({ id: 'lib', label: 'Lib', kinds: [{ id: 'book', label: 'Books', media: 'book' }], command: [process.execPath, FAKE], env: { FAKE_SOURCE_DELAY_MS: '5' } }, { logger: quiet, cwd: join(dir, 'cwd') })]]), converter: { command: '', available: async () => false }, covers, logger: quiet })
+  t.after(() => fine.dispose())
+  await books.dispose()
+  await fine.load()
+  await fine.retry('ann', added.entry)
+  const ready = await settled(fine, 'ann', added.entry)
+  assert.deepEqual([ready.state, ready.error], ['ready', null])
+  assert.equal(readFileSync((await fine.file('ann', added.entry)).path, 'utf8'), '红楼梦\n曹雪芹\n')
+})
+
+test('a saved book that turns out to be empty is not kept as finished after a restart', async (t) => {
+  const { dir, books, source } = setup(t)
+  await books.load()
+  const added = await books.add('ann', { source: 'lib', id: 'zh-1', format: 'txt' })
+  const ready = await settled(books, 'ann', added.entry)
+  const path = join(dir, 'books', 'files', readdirSync(join(dir, 'books', 'files'))[0], ready.name)
+  await books.dispose()
+  writeFileSync(path, '\n  \n')
+  const again = createBooks({ dir: join(dir, 'books'), sources: new Map([['lib', source]]), converter: { command: '', available: async () => false }, covers, logger: quiet })
+  t.after(() => again.dispose())
+  await again.load()
+  const [entry] = (await again.list('ann')).entries
+  assert.deepEqual([entry.state, entry.name, entry.bytes], ['failed', null, null])
+  assert.match(entry.error, /nothing to read/)
+  assert.deepEqual(readdirSync(join(dir, 'books', 'files')), [])
 })
 
 test('shelves survive a restart; a fetch cut short starts again', async (t) => {
